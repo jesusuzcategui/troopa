@@ -1,0 +1,13 @@
+name = "light"
+
+[colors]
+fg = "#2A2722"
+bg = "#F6F1E7"
+accent = "#B56A12"
+muted = "#6F6A60"
+selected = "#E8DCC6"
+status = "#E4D9C4"
+error = "#B42318"
+diff_add = "#3D6B2F"
+diff_del = "#B42318"
+diff_hunk = "#2A5A8C"

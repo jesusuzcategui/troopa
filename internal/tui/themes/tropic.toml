@@ -1,0 +1,13 @@
+name = "tropic"
+
+[colors]
+fg = "#E6F4EE"
+bg = "#10211C"
+accent = "#3DDC97"
+muted = "#7AA394"
+selected = "#1B3A32"
+status = "#16302A"
+error = "#F07178"
+diff_add = "#3DDC97"
+diff_del = "#F07178"
+diff_hunk = "#7EB8FF"

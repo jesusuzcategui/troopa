@@ -1,0 +1,4 @@
+{"version": 2, "width": 100, "height": 24, "timestamp": 1762360000, "env": {"SHELL": "/bin/zsh", "TERM": "xterm-256color"}}
+[0.0, "o", "Troopa  ·  proyectos\r\n\r\n  No hay proyectos. Pulsa n para crear uno.\r\n"]
+[0.4, "o", "Ctrl+K paleta · n nuevo · enter tablero · t tema · ? ayuda · q salir\r\n"]
+[1.2, "o", "\r\n(asciinema rec docs/demo.cast — then run troopa)\r\n"]

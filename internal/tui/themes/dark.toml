@@ -1,0 +1,13 @@
+name = "dark"
+
+[colors]
+fg = "#E8E4D9"
+bg = "#1A1916"
+accent = "#E8A838"
+muted = "#8A8374"
+selected = "#2A2823"
+status = "#25231F"
+error = "#E06C75"
+diff_add = "#7A9E5A"
+diff_del = "#E06C75"
+diff_hunk = "#6A9BCF"
