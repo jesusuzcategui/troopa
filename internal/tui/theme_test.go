@@ -78,7 +78,7 @@ func TestWelcomeFirstRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	m := New(s, config.Config{Theme: "dark"}, filepath.Join(dir, "config.json"))
+	m := New(s, config.Config{Theme: "dark"}, filepath.Join(dir, "config.toml"))
 	if m.screen != screenWelcome {
 		t.Fatalf("screen %v", m.screen)
 	}

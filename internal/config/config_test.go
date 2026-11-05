@@ -3,12 +3,12 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestLoadTOMLAgents(t *testing.T) {
 	dir := t.TempDir()
-	jsonPath := filepath.Join(dir, "config.json")
 	tomlPath := filepath.Join(dir, "config.toml")
 	if err := os.WriteFile(tomlPath, []byte(`
 branch_prefix = "acme/"
@@ -22,7 +22,7 @@ args = ["-p", "{{prompt}}"]
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Load(jsonPath)
+	c, err := Load(tomlPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,12 +45,15 @@ args = ["-p", "{{prompt}}"]
 
 func TestSaveThemeAndWelcome(t *testing.T) {
 	dir := t.TempDir()
-	jsonPath := filepath.Join(dir, "config.json")
-	c := Config{Theme: "tropic", WelcomeShown: true}
-	if err := Save(jsonPath, c); err != nil {
+	tomlPath := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(tomlPath, []byte("# my agents\nnotify = false\n\n[agents.pi]\ncommand = \"pi\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := Load(jsonPath)
+	c := Config{Theme: "tropic", WelcomeShown: true}
+	if err := Save(tomlPath, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(tomlPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,14 +63,28 @@ func TestSaveThemeAndWelcome(t *testing.T) {
 	if !got.WelcomeShown {
 		t.Fatal("welcome_shown")
 	}
-	if ThemesDir(jsonPath) != filepath.Join(dir, "themes") {
-		t.Fatalf("themes dir %s", ThemesDir(jsonPath))
+	if got.Launch.Notify || got.Launch.Agents["pi"].Command != "pi" {
+		t.Fatalf("hand-written settings lost: %+v", got.Launch)
+	}
+	raw, _ := os.ReadFile(tomlPath)
+	if !strings.Contains(string(raw), "# my agents") {
+		t.Fatalf("comment lost:\n%s", raw)
+	}
+	c.Theme = "light"
+	if err := Save(tomlPath, c); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ = os.ReadFile(tomlPath)
+	if strings.Count(string(raw), "theme =") != 1 {
+		t.Fatalf("theme duplicated:\n%s", raw)
+	}
+	if ThemesDir(tomlPath) != filepath.Join(dir, "themes") {
+		t.Fatalf("themes dir %s", ThemesDir(tomlPath))
 	}
 }
 
 func TestLoadTOMLPrices(t *testing.T) {
 	dir := t.TempDir()
-	jsonPath := filepath.Join(dir, "config.json")
 	tomlPath := filepath.Join(dir, "config.toml")
 	if err := os.WriteFile(tomlPath, []byte(`
 [prices.default]
@@ -82,7 +99,7 @@ cache = 0.5
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	c, err := Load(jsonPath)
+	c, err := Load(tomlPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,5 +108,19 @@ cache = 0.5
 	}
 	if c.Launch.PriceFor("claude").Input != 1 {
 		t.Fatalf("default fallback %+v", c.Launch.PriceFor("claude"))
+	}
+}
+
+func TestLoadLegacyJSON(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"theme":"tropic","welcome_shown":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(filepath.Join(dir, "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Theme != "tropic" || !c.WelcomeShown {
+		t.Fatalf("legacy config not read: %+v", c)
 	}
 }

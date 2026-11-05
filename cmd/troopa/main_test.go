@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -33,5 +34,26 @@ func TestJSONGolden(t *testing.T) {
 				t.Fatalf("JSON mismatch\n got: %s\nwant: %s", got, want)
 			}
 		})
+	}
+}
+
+func TestHelpAndVersion(t *testing.T) {
+	for _, arg := range []string{"help", "-h", "--help"} {
+		var out, errOut bytes.Buffer
+		if got := run([]string{arg}, &out, &errOut); got != 0 {
+			t.Fatalf("%s: exit code = %d, want 0", arg, got)
+		}
+		if !strings.Contains(out.String(), "Usage:") {
+			t.Fatalf("%s: missing usage, got %q", arg, out.String())
+		}
+	}
+	for _, arg := range []string{"version", "-v", "--version"} {
+		var out, errOut bytes.Buffer
+		if got := run([]string{arg}, &out, &errOut); got != 0 {
+			t.Fatalf("%s: exit code = %d, want 0", arg, got)
+		}
+		if !strings.HasPrefix(out.String(), "troopa ") {
+			t.Fatalf("%s: got %q", arg, out.String())
+		}
 	}
 }

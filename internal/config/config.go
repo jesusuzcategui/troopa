@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
@@ -32,13 +33,17 @@ type Launch struct {
 	Prices       map[string]TokenPrice `toml:"prices"`
 }
 
+// Config is everything Troopa reads from config.toml. Theme and WelcomeShown
+// are written back by the TUI; the rest is edited by hand.
 type Config struct {
-	Theme        string `json:"theme"`
-	WelcomeShown bool   `json:"welcome_shown"`
-	Launch       Launch `json:"-"`
+	Theme        string
+	WelcomeShown bool
+	Launch       Launch
 }
 
 type tomlConfig struct {
+	Theme        string                `toml:"theme"`
+	WelcomeShown bool                  `toml:"welcome_shown"`
 	BranchPrefix string                `toml:"branch_prefix"`
 	Worktrees    string                `toml:"worktrees"`
 	Notify       *bool                 `toml:"notify"`
@@ -105,6 +110,7 @@ func DefaultLaunch(dataDir string) Launch {
 	}
 }
 
+// Load reads config.toml at path. A missing file means defaults.
 func Load(path string) (Config, error) {
 	_, _, dbPath, err := Paths()
 	dataDir := filepath.Dir(dbPath)
@@ -112,19 +118,8 @@ func Load(path string) (Config, error) {
 		dataDir = filepath.Join(os.TempDir(), "troopa")
 	}
 	c := Config{Theme: "dark", Launch: DefaultLaunch(dataDir)}
-	if b, err := os.ReadFile(path); err != nil {
-		if !os.IsNotExist(err) {
-			return Config{}, err
-		}
-	} else {
-		if err := json.Unmarshal(b, &c); err != nil {
-			return Config{}, fmt.Errorf("config: %w", err)
-		}
-		c.Theme = c.NormalizedTheme()
-		c.Launch = DefaultLaunch(dataDir)
-	}
-	tomlPath := TOMLPath(path)
-	raw, err := os.ReadFile(tomlPath)
+	loadLegacyJSON(path, &c)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return c, nil
@@ -134,6 +129,12 @@ func Load(path string) (Config, error) {
 	var t tomlConfig
 	if err := toml.Unmarshal(raw, &t); err != nil {
 		return Config{}, fmt.Errorf("config.toml: %w", err)
+	}
+	if strings.TrimSpace(t.Theme) != "" {
+		c.Theme = strings.TrimSpace(t.Theme)
+	}
+	if t.WelcomeShown {
+		c.WelcomeShown = true
 	}
 	if t.BranchPrefix != "" {
 		c.Launch.BranchPrefix = t.BranchPrefix
@@ -165,28 +166,65 @@ func Load(path string) (Config, error) {
 	return c, nil
 }
 
+// loadLegacyJSON reads theme and welcome flag from the config.json used by
+// early builds, so they survive the move to config.toml.
+func loadLegacyJSON(tomlPath string, c *Config) {
+	b, err := os.ReadFile(filepath.Join(filepath.Dir(tomlPath), "config.json"))
+	if err != nil {
+		return
+	}
+	var legacy struct {
+		Theme        string `json:"theme"`
+		WelcomeShown bool   `json:"welcome_shown"`
+	}
+	if json.Unmarshal(b, &legacy) != nil {
+		return
+	}
+	if strings.TrimSpace(legacy.Theme) != "" {
+		c.Theme = strings.TrimSpace(legacy.Theme)
+	}
+	c.WelcomeShown = legacy.WelcomeShown
+}
+
+// Save writes theme and welcome_shown into config.toml, keeping every other
+// line (agents, prices, comments) as the user wrote it.
 func Save(path string, c Config) error {
 	c.Theme = c.NormalizedTheme()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	b, err := json.MarshalIndent(struct {
-		Theme        string `json:"theme"`
-		WelcomeShown bool   `json:"welcome_shown"`
-	}{Theme: c.Theme, WelcomeShown: c.WelcomeShown}, "", "  ")
-	if err != nil {
+	raw, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	b = append(b, '\n')
-	return os.WriteFile(path, b, 0o644)
+	text := setRootKey(string(raw), "theme", strconv.Quote(c.Theme))
+	text = setRootKey(text, "welcome_shown", strconv.FormatBool(c.WelcomeShown))
+	return os.WriteFile(path, []byte(text), 0o644)
+}
+
+// setRootKey replaces key = ... in the root table (before the first [table])
+// or inserts it at the top of the file.
+func setRootKey(text, key, value string) string {
+	line := key + " = " + value
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "[") {
+			break
+		}
+		if k, _, ok := strings.Cut(trimmed, "="); ok && strings.TrimSpace(k) == key {
+			lines[i] = line
+			return strings.Join(lines, "\n")
+		}
+	}
+	if strings.TrimSpace(text) == "" {
+		return line + "\n"
+	}
+	return line + "\n" + text
 }
 
 func ThemesDir(configPath string) string {
 	return filepath.Join(filepath.Dir(configPath), "themes")
-}
-
-func TOMLPath(jsonPath string) string {
-	return filepath.Join(filepath.Dir(jsonPath), "config.toml")
 }
 
 func Paths() (dataDir, configPath, dbPath string, err error) {
@@ -203,7 +241,7 @@ func Paths() (dataDir, configPath, dbPath string, err error) {
 		cfg = filepath.Join(home, ".config")
 	}
 	dataDir = filepath.Join(data, "troopa")
-	configPath = filepath.Join(cfg, "troopa", "config.json")
+	configPath = filepath.Join(cfg, "troopa", "config.toml")
 	dbPath = filepath.Join(dataDir, "troopa.db")
 	return dataDir, configPath, dbPath, nil
 }

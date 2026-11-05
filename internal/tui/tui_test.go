@@ -18,7 +18,7 @@ func newTestModel(t *testing.T) Model {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	return New(s, config.Config{Theme: "dark", WelcomeShown: true}, filepath.Join(dir, "config.json"))
+	return New(s, config.Config{Theme: "dark", WelcomeShown: true}, filepath.Join(dir, "config.toml"))
 }
 
 func TestQuitKey(t *testing.T) {

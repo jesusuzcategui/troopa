@@ -2,7 +2,7 @@
 
 ## Setup
 
-Go 1.24+ and Git. From the repo root:
+Go 1.26+ and Git. From the repo root:
 
 ```bash
 make test

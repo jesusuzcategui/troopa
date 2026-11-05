@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 
 	"github.com/jesusuzcategui/troopa/internal/cli"
 	"github.com/jesusuzcategui/troopa/internal/config"
@@ -24,7 +25,36 @@ type jsonFailure struct {
 	} `json:"error"`
 }
 
+// version is set at build time (goreleaser: -X main.version=...).
+var version = "dev"
+
+const usage = `Troopa: your AI agent troop in the terminal.
+
+Usage:
+  troopa                              open the interactive TUI
+  troopa <resource> <command> --json  run a non-interactive command
+  troopa help | -h | --help           show this help
+  troopa version | -v | --version     show the version
+
+Resources: project, client, task, run.
+Examples:
+  troopa project list --json
+  troopa task list --json --project 1
+
+Full command reference: docs/cli-json.md
+`
+
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
+
+func buildVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return version
+}
 
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -33,6 +63,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	}
+	if len(args) == 1 {
+		switch args[0] {
+		case "help", "-h", "--help":
+			fmt.Fprint(stdout, usage)
+			return 0
+		case "version", "-v", "--version":
+			fmt.Fprintf(stdout, "troopa %s\n", buildVersion())
+			return 0
+		}
 	}
 	if err := cli.ValidateJSON(args); err != nil {
 		writeError(stdout, "invalid_argument", err.Error())

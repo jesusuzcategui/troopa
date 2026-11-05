@@ -6,7 +6,7 @@ Capturas: [docs/demo.tape](docs/demo.tape) (`vhs docs/demo.tape` → `docs/demo.
 
 ## Instalación
 
-Go 1.24+ y Git.
+Go 1.26+ y Git.
 
 ```bash
 go install github.com/jesusuzcategui/troopa/cmd/troopa@latest
@@ -27,13 +27,12 @@ goreleaser build --snapshot --clean
 ```
 
 Datos: `$XDG_DATA_HOME/troopa/troopa.db` (por defecto `~/.local/share/troopa/`).
-Tema activo: `$XDG_CONFIG_HOME/troopa/config.json`.
-Agentes, worktrees, terminal y precios: `$XDG_CONFIG_HOME/troopa/config.toml`.
+Configuración: `$XDG_CONFIG_HOME/troopa/config.toml` (tema, agentes, worktrees, terminal y precios). Troopa solo reescribe las líneas `theme` y `welcome_shown`; el resto queda como lo escribiste.
 Checks por proyecto: `troopa.toml` en la raíz del repo.
 
 ## Temas
 
-Van tres paletas (`dark`, `light`, `tropic`). `t` las cicla. Ctrl+K → **Elegir tema** o **Crear tema propio** (escribe un TOML en `$XDG_CONFIG_HOME/troopa/themes/`).
+Van tres paletas (`dark`, `light`, `tropic`). `t` las cicla. La paleta de comandos (Ctrl+K) permite elegir uno de la lista o crear una copia del actual en `$XDG_CONFIG_HOME/troopa/themes/`.
 
 ## Agentes
 
