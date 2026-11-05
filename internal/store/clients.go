@@ -50,7 +50,7 @@ func (s *Store) CreateClient(c Client) (Client, error) {
 	c.Contact = strings.TrimSpace(c.Contact)
 	c.Notes = strings.TrimSpace(c.Notes)
 	if c.Name == "" {
-		return Client{}, fmt.Errorf("el nombre es obligatorio")
+		return Client{}, fmt.Errorf("name is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	res, err := s.db.Exec(`INSERT INTO clients (name, contact, notes, archived, created_at, updated_at)
@@ -70,7 +70,7 @@ func (s *Store) UpdateClient(c Client) error {
 	c.Contact = strings.TrimSpace(c.Contact)
 	c.Notes = strings.TrimSpace(c.Notes)
 	if c.Name == "" {
-		return fmt.Errorf("el nombre es obligatorio")
+		return fmt.Errorf("name is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	res, err := s.db.Exec(`UPDATE clients SET name = ?, contact = ?, notes = ?, updated_at = ?
@@ -83,7 +83,7 @@ func (s *Store) UpdateClient(c Client) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("cliente no encontrado")
+		return fmt.Errorf("client not found")
 	}
 	return nil
 }
@@ -99,7 +99,7 @@ func (s *Store) ArchiveClient(id int64) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("cliente no encontrado o ya archivado")
+		return fmt.Errorf("client not found or already archived")
 	}
 	return nil
 }

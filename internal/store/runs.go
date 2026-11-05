@@ -54,7 +54,7 @@ type MetricRow struct {
 
 func (s *Store) CreateRun(r Run) (Run, error) {
 	if r.TaskID == 0 {
-		return Run{}, fmt.Errorf("la tarea es obligatoria")
+		return Run{}, fmt.Errorf("task is required")
 	}
 	if r.State == "" {
 		r.State = RunRunning
@@ -132,7 +132,7 @@ func (s *Store) UpdateRun(r Run) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("ejecución no encontrada")
+		return fmt.Errorf("run not found")
 	}
 	return nil
 }

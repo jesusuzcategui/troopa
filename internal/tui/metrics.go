@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
@@ -18,7 +19,7 @@ import (
 func (m Model) openMetrics() (tea.Model, tea.Cmd) {
 	m.helpFrom = m.screen
 	m.screen = screenMetrics
-	m.status = "esc volver"
+	m.status = i18n.T("esc back")
 	m.err = ""
 	return m, nil
 }
@@ -30,10 +31,10 @@ func (m Model) updateMetricsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "b", "M":
 		if m.helpFrom == screenBoard {
 			m.screen = screenBoard
-			m.status = "n crear  e editar  [ ] mover  m menú  / buscar  f/p filtro  M métricas  esc proyectos"
+			m.status = i18n.T("n new  e edit  [ ] move  m menu  / search  f/p filter  M metrics  esc projects")
 		} else {
 			m.screen = screenList
-			m.status = listStatus
+			m.status = listStatus()
 		}
 	case "?":
 		m.helpFrom = screenMetrics
@@ -47,8 +48,8 @@ func (m Model) viewMetrics() string {
 	agents, errA := m.store.MetricsByAgent()
 	projects, errP := m.store.MetricsByProject()
 	var b strings.Builder
-	b.WriteString(th.Title.Render("Métricas"))
-	b.WriteString(th.Muted.Render("  ·  por agente y por proyecto"))
+	b.WriteString(th.Title.Render(i18n.T("Metrics")))
+	b.WriteString(th.Muted.Render(i18n.T("  ·  by agent and by project")))
 	b.WriteString("\n\n")
 	if errA != nil || errP != nil {
 		err := errA
@@ -59,36 +60,36 @@ func (m Model) viewMetrics() string {
 		return th.App.Render(b.String())
 	}
 	if len(agents) == 0 {
-		b.WriteString(th.Muted.Render("Aún no hay ejecuciones. Lanza un agente (yolo o pareja) y vuelve aquí."))
+		b.WriteString(th.Muted.Render(i18n.T("No runs yet. Launch an agent (yolo or pair) and come back here.")))
 		b.WriteString("\n\n")
 	} else {
-		b.WriteString(th.Muted.Render("Por agente"))
+		b.WriteString(th.Muted.Render(i18n.T("By agent")))
 		b.WriteString("\n")
 		b.WriteString(renderMetricTable(agents, m.width))
 		b.WriteString("\n")
-		b.WriteString(th.Muted.Render("Barras (costo; si no hay, tiempo)"))
+		b.WriteString(th.Muted.Render(i18n.T("Bars (cost; time when there is no cost)")))
 		b.WriteString("\n")
 		b.WriteString(renderBars(agents, max(20, m.width-24)))
 		b.WriteString("\n")
 	}
-	b.WriteString(th.Muted.Render("Por proyecto"))
+	b.WriteString(th.Muted.Render(i18n.T("By project")))
 	b.WriteString("\n")
 	if len(projects) == 0 {
-		b.WriteString(th.Muted.Render("n/d"))
+		b.WriteString(th.Muted.Render(i18n.T("n/a")))
 		b.WriteString("\n")
 	} else {
 		b.WriteString(renderMetricTable(projects, m.width))
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("ctx ini = tokens de entrada de la 1ª petición (n/d si el CLI no lo expone)"))
+	b.WriteString(th.Muted.Render(i18n.T("ctx start = input tokens of the first request (n/a if the CLI does not report it)")))
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("esc volver"))
+	b.WriteString(th.Muted.Render(i18n.T("esc back")))
 	return th.App.Render(b.String())
 }
 
 func renderMetricTable(rows []store.MetricRow, width int) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  %-12s %8s %8s %18s %9s %8s\n", "nombre", "ctx ini", "tiempo", "in/out/caché", "costo", "% ok"))
+	b.WriteString(fmt.Sprintf("  %-12s %8s %8s %18s %9s %8s\n", i18n.T("name"), i18n.T("ctx start"), i18n.T("time"), i18n.T("in/out/cache"), i18n.T("cost"), "% ok"))
 	for _, r := range rows {
 		line := fmt.Sprintf("  %-12s %8s %8s %18s %9s %8s",
 			truncate(r.Key, 12),
@@ -152,14 +153,14 @@ func renderBars(rows []store.MetricRow, width int) string {
 
 func fmtAvg(n sql.NullFloat64) string {
 	if !n.Valid {
-		return "n/d"
+		return i18n.T("n/a")
 	}
 	return fmtCount(int64(math.Round(n.Float64)))
 }
 
 func fmtAvgDuration(n sql.NullFloat64) string {
 	if !n.Valid {
-		return "n/d"
+		return i18n.T("n/a")
 	}
 	return fmtDuration(int64(math.Round(n.Float64)))
 }
@@ -170,21 +171,21 @@ func fmtTokens(in, out, cache sql.NullInt64) string {
 
 func fmtNullInt(n sql.NullInt64) string {
 	if !n.Valid {
-		return "n/d"
+		return i18n.T("n/a")
 	}
 	return fmtCount(n.Int64)
 }
 
 func fmtCost(n sql.NullFloat64) string {
 	if !n.Valid {
-		return "n/d"
+		return i18n.T("n/a")
 	}
 	return fmt.Sprintf("$%.4f", n.Float64)
 }
 
 func fmtPct(approved, runs int) string {
 	if runs == 0 {
-		return "n/d"
+		return i18n.T("n/a")
 	}
 	return fmt.Sprintf("%d%%", approved*100/runs)
 }

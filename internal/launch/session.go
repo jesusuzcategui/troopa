@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -29,11 +30,11 @@ func Prepare(cfg config.Launch, project store.Project, task store.Task) (Session
 	}
 	branch := UniqueBranch(repo, BranchName(cfg.BranchPrefix, task.Type, task.Title))
 	if IsProtected(branch) {
-		return Session{}, fmt.Errorf("la rama %s está protegida", branch)
+		return Session{}, fmt.Errorf("branch %s is protected", branch)
 	}
 	dest := WorktreePath(cfg, project, task)
 	if dest == "" {
-		return Session{}, fmt.Errorf("worktrees sin configurar")
+		return Session{}, fmt.Errorf("worktrees are not configured")
 	}
 	if err := AddWorktree(repo, dest, branch, base); err != nil {
 		return Session{}, err
@@ -63,26 +64,26 @@ func WorktreePath(cfg config.Launch, project store.Project, task store.Task) str
 
 func Approve(sess Session, task store.Task, summary string) (string, error) {
 	if task.Commits == store.CommitsNone {
-		return "Aprobada sin commitear. Worktree: " + sess.Worktree, nil
+		return i18n.T("Approved without committing. Worktree: ") + sess.Worktree, nil
 	}
 	if err := CommitAll(sess.Worktree, "troopa: "+task.Title); err != nil {
 		return "", err
 	}
 	if !HasRemote(sess.Worktree) {
-		return fmt.Sprintf("Aprobada. Rama local %s (sin remoto). Worktree quitado al cerrar no se hace: se conserva hasta descartar.", sess.Branch), nil
+		return i18n.T("Approved. Local branch %s (no remote). The worktree is kept until you discard it.", sess.Branch), nil
 	}
 	if err := PushBranch(sess.Worktree, sess.Branch); err != nil {
 		return "", err
 	}
 	body := summary
 	if body == "" {
-		body = "Hecho con Troopa."
+		body = "Made with Troopa."
 	}
 	url, err := CreatePR(sess.Worktree, sess.Branch, sess.Base, task.Title, body)
 	if err != nil {
-		return "Rama " + sess.Branch + " subida. " + err.Error(), nil
+		return i18n.T("Branch %s pushed. ", sess.Branch) + err.Error(), nil
 	}
-	return "PR abierto: " + url, nil
+	return i18n.T("PR opened: ") + url, nil
 }
 
 func Discard(sess Session) error {

@@ -17,7 +17,7 @@ func BranchName(prefix, typ, title string) string {
 	}
 	slug := store.Slugify(title)
 	if slug == "" {
-		slug = "tarea"
+		slug = "task"
 	}
 	b := typ + "/" + slug
 	if prefix == "" {
@@ -33,10 +33,10 @@ func WriteTASK(dir string, t store.Task) error {
 		b.WriteString(d)
 		b.WriteString("\n\n")
 	}
-	b.WriteString("## Criterios de aceptación\n\n")
+	b.WriteString("## Acceptance criteria\n\n")
 	crit := strings.TrimSpace(t.AcceptanceCriteria)
 	if crit == "" {
-		b.WriteString("- Completar la tarea descrita.\n")
+		b.WriteString("- Complete the task described above.\n")
 	} else {
 		for _, line := range strings.Split(crit, "\n") {
 			line = strings.TrimSpace(line)
@@ -48,18 +48,18 @@ func WriteTASK(dir string, t store.Task) error {
 			fmt.Fprintf(&b, "- %s\n", line)
 		}
 	}
-	b.WriteString("\n## Reglas\n\n")
-	b.WriteString("- Implementa solo lo necesario. No agregues abstracciones de más.\n")
-	b.WriteString("- No toques tests solo para que pasen.\n")
+	b.WriteString("\n## Rules\n\n")
+	b.WriteString("- Implement only what is needed. Do not add extra abstractions.\n")
+	b.WriteString("- Do not change tests just to make them pass.\n")
 	if t.Commits == store.CommitsNone {
-		b.WriteString("- No hagas commits, push ni crees ramas. Deja los cambios sin commitear.\n")
+		b.WriteString("- Do not commit, push or create branches. Leave the changes uncommitted.\n")
 	}
-	b.WriteString("\nLee este archivo y cumple la tarea. Al terminar escribe RESUMEN.md.\n")
+	b.WriteString("\nRead this file and complete the task. When you finish, write SUMMARY.md.\n")
 	return os.WriteFile(filepath.Join(dir, "TASK.md"), []byte(b.String()), 0o644)
 }
 
 func ReadSummary(dir string) string {
-	raw, err := os.ReadFile(filepath.Join(dir, "RESUMEN.md"))
+	raw, err := os.ReadFile(filepath.Join(dir, "SUMMARY.md"))
 	if err != nil {
 		return ""
 	}

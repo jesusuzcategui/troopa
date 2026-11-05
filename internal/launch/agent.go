@@ -58,13 +58,13 @@ func insertModel(args []string, model string) []string {
 func AgentCommand(cfg config.Launch, agent, model, worktree string) (*exec.Cmd, error) {
 	spec, ok := cfg.Agents[agent]
 	if !ok || spec.Command == "" {
-		return nil, fmt.Errorf("no hay comando para el agente %s en config.toml", agent)
+		return nil, fmt.Errorf("no command for agent %s in config.toml", agent)
 	}
 	bin, err := exec.LookPath(spec.Command)
 	if err != nil {
-		return nil, fmt.Errorf("agente %s: %s no está instalado", agent, spec.Command)
+		return nil, fmt.Errorf("agent %s: %s is not installed", agent, spec.Command)
 	}
-	prompt := "Lee TASK.md y cumple la tarea. Al terminar escribe RESUMEN.md."
+	prompt := "Read TASK.md and complete the task. When you finish, write SUMMARY.md."
 	args := ExpandArgs(spec.Args, prompt, model)
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = worktree
@@ -76,21 +76,21 @@ func AgentCommand(cfg config.Launch, agent, model, worktree string) (*exec.Cmd, 
 }
 
 func DefaultPrompt() string {
-	return "Lee TASK.md y cumple la tarea. Al terminar escribe RESUMEN.md."
+	return "Read TASK.md and complete the task. When you finish, write SUMMARY.md."
 }
 
 func PairPrompt() string {
-	return "Lee TASK.md y PAIR.md y trabaja junto a la persona."
+	return "Read TASK.md and PAIR.md and work together with the person."
 }
 
 func SetupPairAgent(cfg config.Launch, agent, model, worktree string) error {
 	spec, ok := cfg.Agents[agent]
 	if !ok || spec.Command == "" {
-		return fmt.Errorf("no hay comando para el agente %s en config.toml", agent)
+		return fmt.Errorf("no command for agent %s in config.toml", agent)
 	}
 	bin, err := exec.LookPath(spec.Command)
 	if err != nil {
-		return fmt.Errorf("agente %s: %s no está instalado", agent, spec.Command)
+		return fmt.Errorf("agent %s: %s is not installed", agent, spec.Command)
 	}
 	args, err := InteractiveArgs(agent, model, PairPrompt())
 	if err != nil {
@@ -126,7 +126,7 @@ func InteractiveArgs(agent, model, prompt string) ([]string, error) {
 		}
 		return append(args, prompt), nil
 	default:
-		return nil, fmt.Errorf("el modo pareja no soporta el agente %s", agent)
+		return nil, fmt.Errorf("pair mode does not support agent %s", agent)
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 
 func InitRepo(path, name string) error {
 	if strings.TrimSpace(path) == "" {
-		return fmt.Errorf("ruta vacía")
+		return fmt.Errorf("empty path")
 	}
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return fmt.Errorf("crear carpeta: %w", err)

@@ -87,14 +87,14 @@ func (s *Store) ListTasks(projectID int64, f TaskFilter) ([]Task, error) {
 	}
 	if st := strings.TrimSpace(f.Status); st != "" {
 		if !oneOf(st, Statuses) {
-			return nil, fmt.Errorf("estado no válido: %s", st)
+			return nil, fmt.Errorf("invalid status: %s", st)
 		}
 		q += ` AND status = ?`
 		args = append(args, st)
 	}
 	if pr := strings.TrimSpace(f.Priority); pr != "" {
 		if !oneOf(pr, Priorities) {
-			return nil, fmt.Errorf("prioridad no válida: %s", pr)
+			return nil, fmt.Errorf("invalid priority: %s", pr)
 		}
 		q += ` AND priority = ?`
 		args = append(args, pr)
@@ -134,10 +134,10 @@ func (s *Store) GetTask(id int64) (Task, error) {
 func (s *Store) CreateTask(t Task) (Task, error) {
 	t = normalizeTask(t)
 	if t.Title == "" {
-		return Task{}, fmt.Errorf("el título es obligatorio")
+		return Task{}, fmt.Errorf("title is required")
 	}
 	if t.ProjectID == 0 {
-		return Task{}, fmt.Errorf("el proyecto es obligatorio")
+		return Task{}, fmt.Errorf("project is required")
 	}
 	if err := validateTaskEnums(t); err != nil {
 		return Task{}, err
@@ -166,14 +166,14 @@ func (s *Store) CreateTask(t Task) (Task, error) {
 func (s *Store) UpdateTask(t Task) error {
 	t = normalizeTask(t)
 	if t.Title == "" {
-		return fmt.Errorf("el título es obligatorio")
+		return fmt.Errorf("title is required")
 	}
 	if err := validateTaskEnums(t); err != nil {
 		return err
 	}
 	cur, err := s.GetTask(t.ID)
 	if err != nil {
-		return fmt.Errorf("tarea no encontrada")
+		return fmt.Errorf("task not found")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	pos := cur.Position
@@ -196,18 +196,18 @@ func (s *Store) UpdateTask(t Task) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("tarea no encontrada")
+		return fmt.Errorf("task not found")
 	}
 	return nil
 }
 
 func (s *Store) MoveTask(id int64, status string) error {
 	if !oneOf(status, Statuses) {
-		return fmt.Errorf("estado no válido: %s", status)
+		return fmt.Errorf("invalid status: %s", status)
 	}
 	cur, err := s.GetTask(id)
 	if err != nil {
-		return fmt.Errorf("tarea no encontrada")
+		return fmt.Errorf("task not found")
 	}
 	if cur.Status == status {
 		return nil
@@ -257,22 +257,22 @@ func normalizeTask(t Task) Task {
 
 func validateTaskEnums(t Task) error {
 	if !oneOf(t.Status, Statuses) {
-		return fmt.Errorf("estado no válido: %s", t.Status)
+		return fmt.Errorf("invalid status: %s", t.Status)
 	}
 	if !oneOf(t.Priority, Priorities) {
-		return fmt.Errorf("prioridad no válida: %s", t.Priority)
+		return fmt.Errorf("invalid priority: %s", t.Priority)
 	}
 	if !oneOf(t.Agent, Agents) {
-		return fmt.Errorf("agente no válido: %s", t.Agent)
+		return fmt.Errorf("invalid agent: %s", t.Agent)
 	}
 	if !oneOf(t.Mode, Modes) {
-		return fmt.Errorf("modo no válido: %s", t.Mode)
+		return fmt.Errorf("invalid mode: %s", t.Mode)
 	}
 	if !oneOf(t.Commits, CommitModes) {
-		return fmt.Errorf("commits no válido: %s", t.Commits)
+		return fmt.Errorf("invalid commits: %s", t.Commits)
 	}
 	if !oneOf(t.Type, Types) {
-		return fmt.Errorf("tipo no válido: %s", t.Type)
+		return fmt.Errorf("invalid type: %s", t.Type)
 	}
 	return nil
 }

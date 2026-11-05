@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -20,7 +21,7 @@ const (
 )
 
 func newClientInputs() []textinput.Model {
-	labels := []string{"Nombre", "Contacto", "Notas"}
+	labels := []string{i18n.T("Name"), i18n.T("Contact"), i18n.T("Notes")}
 	out := make([]textinput.Model, cfCount)
 	for i := range out {
 		ti := textinput.New()
@@ -51,7 +52,7 @@ func (m *Model) openClients() {
 	m.screen = screenClients
 	m.err = ""
 	m.reloadClients()
-	m.status = "n nuevo · e editar · a archivar · enter tablero · F filtrar proyectos · esc volver"
+	m.status = i18n.T("n new · e edit · a archive · enter board · F filter projects · esc back")
 }
 
 func (m Model) updateClientsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -60,7 +61,7 @@ func (m Model) updateClientsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc", "b":
 		m.screen = screenList
-		m.status = listStatus
+		m.status = listStatus()
 		m.reload()
 	case "?":
 		m.helpFrom = screenClients
@@ -81,7 +82,7 @@ func (m Model) updateClientsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		if c, ok := m.selectedClient(); ok {
 			if c.Archived {
-				m.status = "Ya está archivado"
+				m.status = i18n.T("Already archived")
 				break
 			}
 			m.pendingClient = c
@@ -99,7 +100,7 @@ func (m Model) updateClientsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.offset = 0
 			m.screen = screenList
 			m.reload()
-			m.status = "Filtro cliente: " + c.Name
+			m.status = i18n.T("Client filter: ") + c.Name
 		}
 	case "j", "down":
 		m.moveClient(1)
@@ -122,7 +123,7 @@ func (m Model) updateClientsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) openClientBoard(c store.Client) {
-	m.boardProject = store.Project{Name: "Cliente: " + c.Name}
+	m.boardProject = store.Project{Name: i18n.T("Client: ") + c.Name}
 	m.filterClientID = c.ID
 	m.screen = screenBoard
 	m.colIndex = 0
@@ -135,7 +136,7 @@ func (m *Model) openClientBoard(c store.Client) {
 	m.dragID = 0
 	m.err = ""
 	m.reloadTasks()
-	m.status = "Tareas del cliente  C filtro  esc proyectos"
+	m.status = i18n.T("Client tasks  C filter  esc projects")
 }
 
 func (m Model) updateConfirmArchiveClient(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -144,7 +145,7 @@ func (m Model) updateConfirmArchiveClient(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if err := m.store.ArchiveClient(m.pendingClient.ID); err != nil {
 			m.err = err.Error()
 		} else {
-			m.status = "Archivado: " + m.pendingClient.Name
+			m.status = i18n.T("Archived: ") + m.pendingClient.Name
 			m.err = ""
 			if m.filterClientID == m.pendingClient.ID {
 				m.filterClientID = 0
@@ -164,7 +165,7 @@ func (m Model) updateClientFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.screen = screenClients
-		m.status = "Cancelado"
+		m.status = i18n.T("Cancelled")
 		return m, nil
 	case "?":
 		m.helpFrom = screenClientForm
@@ -190,7 +191,7 @@ func (m Model) submitClientForm() (tea.Model, tea.Cmd) {
 		Notes:   strings.TrimSpace(m.clientInputs[cfNotes].Value()),
 	}
 	if c.Name == "" {
-		m.err = "El nombre es obligatorio"
+		m.err = i18n.T("Name is required")
 		return m, nil
 	}
 	var err error
@@ -198,12 +199,12 @@ func (m Model) submitClientForm() (tea.Model, tea.Cmd) {
 		var created store.Client
 		created, err = m.store.CreateClient(c)
 		if err == nil {
-			m.status = "Creado: " + created.Name
+			m.status = i18n.T("Created: ") + created.Name
 		}
 	} else {
 		err = m.store.UpdateClient(c)
 		if err == nil {
-			m.status = "Guardado: " + c.Name
+			m.status = i18n.T("Saved: ") + c.Name
 		}
 	}
 	if err != nil {
@@ -311,7 +312,7 @@ func (m *Model) cycleClientFilter(dir int) {
 	m.cursor = 0
 	m.offset = 0
 	m.reload()
-	m.status = "Filtro cliente: " + m.clientFilterLabel()
+	m.status = i18n.T("Client filter: ") + m.clientFilterLabel()
 }
 
 func (m *Model) cycleFormClient(dir int) {
@@ -340,7 +341,7 @@ func (m Model) clientsForAssign() []store.Client {
 
 func (m Model) clientFilterLabel() string {
 	if m.filterClientID == 0 {
-		return "todos"
+		return i18n.T("all")
 	}
 	c, err := m.store.GetClient(m.filterClientID)
 	if err != nil {
@@ -351,20 +352,20 @@ func (m Model) clientFilterLabel() string {
 
 func (m Model) clientName(id int64) string {
 	if id == 0 {
-		return "sin cliente"
+		return i18n.T("no client")
 	}
 	c, err := m.store.GetClient(id)
 	if err != nil {
-		return "sin cliente"
+		return i18n.T("no client")
 	}
 	return c.Name
 }
 
 func (m Model) viewClients() string {
 	th := m.theme
-	title := th.Title.Render("Troopa") + th.Muted.Render("  ·  clientes")
+	title := th.Title.Render("Troopa") + th.Muted.Render(i18n.T("  ·  clients"))
 	if m.showArchivedCli {
-		title += th.Muted.Render("  (incl. archivados)")
+		title += th.Muted.Render(i18n.T("  (incl. archived)"))
 	}
 	listH := m.listHeight
 	if listH <= 0 {
@@ -374,7 +375,7 @@ func (m Model) viewClients() string {
 	b.WriteString(title)
 	b.WriteString("\n\n")
 	if len(m.clients) == 0 {
-		b.WriteString(th.Muted.Render("  No hay clientes. Pulsa n para crear uno."))
+		b.WriteString(th.Muted.Render(i18n.T("  No clients yet. Press n to create one.")))
 		b.WriteString("\n")
 		return th.App.Render(b.String())
 	}
@@ -386,7 +387,7 @@ func (m Model) viewClients() string {
 			line += "  ·  " + c.Contact
 		}
 		if c.Archived {
-			line += "  [archivado]"
+			line += i18n.T("  [archived]")
 		}
 		style := th.Normal
 		if c.Archived {
@@ -406,20 +407,20 @@ func (m Model) viewClients() string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("enter tablero  F filtrar proyectos  n nuevo  e editar  a archivar  tab archivados  esc volver"))
+	b.WriteString(th.Muted.Render(i18n.T("enter board  F filter projects  n new  e edit  a archive  tab archived  esc back")))
 	return th.App.Render(b.String())
 }
 
 func (m Model) viewClientForm() string {
 	th := m.theme
-	title := "Nuevo cliente"
+	title := i18n.T("New client")
 	if m.editingClientID != 0 {
-		title = "Editar cliente"
+		title = i18n.T("Edit client")
 	}
 	var b strings.Builder
 	b.WriteString(th.Title.Render(title))
 	b.WriteString("\n\n")
-	labels := []string{"Nombre", "Contacto", "Notas"}
+	labels := []string{i18n.T("Name"), i18n.T("Contact"), i18n.T("Notes")}
 	for i, lab := range labels {
 		marker := "  "
 		if clientField(i) == m.clientFocus {
@@ -428,7 +429,7 @@ func (m Model) viewClientForm() string {
 		b.WriteString(marker + th.Label.Render(lab) + " " + m.clientInputs[i].View() + "\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("enter guardar  tab campo  esc cancelar"))
+	b.WriteString(th.Muted.Render(i18n.T("enter save  tab field  esc cancel")))
 	return th.App.Render(b.String())
 }
 

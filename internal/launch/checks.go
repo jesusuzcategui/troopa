@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -62,7 +63,7 @@ func ChecksOK(rs []CheckResult) bool {
 
 func FormatChecks(rs []CheckResult) string {
 	if len(rs) == 0 {
-		return "Sin checks de proyecto (añade checks = [\"…\"] en troopa.toml)."
+		return i18n.T("No project checks (add checks = [\"…\"] to troopa.toml).")
 	}
 	var b strings.Builder
 	for _, r := range rs {

@@ -73,7 +73,7 @@ func TestStartPairFinishAndPause(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(got.runSess.Worktree, "extra.txt"), []byte("n\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(got.runSess.Worktree, "RESUMEN.md"), []byte("listo\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(got.runSess.Worktree, "SUMMARY.md"), []byte("listo\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

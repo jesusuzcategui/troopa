@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -24,7 +25,7 @@ func (m *Model) openBoard(p store.Project) {
 	m.dragID = 0
 	m.err = ""
 	m.reloadTasks()
-	m.status = "n crear  e editar  [ ] mover  m menú  / buscar  f/p filtro  M métricas  esc proyectos"
+	m.status = i18n.T("n new  e edit  [ ] move  m menu  / search  f/p filter  M metrics  esc projects")
 }
 
 func (m *Model) reloadTasks() {
@@ -158,7 +159,7 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc", "b":
 		m.screen = screenList
-		m.status = listStatus
+		m.status = listStatus()
 		m.reload()
 		return m, nil
 	case "?":
@@ -169,18 +170,18 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "C":
 		m.cycleClientFilter(1)
 		m.reloadTasks()
-		m.status = "Filtro cliente: " + m.clientFilterLabel()
+		m.status = i18n.T("Client filter: ") + m.clientFilterLabel()
 	case "M":
 		return m.openMetrics()
 	case "n":
 		if m.boardProject.ID == 0 {
-			m.status = "Abre un proyecto para crear tareas"
+			m.status = i18n.T("Open a project to create tasks")
 			return m, nil
 		}
 		m.quickInput.SetValue("")
 		m.quickInput.Focus()
 		m.screen = screenQuickCreate
-		m.status = "Título y enter para crear en inbox"
+		m.status = i18n.T("Type a title and press enter to add it to inbox")
 		return m, textinput.Blink
 	case "e":
 		if t, ok := m.selectedTask(); ok {
@@ -222,11 +223,11 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "f":
 		m.filterStatus = cycleFilter(m.filterStatus, append([]string{""}, store.Statuses...))
 		m.reloadTasks()
-		m.status = "Filtro estado: " + filterLabel(m.filterStatus)
+		m.status = i18n.T("Status filter: ") + filterLabel(m.filterStatus)
 	case "p":
 		m.filterPriority = cycleFilter(m.filterPriority, append([]string{""}, store.Priorities...))
 		m.reloadTasks()
-		m.status = "Filtro prioridad: " + filterLabel(m.filterPriority)
+		m.status = i18n.T("Priority filter: ") + filterLabel(m.filterPriority)
 	}
 	return m, nil
 }
@@ -250,12 +251,12 @@ func (m Model) updateQuickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.screen = screenBoard
-		m.status = "Cancelado"
+		m.status = i18n.T("Cancelled")
 		return m, nil
 	case "enter":
 		title := strings.TrimSpace(m.quickInput.Value())
 		if title == "" {
-			m.err = "El título es obligatorio"
+			m.err = i18n.T("Title is required")
 			return m, nil
 		}
 		created, err := m.store.CreateTask(store.Task{ProjectID: m.boardProject.ID, Title: title})
@@ -265,7 +266,7 @@ func (m Model) updateQuickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.screen = screenBoard
 		m.err = ""
-		m.status = "Creada: " + created.Title
+		m.status = i18n.T("Created: ") + created.Title
 		m.colIndex = 0
 		m.reloadTasks()
 		col := m.columnTasks(store.StatusInbox)
@@ -291,13 +292,13 @@ func (m Model) updateSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.searchInput.SetValue("")
 		m.screen = screenBoard
 		m.reloadTasks()
-		m.status = "Búsqueda limpia"
+		m.status = i18n.T("Search cleared")
 		return m, nil
 	case "enter":
 		m.search = strings.TrimSpace(m.searchInput.Value())
 		m.screen = screenBoard
 		m.reloadTasks()
-		m.status = "Buscar: " + filterLabel(m.search)
+		m.status = i18n.T("Search: ") + filterLabel(m.search)
 		return m, nil
 	}
 	var cmd tea.Cmd
@@ -424,16 +425,16 @@ func (m Model) viewBoard() string {
 		title += th.Muted.Render("  /" + m.search)
 	}
 	if m.filterStatus != "" {
-		title += th.Muted.Render("  estado:" + m.filterStatus)
+		title += th.Muted.Render(i18n.T("  status:") + m.filterStatus)
 	}
 	if m.filterPriority != "" {
-		title += th.Muted.Render("  pri:" + m.filterPriority)
+		title += th.Muted.Render(i18n.T("  pri:") + m.filterPriority)
 	}
 	if m.filterClientID != 0 {
-		title += th.Muted.Render("  cliente:" + m.clientFilterLabel())
+		title += th.Muted.Render(i18n.T("  client:") + m.clientFilterLabel())
 	}
 	if m.dragging && m.dragOver != "" {
-		title += th.Muted.Render("  soltar:" + m.dragOver)
+		title += th.Muted.Render(i18n.T("  drop:") + m.dragOver)
 	}
 
 	var cols []string
@@ -449,7 +450,7 @@ func (m Model) viewBoard() string {
 		body.WriteString("\n")
 		cards := m.columnTasks(st)
 		if len(cards) == 0 {
-			body.WriteString(th.Muted.Width(colW - 1).Render("  · vacío"))
+			body.WriteString(th.Muted.Width(colW - 1).Render(i18n.T("  · empty")))
 			body.WriteString("\n")
 		}
 		for _, c := range cards {
@@ -485,7 +486,7 @@ func (m Model) viewBoard() string {
 			extra.WriteString("\n")
 		}
 		if sel.AcceptanceCriteria != "" {
-			extra.WriteString(th.Muted.Render("Criterios"))
+			extra.WriteString(th.Muted.Render(i18n.T("Criteria")))
 			extra.WriteString("\n")
 			for _, line := range strings.Split(sel.AcceptanceCriteria, "\n") {
 				line = strings.TrimSpace(line)
@@ -498,27 +499,27 @@ func (m Model) viewBoard() string {
 		}
 		preview = extra.String()
 	}
-	hints := th.Muted.Render("n crear  e editar  [ ] o arrastrar  m menú  / buscar  f estado  p prioridad  C cliente  M métricas  esc volver")
+	hints := th.Muted.Render(i18n.T("n new  e edit  [ ] or drag  m menu  / search  f status  p priority  C client  M metrics  esc back"))
 	return th.App.Render(title + "\n\n" + board + preview + "\n" + hints)
 }
 
 func (m Model) viewQuickCreate() string {
 	th := m.theme
-	return th.App.Render(th.Title.Render("Nueva tarea") + "\n\n  Título  " + m.quickInput.View() + "\n\n" +
-		th.Muted.Render("enter crear  esc cancelar"))
+	return th.App.Render(th.Title.Render(i18n.T("New task")) + i18n.T("\n\n  Title  ") + m.quickInput.View() + "\n\n" +
+		th.Muted.Render(i18n.T("enter create  esc cancel")))
 }
 
 func (m Model) viewSearch() string {
 	th := m.theme
-	return th.App.Render(th.Title.Render("Buscar") + "\n\n  / " + m.searchInput.View() + "\n\n" +
-		th.Muted.Render("escribe para filtrar  enter aplicar  esc limpiar") + "\n\n" + m.viewBoard())
+	return th.App.Render(th.Title.Render(i18n.T("Search")) + "\n\n  / " + m.searchInput.View() + "\n\n" +
+		th.Muted.Render(i18n.T("type to filter  enter apply  esc clear")) + "\n\n" + m.viewBoard())
 }
 
 func (m Model) viewMoveMenu() string {
 	th := m.theme
 	t, _ := m.selectedTask()
 	var b strings.Builder
-	b.WriteString(th.Title.Render("Mover «" + t.Title + "»"))
+	b.WriteString(th.Title.Render(i18n.T("Move «") + t.Title + "»"))
 	b.WriteString("\n\n")
 	for i, st := range store.Statuses {
 		line := fmt.Sprintf("  %d  %s", i+1, st)
@@ -530,7 +531,7 @@ func (m Model) viewMoveMenu() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("1–8 o enter  clic  esc cancelar"))
+	b.WriteString(th.Muted.Render(i18n.T("1–8 or enter  click  esc cancel")))
 	return th.App.Render(b.String())
 }
 
@@ -555,7 +556,7 @@ func cycleValue(cur string, opts []string, dir int) string {
 
 func filterLabel(v string) string {
 	if v == "" {
-		return "todos"
+		return i18n.T("all")
 	}
 	return v
 }

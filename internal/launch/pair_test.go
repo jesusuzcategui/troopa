@@ -72,7 +72,7 @@ func TestPreparePairWritesPAIRAndReusesWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := string(pair)
-	if !strings.Contains(body, "rojo") || !strings.Contains(body, "verde") || !strings.Contains(body, "commits=none") {
+	if !strings.Contains(body, "red") || !strings.Contains(body, "green") || !strings.Contains(body, "commits=none") {
 		t.Fatalf("PAIR.md: %s", body)
 	}
 	taskMD, _ := os.ReadFile(filepath.Join(sess.Worktree, "TASK.md"))
@@ -122,7 +122,7 @@ func TestFinishPairRunsChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(sess.Worktree, "RESUMEN.md"), []byte("hecho\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(sess.Worktree, "SUMMARY.md"), []byte("hecho\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	summary, raw, ok := FinishPair(sess, repo)

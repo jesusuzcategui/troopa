@@ -41,12 +41,12 @@ type Store struct {
 
 func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, fmt.Errorf("crear directorio de datos: %w", err)
+		return nil, fmt.Errorf("create data directory: %w", err)
 	}
 	dsn := "file:" + filepath.ToSlash(path) + "?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("abrir sqlite: %w", err)
+		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	db.SetMaxOpenConns(1)
 	s := &Store{db: db}
@@ -93,7 +93,7 @@ func (s *Store) migrate() error {
 		}
 		if _, err := tx.Exec(string(body)); err != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("migración %s: %w", version, err)
+			return fmt.Errorf("migration %s: %w", version, err)
 		}
 		if _, err := tx.Exec(`INSERT INTO schema_migrations (version) VALUES (?)`, version); err != nil {
 			_ = tx.Rollback()
@@ -151,16 +151,16 @@ func (s *Store) Create(p Project) (Project, error) {
 	p.Stack = strings.TrimSpace(p.Stack)
 	p.Description = strings.TrimSpace(p.Description)
 	if p.Name == "" {
-		return Project{}, fmt.Errorf("el nombre es obligatorio")
+		return Project{}, fmt.Errorf("name is required")
 	}
 	if p.Slug == "" {
 		p.Slug = Slugify(p.Name)
 	}
 	if p.Slug == "" {
-		return Project{}, fmt.Errorf("el slug es obligatorio")
+		return Project{}, fmt.Errorf("slug is required")
 	}
 	if p.RepoPath == "" {
-		return Project{}, fmt.Errorf("la ruta del repo es obligatoria")
+		return Project{}, fmt.Errorf("repo path is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	res, err := s.db.Exec(`INSERT INTO projects (name, slug, repo_path, stack, description, client_id, archived, created_at, updated_at)
@@ -183,13 +183,13 @@ func (s *Store) Update(p Project) error {
 	p.Stack = strings.TrimSpace(p.Stack)
 	p.Description = strings.TrimSpace(p.Description)
 	if p.Name == "" {
-		return fmt.Errorf("el nombre es obligatorio")
+		return fmt.Errorf("name is required")
 	}
 	if p.Slug == "" {
 		p.Slug = Slugify(p.Name)
 	}
 	if p.RepoPath == "" {
-		return fmt.Errorf("la ruta del repo es obligatoria")
+		return fmt.Errorf("repo path is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	res, err := s.db.Exec(`UPDATE projects SET name = ?, slug = ?, repo_path = ?, stack = ?, description = ?, client_id = ?, updated_at = ?
@@ -203,7 +203,7 @@ func (s *Store) Update(p Project) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("proyecto no encontrado")
+		return fmt.Errorf("project not found")
 	}
 	return nil
 }
@@ -219,7 +219,7 @@ func (s *Store) Archive(id int64) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("proyecto no encontrado o ya archivado")
+		return fmt.Errorf("project not found or already archived")
 	}
 	return nil
 }
@@ -229,7 +229,7 @@ func wrapUnique(err error) error {
 		return nil
 	}
 	if strings.Contains(strings.ToLower(err.Error()), "unique") {
-		return fmt.Errorf("ya existe un proyecto con ese slug")
+		return fmt.Errorf("a project with that slug already exists")
 	}
 	return err
 }

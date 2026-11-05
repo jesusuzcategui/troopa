@@ -29,7 +29,7 @@ func ResolveTerminal(configured string) (string, error) {
 			return c, nil
 		}
 	}
-	return "", fmt.Errorf("configura terminal en config.toml (p. ej. kitty -e)")
+	return "", fmt.Errorf("set terminal in config.toml (for example kitty -e)")
 }
 
 func InTmux() bool {
@@ -47,11 +47,11 @@ func PairOpenArgs(inTmux bool, terminal, worktree, script string) []string {
 func OpenPairSession(worktree, terminal string) (PairProc, error) {
 	script := PairScriptPath(worktree)
 	if _, err := os.Stat(script); err != nil {
-		return PairProc{}, fmt.Errorf("falta pair.sh en el worktree")
+		return PairProc{}, fmt.Errorf("pair.sh is missing in the worktree")
 	}
 	if InTmux() {
 		if _, err := lookPath("tmux"); err != nil {
-			return PairProc{}, fmt.Errorf("tmux no está instalado")
+			return PairProc{}, fmt.Errorf("tmux is not installed")
 		}
 		args := PairOpenArgs(true, "", worktree, script)
 		cmd := exec.Command(args[0], args[1:]...)

@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
@@ -56,18 +57,18 @@ func (m Model) applyMove(t store.Task, dest string) (tea.Model, tea.Cmd) {
 			break
 		}
 	}
-	m.status = "Movida a " + dest
+	m.status = i18n.T("Moved to ") + dest
 	m.err = ""
 	return m, nil
 }
 
 func (m Model) startPair(t store.Task) (tea.Model, tea.Cmd) {
 	if active, err := m.store.ActiveRun(); err == nil && active.TaskID != t.ID {
-		m.err = "Ya hay un agente en curso"
+		m.err = i18n.T("An agent is already running")
 		return m, nil
 	}
 	if m.cfg.Launch.Agents == nil {
-		m.err = "config.toml sin agentes"
+		m.err = i18n.T("No agents in config.toml")
 		return m, nil
 	}
 	prev := launch.Session{}
@@ -143,7 +144,7 @@ func (m Model) startPair(t store.Task) (tea.Model, tea.Cmd) {
 	m.runTask = t
 	m.runPair = proc
 	m.screen = screenPair
-	m.status = "Pareja " + t.Agent + " · " + sess.Branch
+	m.status = i18n.T("Pair ") + t.Agent + " · " + sess.Branch
 	m.err = ""
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusInProgress)
@@ -182,13 +183,13 @@ func (m Model) pausePair() (tea.Model, tea.Cmd) {
 		m.runPair.Stop()
 	}
 	m.run.State = store.RunPairPaused
-	m.run.Note = "Sesión en pareja pausada. Enter para retomar."
+	m.run.Note = i18n.T("Pair session paused. Press enter to resume.")
 	_ = m.store.UpdateRun(m.run)
 	_ = m.store.MoveTask(m.run.TaskID, store.StatusPairPaused)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusPairPaused)
-	m.status = "pair-paused · enter para retomar"
+	m.status = i18n.T("pair-paused · enter to resume")
 	m.err = ""
 	m.runPair = launch.PairProc{}
 	return m, nil
@@ -243,7 +244,7 @@ func (m Model) updatePairKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc", "b":
 		m.screen = screenBoard
-		m.status = "Pareja sigue en el terminal"
+		m.status = i18n.T("Pair is still running in the terminal")
 		return m, nil
 	case "f":
 		return m.finishPair()
@@ -256,27 +257,27 @@ func (m Model) updatePairKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) viewPair() string {
 	th := m.theme
 	var b strings.Builder
-	b.WriteString(th.Title.Render("Pareja"))
+	b.WriteString(th.Title.Render(i18n.T("Pair")))
 	b.WriteString(th.Muted.Render("  ·  " + m.run.Branch + "  ·  " + m.run.State))
 	b.WriteString("\n\n")
 	b.WriteString("Worktree  " + m.run.Worktree + "\n")
-	if m.run.Note != "" && !strings.HasPrefix(m.run.Note, "Sesión") {
-		b.WriteString("Sesión    " + m.run.Note + "\n")
+	if m.run.Note != "" && !isPausedNote(m.run.Note) {
+		b.WriteString(i18n.T("Session   ") + m.run.Note + "\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("Lee TASK.md y PAIR.md (TDD: rojo, verde, refactor solo si te lo piden)."))
+	b.WriteString(th.Muted.Render(i18n.T("Read TASK.md and PAIR.md (TDD: red, green, refactor only when asked).")))
 	b.WriteString("\n\n")
-	b.WriteString(th.Muted.Render("f Finish pair  r reabrir agente  esc tablero"))
+	b.WriteString(th.Muted.Render(i18n.T("f finish pair  r reopen agent  esc board")))
 	return th.App.Render(b.String())
 }
 
 func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 	if _, err := m.store.ActiveRun(); err == nil {
-		m.err = "Ya hay un agente en curso"
+		m.err = i18n.T("An agent is already running")
 		return m, nil
 	}
 	if m.cfg.Launch.Agents == nil {
-		m.err = "config.toml sin agentes"
+		m.err = i18n.T("No agents in config.toml")
 		return m, nil
 	}
 	sess, err := launch.Prepare(m.cfg.Launch, m.boardProject, t)
@@ -314,7 +315,7 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 	m.runTask = t
 	m.logOffset = 0
 	m.screen = screenLog
-	m.status = "Agente " + t.Agent + " · " + sess.Branch
+	m.status = i18n.T("Agent ") + t.Agent + " · " + sess.Branch
 	m.err = ""
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusInProgress)
@@ -428,18 +429,18 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 				return m.pausePair()
 			}
 			m.screen = screenPair
-			m.status = "f Finish pair  r reabrir  esc tablero"
+			m.status = i18n.T("f finish pair  r reopen  esc board")
 			return m, nil
 		}
 		m.screen = screenLog
-		m.status = "Agente en curso · " + run.Branch
+		m.status = i18n.T("Agent running · ") + run.Branch
 		return m, tickLog()
 	case store.RunReview, store.RunBlocked:
 		m.diffFiles, _ = launch.WorktreeDiff(run.Worktree, run.Base)
 		m.diffIndex = 0
 		m.diffOffset = 0
 		m.screen = screenReview
-		m.status = "y aprobar  d descartar  n/p archivo  esc tablero"
+		m.status = i18n.T("y approve  d discard  n/p file  esc board")
 		return m, nil
 	default:
 		m.openTaskForm(t)
@@ -449,7 +450,7 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 
 func (m Model) approveRun() (tea.Model, tea.Cmd) {
 	if m.run.State != store.RunReview {
-		m.err = "Solo se aprueba una ejecución en revisión"
+		m.err = i18n.T("Only a run in review can be approved")
 		return m, nil
 	}
 	sess := m.runSess
@@ -481,7 +482,7 @@ func (m Model) discardRun() (tea.Model, tea.Cmd) {
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusBacklog)
-	m.status = "Descartada: worktree y rama borrados"
+	m.status = i18n.T("Discarded: worktree and branch removed")
 	m.err = ""
 	return m, nil
 }
@@ -492,7 +493,7 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc", "b":
 		m.screen = screenBoard
-		m.status = "Agente sigue en curso"
+		m.status = i18n.T("Agent is still running")
 		return m, nil
 	case "j", "down":
 		m.logOffset++
@@ -546,18 +547,18 @@ func (m Model) viewLog() string {
 	}
 	end := min(len(lines), off+h)
 	body := strings.Join(lines[off:end], "\n")
-	title := th.Title.Render("Agente") + th.Muted.Render("  ·  "+m.run.Branch+"  ·  "+m.run.State)
-	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render("j/k scroll  esc tablero"))
+	title := th.Title.Render(i18n.T("Agent")) + th.Muted.Render("  ·  "+m.run.Branch+"  ·  "+m.run.State)
+	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(i18n.T("j/k scroll  esc board")))
 }
 
 func (m Model) viewReview() string {
 	th := m.theme
 	var b strings.Builder
-	b.WriteString(th.Title.Render("Revisión"))
+	b.WriteString(th.Title.Render(i18n.T("Review")))
 	b.WriteString(th.Muted.Render("  ·  " + m.run.Branch + "  ·  " + m.run.State))
 	b.WriteString("\n\n")
 	if m.run.Summary != "" {
-		b.WriteString(th.Muted.Render("Resumen"))
+		b.WriteString(th.Muted.Render(i18n.T("Summary")))
 		b.WriteString("\n")
 		b.WriteString(truncate(m.run.Summary, 800))
 		b.WriteString("\n\n")
@@ -567,7 +568,7 @@ func (m Model) viewReview() string {
 	b.WriteString(launch.FormatChecks(decodeChecks(m.run.Checks)))
 	b.WriteString("\n\n")
 	if len(m.diffFiles) == 0 {
-		b.WriteString(th.Muted.Render("Sin diff"))
+		b.WriteString(th.Muted.Render(i18n.T("No diff")))
 	} else {
 		f := m.diffFiles[m.diffIndex]
 		b.WriteString(th.Title.Render(f.Path))
@@ -595,7 +596,7 @@ func (m Model) viewReview() string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("y aprobar  d descartar  n/p archivo  j/k scroll  esc tablero"))
+	b.WriteString(th.Muted.Render(i18n.T("y approve  d discard  n/p file  j/k scroll  esc board")))
 	return th.App.Render(b.String())
 }
 
@@ -610,4 +611,10 @@ func decodeChecks(raw string) []launch.CheckResult {
 
 func fmtIndex(i, n int) string {
 	return "  (" + strconv.Itoa(i) + "/" + strconv.Itoa(n) + ")"
+}
+
+// isPausedNote reports whether a run note is the "pair session paused" note,
+// in any language it may have been saved in.
+func isPausedNote(note string) bool {
+	return strings.HasPrefix(note, "Pair session") || strings.HasPrefix(note, "Sesión")
 }

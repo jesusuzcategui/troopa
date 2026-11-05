@@ -31,7 +31,7 @@ func WorktreeDiff(worktree, base string) ([]FileDiff, error) {
 	untracked, _ := Git(worktree, "ls-files", "--others", "--exclude-standard")
 	for _, p := range strings.Split(untracked, "\n") {
 		p = strings.TrimSpace(p)
-		if p == "" || p == "TASK.md" || p == "RESUMEN.md" || p == "agent.log" {
+		if p == "" || p == "TASK.md" || p == "SUMMARY.md" || p == "agent.log" {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(worktree, p))

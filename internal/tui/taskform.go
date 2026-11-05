@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -29,23 +30,23 @@ const (
 
 func newTaskInputs() (title, model textinput.Model, desc, crit textarea.Model) {
 	title = textinput.New()
-	title.Placeholder = "Título"
+	title.Placeholder = i18n.T("Title")
 	title.CharLimit = 200
 	title.Width = 48
 	title.Prompt = ""
 	model = textinput.New()
-	model.Placeholder = "modelo (opcional)"
+	model.Placeholder = i18n.T("model (optional)")
 	model.CharLimit = 80
 	model.Width = 32
 	model.Prompt = ""
 	desc = textarea.New()
-	desc.Placeholder = "Descripción en Markdown"
+	desc.Placeholder = i18n.T("Description in Markdown")
 	desc.SetHeight(5)
 	desc.SetWidth(56)
 	desc.ShowLineNumbers = false
 	desc.Prompt = ""
 	crit = textarea.New()
-	crit.Placeholder = "Un criterio de aceptación por línea"
+	crit.Placeholder = i18n.T("One acceptance criterion per line")
 	crit.SetHeight(4)
 	crit.SetWidth(56)
 	crit.ShowLineNumbers = false
@@ -71,7 +72,7 @@ func (m *Model) openTaskForm(t store.Task) {
 	m.taskFocus = tfTitle
 	m.err = ""
 	m.screen = screenTaskForm
-	m.status = "ctrl+s guardar  tab campo  ←/→ enums  esc cancelar"
+	m.status = i18n.T("ctrl+s save  tab field  ←/→ options  esc cancel")
 }
 
 func (m Model) withTaskFocus() (Model, tea.Cmd) {
@@ -104,7 +105,7 @@ func (m Model) updateTaskFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.saveTaskForm()
 	case "esc":
 		m.screen = screenBoard
-		m.status = "Cancelado"
+		m.status = i18n.T("Cancelled")
 		return m, nil
 	case "?":
 		m.helpFrom = screenTaskForm
@@ -178,11 +179,11 @@ func (m Model) saveTaskForm() (tea.Model, tea.Cmd) {
 		t.ProjectID = m.boardProject.ID
 	}
 	if t.Title == "" {
-		m.err = "El título es obligatorio"
+		m.err = i18n.T("Title is required")
 		return m, nil
 	}
 	if t.ProjectID == 0 {
-		m.err = "Abre un proyecto para crear tareas"
+		m.err = i18n.T("Open a project to create tasks")
 		return m, nil
 	}
 	prevStatus := ""
@@ -197,12 +198,12 @@ func (m Model) saveTaskForm() (tea.Model, tea.Cmd) {
 		created, err = m.store.CreateTask(t)
 		if err == nil {
 			t = created
-			m.status = "Creada: " + created.Title
+			m.status = i18n.T("Created: ") + created.Title
 		}
 	} else {
 		err = m.store.UpdateTask(t)
 		if err == nil {
-			m.status = "Guardada: " + t.Title
+			m.status = i18n.T("Saved: ") + t.Title
 		}
 	}
 	if err != nil {
@@ -240,9 +241,9 @@ func (m Model) updateTaskFormMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) viewTaskForm() string {
 	th := m.theme
-	title := "Nueva tarea"
+	title := i18n.T("New task")
 	if m.taskDraft.ID != 0 {
-		title = "Editar tarea"
+		title = i18n.T("Edit task")
 	}
 	var b strings.Builder
 	b.WriteString(th.Title.Render(title))
@@ -252,16 +253,16 @@ func (m Model) viewTaskForm() string {
 		value string
 		field taskField
 	}{
-		{"Título", m.taskTitle.View(), tfTitle},
-		{"Descripción", m.taskDesc.View(), tfDesc},
-		{"Criterios", m.taskCrit.View(), tfCriteria},
-		{"Prioridad", m.taskDraft.Priority + "  ←/→", tfPriority},
-		{"Agente", m.taskDraft.Agent + "  ←/→", tfAgent},
-		{"Modelo", m.taskModelIn.View(), tfModel},
-		{"Modo", m.taskDraft.Mode + "  ←/→", tfMode},
+		{i18n.T("Title"), m.taskTitle.View(), tfTitle},
+		{i18n.T("Description"), m.taskDesc.View(), tfDesc},
+		{i18n.T("Criteria"), m.taskCrit.View(), tfCriteria},
+		{i18n.T("Priority"), m.taskDraft.Priority + "  ←/→", tfPriority},
+		{i18n.T("Agent"), m.taskDraft.Agent + "  ←/→", tfAgent},
+		{i18n.T("Model"), m.taskModelIn.View(), tfModel},
+		{i18n.T("Mode"), m.taskDraft.Mode + "  ←/→", tfMode},
 		{"Commits", m.taskDraft.Commits + "  ←/→", tfCommits},
-		{"Tipo", m.taskDraft.Type + "  ←/→", tfType},
-		{"Estado", m.taskDraft.Status + "  ←/→", tfStatus},
+		{i18n.T("Type"), m.taskDraft.Type + "  ←/→", tfType},
+		{i18n.T("Status"), m.taskDraft.Status + "  ←/→", tfStatus},
 	}
 	for _, r := range rows {
 		marker := "  "
@@ -271,18 +272,18 @@ func (m Model) viewTaskForm() string {
 		b.WriteString(marker + th.Label.Render(r.label) + " " + r.value + "\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("Vista previa Markdown"))
+	b.WriteString(th.Muted.Render(i18n.T("Markdown preview")))
 	b.WriteString("\n")
 	b.WriteString(m.renderMarkdown(m.taskDesc.Value()))
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("ctrl+s guardar  tab campo  esc cancelar"))
+	b.WriteString(th.Muted.Render(i18n.T("ctrl+s save  tab field  esc cancel")))
 	return th.App.Render(b.String())
 }
 
 func (m Model) renderMarkdown(src string) string {
 	src = strings.TrimSpace(src)
 	if src == "" {
-		return m.theme.Muted.Render("  (vacía)")
+		return m.theme.Muted.Render(i18n.T("  (empty)"))
 	}
 	style := "dark"
 	if m.theme.Name == "light" {

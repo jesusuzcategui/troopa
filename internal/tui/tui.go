@@ -12,6 +12,7 @@ import (
 
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/gitinit"
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
@@ -141,19 +142,19 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 	}
 	m.inputs = newInputs()
 	m.quickInput = textinput.New()
-	m.quickInput.Placeholder = "Título de la tarea"
+	m.quickInput.Placeholder = i18n.T("Task title")
 	m.quickInput.CharLimit = 200
 	m.quickInput.Width = 40
 	m.quickInput.Prompt = ""
 	m.searchInput = textinput.New()
-	m.searchInput.Placeholder = "buscar título o descripción"
+	m.searchInput.Placeholder = i18n.T("search title or description")
 	m.searchInput.CharLimit = 80
 	m.searchInput.Width = 40
 	m.searchInput.Prompt = ""
 	m.taskTitle, m.taskModelIn, m.taskDesc, m.taskCrit = newTaskInputs()
 	m.clientInputs = newClientInputs()
 	m.paletteInput = textinput.New()
-	m.paletteInput.Placeholder = "buscar comando"
+	m.paletteInput.Placeholder = i18n.T("search command")
 	m.paletteInput.CharLimit = 80
 	m.paletteInput.Width = 40
 	m.paletteInput.Prompt = ""
@@ -177,14 +178,16 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 		}
 	}
 	m.reload()
-	m.status = listStatus
+	m.status = listStatus()
 	return m
 }
 
-const listStatus = "Ctrl+K paleta · n nuevo · enter tablero · c clientes · F filtro · M métricas · t tema · ? ayuda · q salir"
+func listStatus() string {
+	return i18n.T("Ctrl+K palette · n new · enter board · c clients · F filter · M metrics · t theme · ? help · q quit")
+}
 
 func newInputs() []textinput.Model {
-	labels := []string{"Nombre", "Slug", "Ruta del repo", "Stack", "Descripción"}
+	labels := []string{i18n.T("Name"), "Slug", i18n.T("Repo path"), "Stack", i18n.T("Description")}
 	out := make([]textinput.Model, int(fieldDesc)+1)
 	for i := range out {
 		ti := textinput.New()
@@ -292,7 +295,7 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if err := m.store.Archive(m.pending.ID); err != nil {
 				m.err = err.Error()
 			} else {
-				m.status = "Archivado: " + m.pending.Name
+				m.status = i18n.T("Archived: ") + m.pending.Name
 				m.err = ""
 			}
 			m.screen = screenList
@@ -309,10 +312,10 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.screen = screenForm
 				return m, nil
 			}
-			m.status = "Repo git creado en " + m.initPath
+			m.status = i18n.T("Git repo created in ") + m.initPath
 			return m.savePending()
 		case "n":
-			m.status = "Guardado sin inicializar el repo"
+			m.status = i18n.T("Saved without initializing the repo")
 			return m.savePending()
 		case "esc":
 			m.screen = screenForm
@@ -364,9 +367,9 @@ func (m Model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.offset = 0
 		m.reload()
 		if m.showArchived {
-			m.status = "Mostrando archivados"
+			m.status = i18n.T("Showing archived")
 		} else {
-			m.status = "Ocultando archivados"
+			m.status = i18n.T("Hiding archived")
 		}
 	case "n":
 		m.openForm(store.Project{})
@@ -387,7 +390,7 @@ func (m Model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		if p, ok := m.selected(); ok {
 			if p.Archived {
-				m.status = "Ya está archivado"
+				m.status = i18n.T("Already archived")
 				break
 			}
 			m.pending = p
@@ -419,7 +422,7 @@ func (m Model) updateFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.screen = screenList
-		m.status = "Cancelado"
+		m.status = i18n.T("Cancelled")
 		return m, nil
 	case "?":
 		m.helpFrom = screenForm
@@ -465,11 +468,11 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		ClientID:    m.pending.ClientID,
 	}
 	if p.Name == "" {
-		m.err = "El nombre es obligatorio"
+		m.err = i18n.T("Name is required")
 		return m, nil
 	}
 	if p.RepoPath == "" {
-		m.err = "La ruta del repo es obligatoria"
+		m.err = i18n.T("Repo path is required")
 		return m, nil
 	}
 	if p.Slug == "" {
@@ -492,12 +495,12 @@ func (m Model) savePending() (tea.Model, tea.Cmd) {
 		var created store.Project
 		created, err = m.store.Create(m.pending)
 		if err == nil {
-			m.status = "Creado: " + created.Name
+			m.status = i18n.T("Created: ") + created.Name
 		}
 	} else {
 		err = m.store.Update(m.pending)
 		if err == nil {
-			m.status = "Guardado: " + m.pending.Name
+			m.status = i18n.T("Saved: ") + m.pending.Name
 		}
 	}
 	if err != nil {
@@ -655,11 +658,11 @@ func (m Model) View() string {
 	case screenMoveMenu:
 		body = m.viewMoveMenu()
 	case screenConfirmInit:
-		body = m.viewConfirm(fmt.Sprintf("La ruta %s no existe.\n¿Crear carpeta, git init -b main, README y commit inicial?", m.initPath), "y sí · n guardar sin init · esc volver")
+		body = m.viewConfirm(fmt.Sprintf(i18n.T("The path %s does not exist.\nCreate the folder, git init -b main, a README and an initial commit?"), m.initPath), i18n.T("y yes · n save without init · esc back"))
 	case screenConfirmArchive:
-		body = m.viewConfirm(fmt.Sprintf("¿Archivar «%s»?", m.pending.Name), "y sí · n no")
+		body = m.viewConfirm(fmt.Sprintf(i18n.T("Archive «%s»?"), m.pending.Name), i18n.T("y yes · n no"))
 	case screenConfirmArchiveClient:
-		body = m.viewConfirm(fmt.Sprintf("¿Archivar «%s»?", m.pendingClient.Name), "y sí · n no")
+		body = m.viewConfirm(fmt.Sprintf(i18n.T("Archive «%s»?"), m.pendingClient.Name), i18n.T("y yes · n no"))
 	case screenClients:
 		body = m.viewClients()
 	case screenClientForm:
@@ -693,12 +696,12 @@ func (m Model) View() string {
 
 func (m Model) viewList() string {
 	th := m.theme
-	title := th.Title.Render("Troopa") + th.Muted.Render("  ·  proyectos")
+	title := th.Title.Render("Troopa") + th.Muted.Render(i18n.T("  ·  projects"))
 	if m.showArchived {
-		title += th.Muted.Render("  (incl. archivados)")
+		title += th.Muted.Render(i18n.T("  (incl. archived)"))
 	}
 	if m.filterClientID != 0 {
-		title += th.Muted.Render("  cliente:" + m.clientFilterLabel())
+		title += th.Muted.Render(i18n.T("  client:") + m.clientFilterLabel())
 	}
 	listH := m.listHeight
 	if listH <= 0 {
@@ -709,7 +712,7 @@ func (m Model) viewList() string {
 	b.WriteString(title)
 	b.WriteString("\n\n")
 	if len(m.projects) == 0 {
-		b.WriteString(th.Muted.Render("  No hay proyectos. Pulsa n para crear uno."))
+		b.WriteString(th.Muted.Render(i18n.T("  No projects yet. Press n to create one.")))
 		b.WriteString("\n")
 		return th.App.Render(b.String())
 	}
@@ -724,7 +727,7 @@ func (m Model) viewList() string {
 			line += "  ·  " + m.clientName(p.ClientID)
 		}
 		if p.Archived {
-			line += "  [archivado]"
+			line += i18n.T("  [archived]")
 		}
 		style := th.Normal
 		if p.Archived {
@@ -745,20 +748,20 @@ func (m Model) viewList() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("Ctrl+K paleta  enter tablero  c clientes  F filtro  M métricas  n nuevo  t tema  ? ayuda  q salir"))
+	b.WriteString(th.Muted.Render(i18n.T("Ctrl+K palette  enter board  c clients  F filter  M metrics  n new  t theme  ? help  q quit")))
 	return th.App.Render(b.String())
 }
 
 func (m Model) viewForm() string {
 	th := m.theme
-	title := "Nuevo proyecto"
+	title := i18n.T("New project")
 	if m.editingID != 0 {
-		title = "Editar proyecto"
+		title = i18n.T("Edit project")
 	}
 	var b strings.Builder
 	b.WriteString(th.Title.Render(title))
 	b.WriteString("\n\n")
-	labels := []string{"Nombre", "Slug", "Ruta", "Stack", "Descripción"}
+	labels := []string{i18n.T("Name"), "Slug", i18n.T("Path"), "Stack", i18n.T("Description")}
 	for i, lab := range labels {
 		marker := "  "
 		st := th.Label
@@ -771,73 +774,20 @@ func (m Model) viewForm() string {
 	if m.focus == fieldClient {
 		marker = th.Border.Render("> ")
 	}
-	b.WriteString(marker + th.Label.Render("Cliente") + " " + m.clientName(m.pending.ClientID) + "  ←/→\n")
+	b.WriteString(marker + th.Label.Render(i18n.T("Client")) + " " + m.clientName(m.pending.ClientID) + "  ←/→\n")
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("enter guardar  tab campo  ←/→ cliente  esc cancelar  ? ayuda"))
+	b.WriteString(th.Muted.Render(i18n.T("enter save  tab field  ←/→ client  esc cancel  ? help")))
 	return th.App.Render(b.String())
 }
 
 func (m Model) viewConfirm(msg, hints string) string {
 	th := m.theme
-	return th.App.Render(th.Title.Render("Confirmar") + "\n\n" + msg + "\n\n" + th.Muted.Render(hints))
+	return th.App.Render(th.Title.Render(i18n.T("Confirm")) + "\n\n" + msg + "\n\n" + th.Muted.Render(hints))
 }
 
 func (m Model) viewHelp() string {
 	th := m.theme
-	text := `Atajos — proyectos
-
-  j / k  o  ↑ / ↓    moverse en la lista
-  enter / o          abrir tablero de tareas
-  e                  editar el proyecto
-  n                  crear proyecto
-  a                  archivar
-  c                  vista de clientes
-  M                  métricas por agente y proyecto
-  F                  filtrar proyectos por cliente
-  tab                mostrar u ocultar archivados
-  t                  siguiente tema (dark / light / tropic / propios)
-  Ctrl+K             paleta de comandos (todas las acciones)
-  ?                  esta ayuda
-  q / ctrl+c         salir
-
-  Clientes
-  n / e / a          crear, editar, archivar
-  enter              tablero de tareas del cliente
-  F                  filtrar la lista de proyectos
-  tab                mostrar u ocultar archivados
-  esc                volver a proyectos
-
-  Tablero
-  n                  crear tarea (solo título)
-  e                  editar tarea completa
-  enter              editar, o log/revisión si hay agente
-  h / l              columna
-  [ / ]  o  H / L    mover tarea de estado
-  m                  menú de estado
-  /                  buscar
-  f / p              filtro estado / prioridad
-  C                  filtro por cliente
-  M                  métricas por agente y proyecto
-  esc                volver a proyectos
-
-  Ratón
-  clic               seleccionar (lista o tarjeta)
-  arrastrar tarjeta  cambiar estado
-  rueda              scroll
-  clic en menú       elegir estado
-
-  Agente yolo (ready, no me)
-  y / a              aprobar (auto: commit+push+PR; none: deja el worktree)
-  d                  descartar worktree y rama
-
-  Pareja (modo pair)
-  f                  Finish pair (checks y revisión)
-  r                  reabrir el agente interactivo
-  esc                volver al tablero (la sesión sigue)
-  cerrar terminal    pair-paused; enter para retomar
-
-  Al guardar un proyecto, si la ruta no existe se ofrece
-  crear la carpeta con git init -b main, README y commit inicial.`
+	text := i18n.T(i18n.HelpText)
 	return th.Help.Render(text)
 }
 

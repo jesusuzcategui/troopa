@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -18,37 +19,37 @@ type paletteItem struct {
 
 func (m Model) allCommands() []paletteItem {
 	return []paletteItem{
-		{ID: "palette", Title: "Paleta de comandos", Hint: "esta paleta", Keys: "ctrl+k"},
-		{ID: "help", Title: "Ayuda", Hint: "atajos", Keys: "?"},
-		{ID: "quit", Title: "Salir", Hint: "cerrar Troopa", Keys: "q"},
-		{ID: "projects", Title: "Ir a proyectos", Hint: "lista principal", Keys: "esc"},
-		{ID: "new-project", Title: "Nuevo proyecto", Keys: "n"},
-		{ID: "edit-project", Title: "Editar proyecto", Keys: "e"},
-		{ID: "archive-project", Title: "Archivar proyecto", Keys: "a"},
-		{ID: "open-board", Title: "Abrir tablero", Keys: "enter"},
-		{ID: "toggle-archived", Title: "Mostrar u ocultar archivados", Keys: "tab"},
-		{ID: "clients", Title: "Vista de clientes", Keys: "c"},
-		{ID: "new-client", Title: "Nuevo cliente", Keys: "n"},
-		{ID: "edit-client", Title: "Editar cliente", Keys: "e"},
-		{ID: "archive-client", Title: "Archivar cliente", Keys: "a"},
-		{ID: "client-board", Title: "Tablero del cliente", Keys: "enter"},
-		{ID: "filter-client", Title: "Filtrar por cliente", Keys: "F"},
-		{ID: "metrics", Title: "Métricas", Keys: "M"},
-		{ID: "new-task", Title: "Nueva tarea", Keys: "n"},
-		{ID: "edit-task", Title: "Editar tarea", Keys: "e"},
-		{ID: "search-tasks", Title: "Buscar tareas", Keys: "/"},
-		{ID: "status-menu", Title: "Menú de estado", Keys: "m"},
-		{ID: "move-left", Title: "Mover tarea a la izquierda", Keys: "["},
-		{ID: "move-right", Title: "Mover tarea a la derecha", Keys: "]"},
-		{ID: "filter-status", Title: "Filtro de estado", Keys: "f"},
-		{ID: "filter-priority", Title: "Filtro de prioridad", Keys: "p"},
-		{ID: "cycle-theme", Title: "Siguiente tema", Keys: "t"},
-		{ID: "pick-theme", Title: "Elegir tema", Hint: "lista de paletas TOML"},
-		{ID: "new-theme", Title: "Crear tema propio", Hint: "copia la paleta actual a un TOML"},
-		{ID: "approve", Title: "Aprobar revisión", Keys: "y"},
-		{ID: "discard", Title: "Descartar worktree", Keys: "d"},
-		{ID: "finish-pair", Title: "Finish pair", Keys: "f"},
-		{ID: "reopen-agent", Title: "Reabrir agente", Keys: "r"},
+		{ID: "palette", Title: i18n.T("Command palette"), Hint: i18n.T("this palette"), Keys: "ctrl+k"},
+		{ID: "help", Title: i18n.T("Help"), Hint: i18n.T("shortcuts"), Keys: "?"},
+		{ID: "quit", Title: i18n.T("Quit"), Hint: i18n.T("close Troopa"), Keys: "q"},
+		{ID: "projects", Title: i18n.T("Go to projects"), Hint: i18n.T("main list"), Keys: "esc"},
+		{ID: "new-project", Title: i18n.T("New project"), Keys: "n"},
+		{ID: "edit-project", Title: i18n.T("Edit project"), Keys: "e"},
+		{ID: "archive-project", Title: i18n.T("Archive project"), Keys: "a"},
+		{ID: "open-board", Title: i18n.T("Open board"), Keys: "enter"},
+		{ID: "toggle-archived", Title: i18n.T("Show or hide archived"), Keys: "tab"},
+		{ID: "clients", Title: i18n.T("Clients view"), Keys: "c"},
+		{ID: "new-client", Title: i18n.T("New client"), Keys: "n"},
+		{ID: "edit-client", Title: i18n.T("Edit client"), Keys: "e"},
+		{ID: "archive-client", Title: i18n.T("Archive client"), Keys: "a"},
+		{ID: "client-board", Title: i18n.T("Client board"), Keys: "enter"},
+		{ID: "filter-client", Title: i18n.T("Filter by client"), Keys: "F"},
+		{ID: "metrics", Title: i18n.T("Metrics"), Keys: "M"},
+		{ID: "new-task", Title: i18n.T("New task"), Keys: "n"},
+		{ID: "edit-task", Title: i18n.T("Edit task"), Keys: "e"},
+		{ID: "search-tasks", Title: i18n.T("Search tasks"), Keys: "/"},
+		{ID: "status-menu", Title: i18n.T("Status menu"), Keys: "m"},
+		{ID: "move-left", Title: i18n.T("Move task left"), Keys: "["},
+		{ID: "move-right", Title: i18n.T("Move task right"), Keys: "]"},
+		{ID: "filter-status", Title: i18n.T("Status filter"), Keys: "f"},
+		{ID: "filter-priority", Title: i18n.T("Priority filter"), Keys: "p"},
+		{ID: "cycle-theme", Title: i18n.T("Next theme"), Keys: "t"},
+		{ID: "pick-theme", Title: i18n.T("Pick theme"), Hint: i18n.T("list of TOML palettes")},
+		{ID: "new-theme", Title: i18n.T("Create custom theme"), Hint: i18n.T("copies the current palette to a TOML file")},
+		{ID: "approve", Title: i18n.T("Approve review"), Keys: "y"},
+		{ID: "discard", Title: i18n.T("Discard worktree"), Keys: "d"},
+		{ID: "finish-pair", Title: i18n.T("Finish pair"), Keys: "f"},
+		{ID: "reopen-agent", Title: i18n.T("Reopen agent"), Keys: "r"},
 	}
 }
 
@@ -74,7 +75,7 @@ func (m Model) openPalette() (tea.Model, tea.Cmd) {
 	m.paletteCursor = 0
 	m.paletteInput.SetValue("")
 	m.paletteInput.Focus()
-	m.status = "Ctrl+K paleta · enter ejecutar · esc cerrar"
+	m.status = i18n.T("Ctrl+K palette · enter run · esc close")
 	return m, textinput.Blink
 }
 
@@ -131,7 +132,7 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "projects":
 		m.screen = screenList
-		m.status = listStatus
+		m.status = listStatus()
 		m.reload()
 		return m, nil
 	case "new-project":
@@ -141,26 +142,26 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		if p, ok := m.selected(); ok {
 			m.openForm(p)
 		} else {
-			m.status = "No hay proyecto seleccionado"
+			m.status = i18n.T("No project selected")
 		}
 		return m, nil
 	case "archive-project":
 		if p, ok := m.selected(); ok {
 			if p.Archived {
-				m.status = "Ya está archivado"
+				m.status = i18n.T("Already archived")
 			} else {
 				m.pending = p
 				m.screen = screenConfirmArchive
 			}
 		} else {
-			m.status = "No hay proyecto seleccionado"
+			m.status = i18n.T("No project selected")
 		}
 		return m, nil
 	case "open-board":
 		if p, ok := m.selected(); ok {
 			m.openBoard(p)
 		} else {
-			m.status = "No hay proyecto seleccionado"
+			m.status = i18n.T("No project selected")
 		}
 		return m, nil
 	case "toggle-archived":
@@ -181,20 +182,20 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		if c, ok := m.selectedClient(); ok {
 			m.openClientForm(c)
 		} else {
-			m.status = "No hay cliente seleccionado"
+			m.status = i18n.T("No client selected")
 		}
 		return m, nil
 	case "archive-client":
 		m.openClients()
 		if c, ok := m.selectedClient(); ok {
 			if c.Archived {
-				m.status = "Ya está archivado"
+				m.status = i18n.T("Already archived")
 			} else {
 				m.pendingClient = c
 				m.screen = screenConfirmArchiveClient
 			}
 		} else {
-			m.status = "No hay cliente seleccionado"
+			m.status = i18n.T("No client selected")
 		}
 		return m, nil
 	case "client-board":
@@ -203,7 +204,7 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 			m.filterClientID = c.ID
 			m.openClientBoard(c)
 		} else {
-			m.status = "No hay cliente seleccionado"
+			m.status = i18n.T("No client selected")
 		}
 		return m, nil
 	case "filter-client":
@@ -212,7 +213,7 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 			m.screen = screenBoard
 			m.reloadTasks()
 		}
-		m.status = "Filtro cliente: " + m.clientFilterLabel()
+		m.status = i18n.T("Client filter: ") + m.clientFilterLabel()
 		return m, nil
 	case "metrics":
 		return m.openMetrics()
@@ -223,20 +224,20 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.boardProject.ID == 0 {
-			m.status = "Abre un proyecto para crear tareas"
+			m.status = i18n.T("Open a project to create tasks")
 			return m, nil
 		}
 		m.quickInput.SetValue("")
 		m.quickInput.Focus()
 		m.screen = screenQuickCreate
-		m.status = "Título y enter para crear en inbox"
+		m.status = i18n.T("Type a title and press enter to add it to inbox")
 		return m, textinput.Blink
 	case "edit-task":
 		if t, ok := m.selectedTask(); ok {
 			m.openTaskForm(t)
 			return m.withTaskFocus()
 		}
-		m.status = "No hay tarea seleccionada"
+		m.status = i18n.T("No task selected")
 		return m, nil
 	case "search-tasks":
 		if m.boardProject.ID == 0 {
@@ -253,7 +254,7 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 			m.moveMenuIndex = m.colIndex
 			m.screen = screenMoveMenu
 		} else {
-			m.status = "No hay tarea seleccionada"
+			m.status = i18n.T("No task selected")
 		}
 		return m, nil
 	case "move-left":
@@ -263,12 +264,12 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 	case "filter-status":
 		m.filterStatus = cycleFilter(m.filterStatus, append([]string{""}, store.Statuses...))
 		m.reloadTasks()
-		m.status = "Filtro estado: " + filterLabel(m.filterStatus)
+		m.status = i18n.T("Status filter: ") + filterLabel(m.filterStatus)
 		return m, nil
 	case "filter-priority":
 		m.filterPriority = cycleFilter(m.filterPriority, append([]string{""}, store.Priorities...))
 		m.reloadTasks()
-		m.status = "Filtro prioridad: " + filterLabel(m.filterPriority)
+		m.status = i18n.T("Priority filter: ") + filterLabel(m.filterPriority)
 		return m, nil
 	case "cycle-theme":
 		m.cycleTheme()
@@ -282,35 +283,35 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.screen = screenTheme
-		m.status = "j/k elegir · enter aplicar · esc volver"
+		m.status = i18n.T("j/k choose · enter apply · esc back")
 		return m, nil
 	case "new-theme":
 		m.createUserTheme()
 		return m, nil
 	case "approve":
 		if m.screen != screenReview && from != screenReview {
-			m.status = "No hay revisión abierta"
+			m.status = i18n.T("No review open")
 			return m, nil
 		}
 		m.screen = screenReview
 		return m.approveRun()
 	case "discard":
 		if from != screenReview && m.screen != screenReview {
-			m.status = "No hay revisión abierta"
+			m.status = i18n.T("No review open")
 			return m, nil
 		}
 		m.screen = screenReview
 		return m.discardRun()
 	case "finish-pair":
 		if from != screenPair && m.screen != screenPair {
-			m.status = "No hay sesión de pareja"
+			m.status = i18n.T("No pair session")
 			return m, nil
 		}
 		m.screen = screenPair
 		return m.finishPair()
 	case "reopen-agent":
 		if from != screenPair && m.screen != screenPair {
-			m.status = "No hay sesión de pareja"
+			m.status = i18n.T("No pair session")
 			return m, nil
 		}
 		m.screen = screenPair
@@ -323,12 +324,12 @@ func (m Model) viewPalette() string {
 	th := m.theme
 	items := m.filteredCommands()
 	var b strings.Builder
-	b.WriteString(th.Title.Render("Comandos") + th.Muted.Render("  Ctrl+K"))
+	b.WriteString(th.Title.Render(i18n.T("Commands")) + th.Muted.Render("  Ctrl+K"))
 	b.WriteString("\n")
 	b.WriteString(th.Normal.Render("> " + m.paletteInput.View()))
 	b.WriteString("\n\n")
 	if len(items) == 0 {
-		b.WriteString(th.Muted.Render("  Sin coincidencias"))
+		b.WriteString(th.Muted.Render(i18n.T("  No matches")))
 		return th.App.Render(b.String())
 	}
 	cur := m.paletteCursor
@@ -363,7 +364,7 @@ func (m Model) updateThemeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.screen = screenList
-		m.status = listStatus
+		m.status = listStatus()
 		return m, nil
 	case "j", "down":
 		if m.themeCursor < len(m.themes)-1 {
@@ -385,13 +386,13 @@ func (m Model) updateThemeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) viewThemePicker() string {
 	th := m.theme
 	var b strings.Builder
-	b.WriteString(th.Title.Render("Temas"))
-	b.WriteString(th.Muted.Render("  ·  TOML en " + m.themeDir))
+	b.WriteString(th.Title.Render(i18n.T("Themes")))
+	b.WriteString(th.Muted.Render(i18n.T("  ·  TOML in ") + m.themeDir))
 	b.WriteString("\n\n")
 	for i, t := range m.themes {
 		line := t.Name
 		if t.Name == m.theme.Name {
-			line += "  (activo)"
+			line += i18n.T("  (active)")
 		}
 		st := th.Normal
 		if i == m.themeCursor {
@@ -401,6 +402,6 @@ func (m Model) viewThemePicker() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render("enter elegir  t ciclar  Ctrl+K → Crear tema propio  esc volver"))
+	b.WriteString(th.Muted.Render(i18n.T("enter choose  t cycle  Ctrl+K → Create custom theme  esc back")))
 	return th.App.Render(b.String())
 }

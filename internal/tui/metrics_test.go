@@ -46,7 +46,7 @@ func TestMetricsKeyShowsAgentAndProjectTables(t *testing.T) {
 		t.Fatalf("screen=%v", got.screen)
 	}
 	view := got.viewMetrics()
-	for _, want := range []string{"pi", "claude", "App", "n/d", "ctx ini", "█"} {
+	for _, want := range []string{"pi", "claude", "App", "n/a", "ctx start", "█"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("missing %q in\n%s", want, view)
 		}

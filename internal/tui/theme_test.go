@@ -99,7 +99,7 @@ func TestCtrlKPaletteRunsHelp(t *testing.T) {
 	if got.screen != screenPalette {
 		t.Fatalf("screen %v want palette", got.screen)
 	}
-	got.paletteInput.SetValue("ayuda")
+	got.paletteInput.SetValue("help")
 	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	got = next.(Model)
 	if got.screen != screenHelp {

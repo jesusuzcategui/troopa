@@ -30,6 +30,10 @@ Data: `$XDG_DATA_HOME/troopa/troopa.db` (default `~/.local/share/troopa/`).
 Config: `$XDG_CONFIG_HOME/troopa/config.toml` (theme, agents, worktrees, terminal and token prices). Troopa only rewrites the `theme` and `welcome_shown` lines; everything else stays as you wrote it.
 Per-project checks: `troopa.toml` at the repo root (`checks = ["go test ./..."]`).
 
+## Language
+
+The interface is in English or Spanish, picked from `LANG` (`es_*` means Spanish). Override it with `TROOPA_LANG=en` or `TROOPA_LANG=es`. The CLI JSON output and the files written for agents (`TASK.md`, `PAIR.md`) are always in English.
+
 ## Themes
 
 Three palettes ship with the binary (`dark`, `light`, `tropic`). `t` cycles them. The command palette (Ctrl+K) can pick one from a list or write a copy of the current one under `$XDG_CONFIG_HOME/troopa/themes/`.

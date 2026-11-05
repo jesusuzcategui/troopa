@@ -14,6 +14,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 )
 
 //go:embed themes/*.toml
@@ -214,10 +215,10 @@ func (m *Model) applyTheme(name string) {
 	m.theme = themeByName(m.themes, name)
 	m.cfg.Theme = m.theme.Name
 	if err := config.Save(m.configPath, m.cfg); err != nil {
-		m.err = "No se pudo guardar el tema: " + err.Error()
+		m.err = i18n.T("Could not save the theme: ") + err.Error()
 		return
 	}
-	m.status = "Tema: " + m.theme.Name
+	m.status = i18n.T("Theme: ") + m.theme.Name
 }
 
 func (m *Model) cycleTheme() {
@@ -237,7 +238,7 @@ func (m *Model) cycleTheme() {
 func (m *Model) createUserTheme() {
 	dir := m.themeDir
 	if dir == "" {
-		m.err = "No hay carpeta de temas"
+		m.err = i18n.T("No themes folder")
 		return
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -264,7 +265,7 @@ func (m *Model) createUserTheme() {
 	}
 	m.themes = loadThemes(dir)
 	m.applyTheme(name)
-	m.status = "Tema propio: " + path
+	m.status = i18n.T("Custom theme: ") + path
 }
 
 func fileExists(path string) bool {

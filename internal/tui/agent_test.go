@@ -25,7 +25,7 @@ func TestLaunchOnReadyShowsLogAndReview(t *testing.T) {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	script := "#!/bin/sh\necho working\necho done > RESUMEN.md\necho n >> extra.txt\n"
+	script := "#!/bin/sh\necho working\necho done > SUMMARY.md\necho n >> extra.txt\n"
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}

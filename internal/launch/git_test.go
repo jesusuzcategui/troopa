@@ -51,10 +51,10 @@ func TestPrepareWriteTASKAndDiscard(t *testing.T) {
 	if !strings.Contains(s, "# Añadir botón") || !strings.Contains(s, "Se ve el botón") {
 		t.Fatalf("TASK.md: %s", s)
 	}
-	if !strings.Contains(s, "No hagas commits, push ni crees ramas") {
+	if !strings.Contains(s, "Do not commit, push or create branches") {
 		t.Fatal("commits=none rule missing")
 	}
-	if !strings.Contains(s, "No toques tests solo para que pasen") {
+	if !strings.Contains(s, "Do not change tests just to make them pass") {
 		t.Fatal("test rule missing")
 	}
 	cur, err := Git(sess.Worktree, "rev-parse", "--abbrev-ref", "HEAD")

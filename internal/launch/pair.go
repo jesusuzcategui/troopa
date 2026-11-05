@@ -11,23 +11,23 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
-const pairMD = `# Sesión en pareja (TDD)
+const pairMD = `# Pair session (TDD)
 
-Estás programando **con** la persona en una terminal interactiva, no en modo yolo.
+You are programming **with** the person in an interactive terminal, not in yolo mode.
 
-1. Escribe un test que falle (rojo) y **para**.
-2. Escribe el código mínimo para que pase (verde) y **para**.
-3. Refactoriza **solo si la persona lo pide**.
-4. Si la tarea tiene commits=none: no hagas commits, push ni crees ramas.
+1. Write a failing test (red) and **stop**.
+2. Write the minimum code to make it pass (green) and **stop**.
+3. Refactor **only if the person asks**.
+4. If the task has commits=none: do not commit, push or create branches.
 
-Lee TASK.md para el alcance, criterios y reglas. Al terminar, la persona pulsa **Finish pair** en Troopa (checks y revisión).
-Si cierras esta terminal sin terminar, la sesión queda en pair-paused y se puede retomar.
+Read TASK.md for scope, criteria and rules. When you are done, the person presses **Finish pair** in Troopa (checks and review).
+If this terminal is closed before finishing, the session moves to pair-paused and can be resumed.
 `
 
 func WritePAIR(dir string, t store.Task) error {
 	body := pairMD
 	if t.Commits == store.CommitsNone {
-		body += "\nEsta tarea pide commits=none: deja los cambios sin commitear.\n"
+		body += "\nThis task asks for commits=none: leave the changes uncommitted.\n"
 	}
 	return os.WriteFile(filepath.Join(dir, "PAIR.md"), []byte(body), 0o644)
 }
@@ -105,7 +105,7 @@ func WritePairScript(dir string, spec config.AgentSpec, bin string, args []strin
 	for k, v := range spec.Env {
 		fmt.Fprintf(&b, "export %s=%s\n", k, shQuote(v))
 	}
-	b.WriteString("printf '\\n▶ Troopa · pareja\\n  Lee TASK.md y PAIR.md\\n  Termina la sesión en Troopa (f) cuando acabéis.\\n\\n'\n")
+	b.WriteString("printf '\\n▶ Troopa · pair\\n  Read TASK.md and PAIR.md\\n  Finish the session in Troopa (f) when you are done.\\n\\n'\n")
 	b.WriteString("exec " + shQuote(bin))
 	for _, a := range args {
 		b.WriteString(" " + shQuote(a))

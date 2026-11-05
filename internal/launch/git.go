@@ -27,7 +27,7 @@ func Git(dir string, args ...string) (string, error) {
 func RepoRoot(path string) (string, error) {
 	root, err := Git(path, "rev-parse", "--show-toplevel")
 	if err != nil {
-		return "", fmt.Errorf("no es un repositorio git: %s", path)
+		return "", fmt.Errorf("not a git repository: %s", path)
 	}
 	return root, nil
 }
@@ -71,7 +71,7 @@ func IsProtected(branch string) bool {
 
 func AddWorktree(repo, dest, branch, startPoint string) error {
 	if IsProtected(branch) {
-		return fmt.Errorf("no se crea una rama protegida: %s", branch)
+		return fmt.Errorf("refusing to create a protected branch: %s", branch)
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
@@ -108,7 +108,7 @@ func ExcludeWorkFiles(worktree string) error {
 		return err
 	}
 	cur, _ := os.ReadFile(exclude)
-	need := []string{"TASK.md", "RESUMEN.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log", ".venv/", "node_modules/"}
+	need := []string{"TASK.md", "SUMMARY.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log", ".venv/", "node_modules/"}
 	var add []string
 	body := "\n" + string(cur) + "\n"
 	for _, p := range need {
@@ -146,7 +146,7 @@ func CommitAll(worktree, message string) error {
 
 func PushBranch(worktree, branch string) error {
 	if IsProtected(branch) {
-		return fmt.Errorf("nunca se hace push a %s", branch)
+		return fmt.Errorf("refusing to push to %s", branch)
 	}
 	_, err := Git(worktree, "push", "-u", "origin", "HEAD:refs/heads/"+branch)
 	return err
@@ -154,10 +154,10 @@ func PushBranch(worktree, branch string) error {
 
 func CreatePR(worktree, branch, base, title, body string) (string, error) {
 	if _, err := exec.LookPath("gh"); err != nil {
-		return "", fmt.Errorf("gh no está instalado")
+		return "", fmt.Errorf("gh is not installed")
 	}
 	if IsProtected(branch) {
-		return "", fmt.Errorf("nunca se abre un PR desde %s", branch)
+		return "", fmt.Errorf("refusing to open a PR from %s", branch)
 	}
 	cmd := exec.Command("gh", "pr", "create", "--head", branch, "--base", base, "--title", title, "--body", body)
 	cmd.Dir = worktree
