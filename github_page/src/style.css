@@ -198,3 +198,4 @@ pre.cmd {
 }
 .more { margin: 32px 0 0; }
 .doc p code, .doc li code { overflow-wrap: anywhere; }
+.doc h3 { margin: 22px 0 8px; font-size: 20px; font-weight: 800; }

@@ -139,6 +139,7 @@ func (m Model) closeBrain() Model {
 		from = screenList
 	}
 	m.screen = from
+	m.brainGraph = nil
 	m.brainFind = false
 	m.brainInbox = false
 	if from == screenList {
@@ -151,7 +152,7 @@ func (m Model) closeBrain() Model {
 }
 
 func (m Model) brainStatus() string {
-	s := i18n.T("j/k tree  enter open  tab link  / search  o edit  i inbox  esc back")
+	s := i18n.T("j/k tree  enter open  tab link  G graph  / search  o edit  i inbox  esc back")
 	if m.cfg.BrainGit {
 		if m.brainDirty {
 			s += i18n.T("  · uncommitted  ctrl+s commit")
@@ -163,6 +164,9 @@ func (m Model) brainStatus() string {
 }
 
 func (m Model) updateBrainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.brainGraph != nil {
+		return m.updateBrainGraphKey(msg)
+	}
 	if m.brainInbox {
 		return m.updateBrainInboxKey(msg)
 	}
@@ -269,6 +273,8 @@ func (m Model) updateBrainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.brainNoteOff = max(0, m.brainNoteOff-max(1, m.height-8))
 	case "t":
 		m.cycleTheme()
+	case "G":
+		m.openBrainGraph()
 	}
 	return m, nil
 }
@@ -446,6 +452,9 @@ func (m Model) openBrainEditor() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateBrainMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.brainGraph != nil {
+		return m.updateBrainGraphMouse(msg)
+	}
 	wheelUp := msg.Button == tea.MouseButtonWheelUp
 	wheelDown := msg.Button == tea.MouseButtonWheelDown
 	if wheelUp || wheelDown {
@@ -493,6 +502,9 @@ func (m Model) brainTreeWidth() int {
 
 func (m Model) viewBrain() string {
 	th := m.theme
+	if m.brainGraph != nil {
+		return m.viewBrainGraph()
+	}
 	if m.brainFind {
 		return m.viewBrainSearch()
 	}

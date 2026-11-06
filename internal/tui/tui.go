@@ -197,6 +197,7 @@ type Model struct {
 	brainInbox    bool
 	inboxInput    textinput.Model
 	brainDirty    bool
+	brainGraph    *graphState
 }
 
 // Options are what Run needs beyond the store and the config.

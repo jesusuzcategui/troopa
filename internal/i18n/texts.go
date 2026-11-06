@@ -104,6 +104,8 @@ const HelpText = `Shortcuts — projects
   /                  search every note (note + line)
   o                  edit this note in your editor
   i                  add a line to inbox.md
+  G                  graph: the note and its links (←/→ pick, enter center,
+                     1/2 rings, v the whole brain with +/- zoom)
   ctrl+s             local commit when brain_git is on
   click / wheel      select a note · scroll
 
@@ -228,6 +230,8 @@ const helpTextES = `Atajos — proyectos
   /                  buscar en todas las notas (nota + línea)
   o                  editar esta nota en tu editor
   i                  añadir una línea a inbox.md
+  G                  grafo: la nota y sus enlaces (←/→ elegir, enter centrar,
+                     1/2 anillos, v todo el cerebro con +/- zoom)
   ctrl+s             commit local si brain_git está activo
   clic / rueda       elegir una nota · scroll
 

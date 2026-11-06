@@ -135,6 +135,17 @@ troopa login acme codex</pre>
         <section id="brain">
           <h2>Second brain</h2>
           <p>A Markdown folder (Obsidian-friendly) that Troopa keeps up to date: <code>inbox.md</code>, <code>today.md</code>, <code>projects/INDEX.md</code> and, per project, <code>project.md</code>, <code>tasks/</code> and <code>guides/</code> (how to run what was merged). The agent gets the project note as context. Browse it with <kbd>B</kbd>, search with <kbd>/</kbd>, add to the inbox with <kbd>i</kbd>. Set <code>brain_git = true</code> for local commits.</p>
+          <h3>Graph</h3>
+          <p>Press <kbd>G</kbd> in the brain to see it as a graph, drawn in the terminal with braille dots. The <strong>local view</strong> puts the open note in the middle with its links around it: <kbd>←</kbd>/<kbd>→</kbd> pick a note, <kbd>enter</kbd> centers on it (and opens it when it is already the center), <kbd>1</kbd>/<kbd>2</kbd> show one or two rings of links. <kbd>v</kbd> switches to the <strong>whole brain</strong>, laid out by a force simulation: arrows move to the nearest note, <kbd>+</kbd>/<kbd>-</kbd> or the mouse wheel zoom, <kbd>0</kbd> fits everything. Tasks and guides are tied to their project even without a written link. A click selects a note; a second click opens it.</p>
+          <pre class="cmd">                    ◆ INDEX
+                    ⡇
+   • 4-login        ⡇          ◆ inbox
+         ⠑⠢⡀        ⡇       ⡠⠒
+            ⠈⠒⢄     ⡇    ⡠⠔⠁
+               ⠑⠢⡀  ⡇ ⡠⠊
+                   ● solar-system
+              ⣀⡠⠤⠒⠉  ⠉⠒⠤⢄⣀
+   • 3-orbits            ◇ 2026-11-06-run</pre>
         </section>
 
         <section id="hooks">
@@ -299,6 +310,17 @@ troopa login acme codex</pre>
         <section id="brain-es">
           <h2>Segundo cerebro</h2>
           <p>Una carpeta Markdown (compatible con Obsidian) que Troopa mantiene al día: <code>inbox.md</code>, <code>today.md</code>, <code>projects/INDEX.md</code> y, por proyecto, <code>project.md</code>, <code>tasks/</code> y <code>guides/</code> (cómo correr lo que se mergeó). El agente recibe la nota del proyecto como contexto. Recórrelo con <kbd>B</kbd>, busca con <kbd>/</kbd> y agrega al inbox con <kbd>i</kbd>. Con <code>brain_git = true</code> hace commits locales.</p>
+          <h3>Grafo</h3>
+          <p>Pulsa <kbd>G</kbd> en el cerebro para verlo como grafo, dibujado en la terminal con puntos braille. La <strong>vista local</strong> pone la nota abierta en el centro con sus enlaces alrededor: <kbd>←</kbd>/<kbd>→</kbd> eligen una nota, <kbd>enter</kbd> la centra (y la abre si ya es el centro), <kbd>1</kbd>/<kbd>2</kbd> muestran uno o dos anillos de enlaces. <kbd>v</kbd> cambia a <strong>todo el cerebro</strong>, acomodado con una simulación de fuerzas: las flechas van a la nota más cercana, <kbd>+</kbd>/<kbd>-</kbd> o la rueda del ratón hacen zoom y <kbd>0</kbd> ajusta todo. Las tareas y guías quedan unidas a su proyecto aunque no tengan un enlace escrito. Un clic elige una nota; un segundo clic la abre.</p>
+          <pre class="cmd">                    ◆ INDEX
+                    ⡇
+   • 4-login        ⡇          ◆ inbox
+         ⠑⠢⡀        ⡇       ⡠⠒
+            ⠈⠒⢄     ⡇    ⡠⠔⠁
+               ⠑⠢⡀  ⡇ ⡠⠊
+                   ● solar-system
+              ⣀⡠⠤⠒⠉  ⠉⠒⠤⢄⣀
+   • 3-orbits            ◇ 2026-11-06-run</pre>
         </section>
 
         <section id="hooks-es">

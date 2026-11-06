@@ -370,7 +370,6 @@ var es = map[string]string{
 	"notes tree and markdown":  "árbol de notas y markdown",
 	"Open project.md":          "Abrir project.md",
 	"this project's note":      "la nota de este proyecto",
-	"j/k tree  enter open  tab link  / search  o edit  i inbox  esc back": "j/k árbol  enter abrir  tab enlace  / buscar  o editar  i inbox  esc atrás",
 	"  · uncommitted  ctrl+s commit":                                      "  · sin commit  ctrl+s commit",
 	"  · brain git clean":                                                 "  · cerebro git limpio",
 	"search notes":                                                        "buscar notas",
