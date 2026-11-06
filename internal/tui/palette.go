@@ -21,6 +21,9 @@ func (m Model) allCommands() []paletteItem {
 	return []paletteItem{
 		{ID: "palette", Title: i18n.T("Command palette"), Hint: i18n.T("this palette"), Keys: "ctrl+k"},
 		{ID: "help", Title: i18n.T("Help"), Hint: i18n.T("shortcuts"), Keys: "?"},
+		{ID: "settings", Title: i18n.T("Settings"), Hint: i18n.T("language, agents, editor, merge"), Keys: "S"},
+		{ID: "setup", Title: i18n.T("Run the setup again"), Hint: i18n.T("first-run wizard")},
+		{ID: "about", Title: i18n.T("About Troopa"), Keys: "i"},
 		{ID: "quit", Title: i18n.T("Quit"), Hint: i18n.T("close Troopa"), Keys: "q"},
 		{ID: "projects", Title: i18n.T("Go to projects"), Hint: i18n.T("main list"), Keys: "esc"},
 		{ID: "new-project", Title: i18n.T("New project"), Keys: "n"},
@@ -142,6 +145,15 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		m.helpFrom = m.screen
 		m.screen = screenHelp
 		return m, nil
+	case "settings":
+		m.openSettings(from)
+		return m, nil
+	case "setup":
+		m.startSetup(screenList)
+		return m, nil
+	case "about":
+		m.screen = from
+		return m.openAbout()
 	case "quit":
 		return m, tea.Quit
 	case "projects":

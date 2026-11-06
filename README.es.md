@@ -30,9 +30,15 @@ Datos: `$XDG_DATA_HOME/troopa/troopa.db` (por defecto `~/.local/share/troopa/`).
 Configuración: `$XDG_CONFIG_HOME/troopa/config.toml` (tema, agentes, worktrees, terminal y precios). Troopa solo reescribe las líneas `theme` y `welcome_shown`; el resto queda como lo escribiste.
 Checks por proyecto: `troopa.toml` en la raíz del repo.
 
+## Primer arranque y configuración
+
+La primera vez, Troopa hace una configuración corta: idioma, tema, agente y modelo por defecto, editor, terminal para el modo pareja y estrategia de merge. Lista los agentes que encuentra en tu computadora (Claude Code, Codex, OpenCode, Pi) con su versión. Puedes repetirla con `troopa setup`.
+
+Después todo queda en Configuración: `S` (o Ctrl+K → Configuración) para cambiar cualquier valor; se guarda al instante en `config.toml`. `i` abre Acerca de. Al mover una tarea a **ready** siempre pregunta antes de lanzar el agente y dice cuál es.
+
 ## Idioma
 
-La interfaz está en inglés o español según `LANG` (`es_*` es español). Para forzarlo: `TROOPA_LANG=es` o `TROOPA_LANG=en`. La salida JSON de la CLI y los archivos para los agentes (`TASK.md`, `PAIR.md`) van siempre en inglés.
+La interfaz está en inglés por defecto. Elige español (o `auto` para seguir el idioma del sistema) en la configuración inicial o en Configuración; se guarda como `language` en `config.toml`. `TROOPA_LANG=en` o `TROOPA_LANG=es` tiene prioridad.
 
 ## Temas
 

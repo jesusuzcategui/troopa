@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/jesusuzcategui/troopa/internal/store"
 	"os"
 	"strings"
 	"testing"
@@ -63,5 +64,24 @@ func TestOpenEditor(t *testing.T) {
 	next, cmd = m.openEditor(dir)
 	if cmd != nil || next.(Model).err == "" {
 		t.Fatal("missing editor should report an error")
+	}
+}
+
+func TestLaunchNeedsInstalledAgentAndDefaultAgent(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	m := openSeededBoard(t, 100, 26)
+	m.cfg.DefaultAgent = store.AgentCodex
+	m = press(t, m, "n")
+	for _, r := range "Nueva" {
+		m = press(t, m, string(r))
+	}
+	m = press(t, m, "enter")
+	sel, ok := m.selectedTask()
+	if !ok || sel.Title != "Nueva" || sel.Agent != store.AgentCodex {
+		t.Fatalf("quick task should use the default agent: %+v", sel)
+	}
+	m = press(t, m, "]", "]")
+	if m.popup != nil || !strings.Contains(m.err, "Codex is not installed") {
+		t.Fatalf("expected not-installed error, popup=%v err=%q", m.popup != nil, m.err)
 	}
 }

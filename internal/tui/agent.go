@@ -33,7 +33,11 @@ func (m Model) maybeLaunch(t store.Task, dest string) (tea.Model, tea.Cmd) {
 	if t.Status == store.StatusReady {
 		return m.applyMove(t, dest)
 	}
-	return m.startAgentFor(t)
+	if !launch.AgentInstalled(m.cfg.Launch, t.Agent) {
+		m.err = i18n.T("%s is not installed. Install it or pick another agent with A.", launch.AgentName(t.Agent))
+		return m, nil
+	}
+	return m.openLaunchPopup(t)
 }
 
 func (m Model) startAgentFor(t store.Task) (tea.Model, tea.Cmd) {

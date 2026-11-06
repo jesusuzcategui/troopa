@@ -269,6 +269,11 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T("Client filter: ") + m.clientFilterLabel()
 	case "M":
 		return m.openMetrics()
+	case "S":
+		m.openSettings(screenBoard)
+		return m, nil
+	case "i":
+		return m.openAbout()
 	case "v":
 		m.toggleView()
 	case "z":

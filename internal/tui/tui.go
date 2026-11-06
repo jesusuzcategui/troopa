@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -39,6 +40,8 @@ const (
 	screenPalette
 	screenTheme
 	screenWelcome
+	screenSetup
+	screenSettings
 )
 
 type field int
@@ -130,7 +133,20 @@ type Model struct {
 	diffFiles  []launch.FileDiff
 	diffIndex  int
 	diffOffset int
+
+	setup    *setupState
+	settings *settingsState
+	about    bool
+	version  string
 }
+
+// Options are what Run needs beyond the store and the config.
+type Options struct {
+	Version    string
+	ForceSetup bool // troopa setup
+}
+
+type splashDoneMsg struct{}
 
 func New(s *store.Store, cfg config.Config, configPath string) Model {
 	m := Model{
@@ -164,9 +180,7 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 	m.paletteInput.Prompt = ""
 	m.themes = loadThemes(m.themeDir)
 	m.theme = themeByName(m.themes, cfg.NormalizedTheme())
-	if !cfg.WelcomeShown {
-		m.screen = screenWelcome
-	}
+	m.version = "dev"
 	if m.cfg.Launch.Agents == nil {
 		dataDir, _, _, err := config.Paths()
 		if err != nil {
@@ -180,6 +194,9 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 		if m.cfg.Launch.Prices == nil {
 			m.cfg.Launch.Prices = def.Prices
 		}
+	}
+	if !cfg.SetupDone && !cfg.WelcomeShown {
+		m.startSetup(screenList)
 	}
 	m.reload()
 	m.status = listStatus()
@@ -222,13 +239,26 @@ func (m *Model) reload() {
 	m.clampOffset()
 }
 
-func Run(s *store.Store, cfg config.Config, configPath string) error {
-	p := tea.NewProgram(New(s, cfg, configPath), tea.WithAltScreen(), tea.WithMouseCellMotion())
+func Run(s *store.Store, cfg config.Config, configPath string, opts Options) error {
+	m := New(s, cfg, configPath)
+	if opts.Version != "" {
+		m.version = opts.Version
+	}
+	switch {
+	case opts.ForceSetup:
+		m.startSetup(screenList)
+	case m.screen == screenList && !cfg.HideLogo:
+		m.screen = screenWelcome
+	}
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err := p.Run()
 	return err
 }
 
 func (m Model) Init() tea.Cmd {
+	if m.screen == screenWelcome {
+		return tea.Tick(1800*time.Millisecond, func(time.Time) tea.Msg { return splashDoneMsg{} })
+	}
 	return textinput.Blink
 }
 
@@ -256,6 +286,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handlePairClosed(msg)
 	case editorClosedMsg:
 		return m.handleEditorClosed(msg)
+	case splashDoneMsg:
+		if m.screen == screenWelcome {
+			return m.dismissWelcome()
+		}
+		return m, nil
 	}
 	if m.screen == screenForm {
 		return m.updateInputs(msg)
@@ -270,8 +305,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.about {
+		return m.updateAboutKey(msg)
+	}
 	if m.screen == screenWelcome {
 		return m.updateWelcomeKey(msg)
+	}
+	if m.screen == screenSetup {
+		return m.updateSetupKey(msg)
+	}
+	if m.screen == screenSettings && m.settings != nil && m.settings.editing {
+		return m.updateSettingsKey(msg)
 	}
 	if msg.String() == "ctrl+k" {
 		if m.screen == screenPalette {
@@ -285,6 +329,9 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenTheme {
 		return m.updateThemeKey(msg)
+	}
+	if m.screen == screenSettings {
+		return m.updateSettingsKey(msg)
 	}
 	switch m.screen {
 	case screenHelp:
@@ -360,6 +407,11 @@ func (m Model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+	case "S":
+		m.openSettings(screenList)
+		return m, nil
+	case "i":
+		return m.openAbout()
 	case "?":
 		m.helpFrom = screenList
 		m.screen = screenHelp
@@ -596,7 +648,22 @@ func (m Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.popup != nil {
 		return m.updatePopupMouse(msg)
 	}
+	if m.about {
+		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			m.about = false
+		}
+		return m, nil
+	}
 	switch m.screen {
+	case screenSetup:
+		return m.updateSetupMouse(msg)
+	case screenSettings:
+		return m.updateSettingsMouse(msg)
+	case screenWelcome:
+		if msg.Action == tea.MouseActionPress {
+			return m.dismissWelcome()
+		}
+		return m, nil
 	case screenHelp:
 		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
 			m.screen = m.helpFrom
@@ -686,10 +753,17 @@ func (m Model) View() string {
 		body = m.viewThemePicker()
 	case screenWelcome:
 		body = m.viewWelcome()
+	case screenSetup:
+		body = m.viewSetup()
+	case screenSettings:
+		body = m.viewSettings()
 	default:
 		body = m.viewList()
 	}
 	status := m.status
+	if m.screen == screenSetup || m.screen == screenWelcome {
+		status = ""
+	}
 	if m.err != "" {
 		status = th.Error.Render(m.err)
 	}
@@ -698,6 +772,10 @@ func (m Model) View() string {
 	body = lipgloss.NewStyle().Width(m.width).Height(innerH).MaxHeight(innerH).Background(th.App.GetBackground()).Render(body)
 	if m.popup != nil {
 		box, x, y := m.popupBox()
+		body = overlay(body, box, x, y)
+	}
+	if m.about {
+		box, x, y := m.aboutBox()
 		body = overlay(body, box, x, y)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, body, bar)

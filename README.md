@@ -27,12 +27,18 @@ goreleaser build --snapshot --clean
 ```
 
 Data: `$XDG_DATA_HOME/troopa/troopa.db` (default `~/.local/share/troopa/`).
-Config: `$XDG_CONFIG_HOME/troopa/config.toml` (theme, agents, worktrees, terminal and token prices). Troopa only rewrites the `theme` and `welcome_shown` lines; everything else stays as you wrote it.
+Config: `$XDG_CONFIG_HOME/troopa/config.toml` (theme, agents, worktrees, terminal and token prices). Troopa only rewrites the keys you change in the setup or in Settings; comments, agents and prices stay as you wrote them.
 Per-project checks: `troopa.toml` at the repo root (`checks = ["go test ./..."]`).
+
+## First run and settings
+
+The first time you open Troopa, a short setup asks for the language, the theme, your default agent and model, your editor, the terminal for pair sessions and the merge strategy. It lists the agent CLIs it finds on your computer (Claude Code, Codex, OpenCode, Pi) with their versions. Run it again any time with `troopa setup`.
+
+Everything it asks lives in Settings afterwards: press `S` (or Ctrl+K → Settings) to change a value; it is saved to `config.toml` right away. `i` opens About. Moving a task to **ready** always asks before its agent starts, and names the agent.
 
 ## Language
 
-The interface is in English or Spanish, picked from `LANG` (`es_*` means Spanish). Override it with `TROOPA_LANG=en` or `TROOPA_LANG=es`. The CLI JSON output and the files written for agents (`TASK.md`, `PAIR.md`) are always in English.
+The interface is in English by default. Pick Spanish (or follow the system locale with `auto`) in the setup or in Settings; it is stored as `language` in `config.toml`. `TROOPA_LANG=en` or `TROOPA_LANG=es` overrides it. The CLI JSON output and the files written for agents (`TASK.md`, `PAIR.md`) are always in English.
 
 ## Themes
 
@@ -61,6 +67,10 @@ diff_hunk = "#7EB8FF"
 `~/.config/troopa/config.toml`:
 
 ```toml
+language = "en"            # "es", or "auto" for the system locale
+default_agent = "claude"   # agent for new tasks ("me" = no agent)
+default_model = ""
+merge = "squash"           # or "merge"
 branch_prefix = ""
 worktrees = "~/.local/share/troopa/worktrees"
 notify = true
@@ -89,7 +99,7 @@ With a remote, Troopa already opened a PR: use `c` to remove the worktree and ke
 
 `Ctrl+K` command palette (every action). First launch shows a welcome screen.
 
-Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · `F` client filter · `M` metrics · `t` theme · `?` help · `q` quit
+Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · `F` client filter · `M` metrics · `t` theme · `S` settings · `i` about · `?` help · `q` quit
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 

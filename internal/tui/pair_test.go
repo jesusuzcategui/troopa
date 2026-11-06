@@ -61,6 +61,11 @@ func TestStartPairFinishAndPause(t *testing.T) {
 	got.clampBoardCursor()
 	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{']'}})
 	got = next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmLaunch {
+		t.Fatalf("moving to ready should ask before launching, err=%s", got.err)
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got = next.(Model)
 	if got.screen != screenPair {
 		t.Fatalf("screen=%v err=%s", got.screen, got.err)
 	}

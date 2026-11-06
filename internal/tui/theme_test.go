@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -74,24 +75,65 @@ func TestCycleTheme(t *testing.T) {
 	}
 }
 
-func TestWelcomeFirstRun(t *testing.T) {
+func TestFirstRunSetup(t *testing.T) {
 	dir := t.TempDir()
 	s, err := store.Open(filepath.Join(dir, "db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	m := New(s, config.Config{Theme: "dark"}, filepath.Join(dir, "config.toml"))
-	if m.screen != screenWelcome {
-		t.Fatalf("screen %v", m.screen)
+	path := filepath.Join(dir, "config.toml")
+	m := New(s, config.Config{Theme: "dark"}, path)
+	if m.screen != screenSetup {
+		t.Fatalf("first run should open the setup, screen %v", m.screen)
 	}
-	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if !strings.Contains(m.View(), "▀█▀ █▀█") {
+		t.Fatal("setup should show the logo")
+	}
+	var next tea.Model = m
+	// language: move to Español, then accept every other step as proposed
+	next, _ = next.Update(tea.KeyMsg{Type: tea.KeyDown})
+	for i := 0; i < int(stepCount); i++ {
+		next, _ = next.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	}
 	got := next.(Model)
-	if got.screen != screenList {
-		t.Fatalf("after enter screen %v", got.screen)
+	defer i18n.SetLang(i18n.EN)
+	if got.screen != screenList || !got.cfg.SetupDone || got.cfg.Language != "es" {
+		t.Fatalf("setup not finished: screen %v cfg %+v", got.screen, got.cfg)
 	}
-	if !got.cfg.WelcomeShown {
-		t.Fatal("welcome_shown not persisted in memory")
+	saved, err := config.Load(path)
+	if err != nil || !saved.SetupDone || saved.Language != "es" {
+		t.Fatalf("setup not saved: %+v %v", saved, err)
+	}
+}
+
+func TestSettingsChangeAndAbout(t *testing.T) {
+	m := newTestModel(t)
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+	got := next.(Model)
+	if got.screen != screenSettings {
+		t.Fatalf("S should open settings, screen %v", got.screen)
+	}
+	// merge strategy is the 7th row
+	for i := 0; i < 6; i++ {
+		next, _ = got.Update(tea.KeyMsg{Type: tea.KeyDown})
+		got = next.(Model)
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRight})
+	got = next.(Model)
+	if got.cfg.Launch.Merge != "merge" {
+		t.Fatalf("merge = %q", got.cfg.Launch.Merge)
+	}
+	saved, _ := config.Load(got.configPath)
+	if saved.Launch.Merge != "merge" {
+		t.Fatal("merge not saved")
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	got = next.(Model)
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("i")})
+	got = next.(Model)
+	if !got.about || !strings.Contains(got.View(), "Jesús Uzcátegui") {
+		t.Fatal("about window missing")
 	}
 }
 

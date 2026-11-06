@@ -257,7 +257,7 @@ func (m Model) viewTaskForm() string {
 		{i18n.T("Description"), m.taskDesc.View(), tfDesc},
 		{i18n.T("Criteria"), m.taskCrit.View(), tfCriteria},
 		{i18n.T("Priority"), m.taskDraft.Priority + "  ←/→", tfPriority},
-		{i18n.T("Agent"), m.taskDraft.Agent + "  ←/→", tfAgent},
+		{i18n.T("Agent"), m.agentDisplay(m.taskDraft.Agent) + "  ←/→", tfAgent},
 		{i18n.T("Model"), m.taskModelIn.View(), tfModel},
 		{i18n.T("Mode"), m.taskDraft.Mode + "  ←/→", tfMode},
 		{i18n.T("Commits"), m.taskDraft.Commits + "  ←/→", tfCommits},

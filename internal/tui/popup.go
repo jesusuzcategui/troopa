@@ -25,6 +25,7 @@ const (
 	propType
 	propCount
 	propConfirmDiscard // not a task field: yes/no before discarding a run
+	propConfirmLaunch  // yes/no before an agent starts on a task
 	propConfirmMerge   // not a task field: yes/no before merging a local branch
 	propConfirmClean   // not a task field: yes/no before cleaning a worktree
 )
@@ -61,7 +62,7 @@ func (p prop) options() []string {
 		return store.CommitModes
 	case propType:
 		return store.Types
-	case propConfirmDiscard:
+	case propConfirmDiscard, propConfirmLaunch:
 		return []string{"yes", "no"}
 	case propConfirmMerge:
 		return []string{"yes", "no"}
@@ -111,7 +112,31 @@ func (m Model) openFieldPopup(p prop) (tea.Model, tea.Cmd) {
 			cur = i
 		}
 	}
-	m.popup = &popup{kind: p, title: p.label() + " · " + truncate(t.Title, 32), options: opts, labels: opts, cursor: cur, taskID: t.ID}
+	labels := opts
+	if p == propAgent {
+		labels = make([]string, len(opts))
+		for i, o := range opts {
+			labels[i] = m.agentDisplay(o)
+		}
+	}
+	m.popup = &popup{kind: p, title: p.label() + " · " + truncate(t.Title, 32), options: opts, labels: labels, cursor: cur, taskID: t.ID}
+	return m, nil
+}
+
+// openLaunchPopup asks before an agent starts working, naming the agent, so
+// a task never runs with an agent the person did not mean to pick.
+func (m Model) openLaunchPopup(t store.Task) (tea.Model, tea.Cmd) {
+	model := ""
+	if t.Model != "" {
+		model = " · " + t.Model
+	}
+	m.popup = &popup{
+		kind:    propConfirmLaunch,
+		title:   i18n.T("Launch %s (%s%s) on «%s»?", launch.AgentName(t.Agent), t.Mode, model, truncate(t.Title, 32)),
+		options: propConfirmLaunch.options(),
+		labels:  []string{i18n.T("Yes, launch"), i18n.T("No")},
+		taskID:  t.ID,
+	}
 	return m, nil
 }
 
@@ -211,6 +236,13 @@ func (m Model) applyPopup(value string) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
+	if p.kind == propConfirmLaunch {
+		if value == "yes" {
+			return m.startAgentFor(t)
+		}
+		m.status = i18n.T("Not launched")
+		return m, nil
+	}
 	return m.setTaskProp(t, p.kind, value)
 }
 
@@ -294,6 +326,15 @@ func (m Model) updatePopupMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m.applyPopup(m.popup.options[idx])
 	}
 	return m, nil
+}
+
+// agentDisplay is the agent's name, marked when its CLI is not on PATH.
+func (m Model) agentDisplay(id string) string {
+	name := agentLabel(id)
+	if !launch.AgentInstalled(m.cfg.Launch, id) {
+		name += " " + i18n.T("(not installed)")
+	}
+	return name
 }
 
 // overlay draws top over base starting at column x, row y.

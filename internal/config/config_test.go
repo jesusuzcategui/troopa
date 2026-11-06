@@ -179,3 +179,38 @@ func TestSaveBoardLayout(t *testing.T) {
 		t.Fatalf("collapsed not cleared: %+v", got.Collapsed)
 	}
 }
+
+func TestSaveSetupSettings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("# mine\n[agents.pi]\ncommand = \"pi\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := Config{Theme: "nord", SetupDone: true, Language: "es", DefaultAgent: "claude", DefaultModel: "sonnet", WorktreesRaw: "~/wt"}
+	c.Launch.Editor = "nvim"
+	c.Launch.Merge = "merge"
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.SetupDone || got.Language != "es" || got.DefaultAgent != "claude" || got.DefaultModel != "sonnet" ||
+		got.Launch.Editor != "nvim" || got.Launch.Merge != "merge" || got.WorktreesRaw != "~/wt" {
+		t.Fatalf("settings not kept: %+v", got)
+	}
+	if got.Launch.Agents["pi"].Command != "pi" {
+		t.Fatal("agents table lost")
+	}
+	raw, _ := os.ReadFile(path)
+	if strings.Contains(string(raw), "terminal =") || strings.Contains(string(raw), "hide_logo") {
+		t.Fatalf("empty settings should not be added:\n%s", raw)
+	}
+	if err := Unset(path, "editor"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = Load(path)
+	if got.Launch.Editor != "" {
+		t.Fatalf("editor not cleared: %q", got.Launch.Editor)
+	}
+}

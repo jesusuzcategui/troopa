@@ -40,6 +40,13 @@ type Launch struct {
 type Config struct {
 	Theme        string
 	WelcomeShown bool
+	SetupDone    bool   // the first-run setup finished
+	Language     string // "en", "es" or "auto" (system); empty means English
+	DefaultAgent string // agent for new tasks; empty means "me"
+	DefaultModel string
+	HideLogo     bool // skip the logo screen at start
+	// WorktreesRaw is worktrees exactly as written in config.toml ("" = default).
+	WorktreesRaw string
 	BoardView    string   // "board" or "list"
 	Collapsed    []string // statuses folded on the board and in the list
 	Launch       Launch
@@ -48,6 +55,11 @@ type Config struct {
 type tomlConfig struct {
 	Theme        string                `toml:"theme"`
 	WelcomeShown bool                  `toml:"welcome_shown"`
+	SetupDone    bool                  `toml:"setup_done"`
+	Language     string                `toml:"language"`
+	DefaultAgent string                `toml:"default_agent"`
+	DefaultModel string                `toml:"default_model"`
+	HideLogo     bool                  `toml:"hide_logo"`
 	BoardView    string                `toml:"board_view"`
 	Collapsed    []string              `toml:"collapsed"`
 	BranchPrefix string                `toml:"branch_prefix"`
@@ -144,6 +156,12 @@ func Load(path string) (Config, error) {
 	if t.WelcomeShown {
 		c.WelcomeShown = true
 	}
+	c.SetupDone = t.SetupDone
+	c.Language = strings.TrimSpace(t.Language)
+	c.DefaultAgent = strings.TrimSpace(t.DefaultAgent)
+	c.DefaultModel = strings.TrimSpace(t.DefaultModel)
+	c.HideLogo = t.HideLogo
+	c.WorktreesRaw = strings.TrimSpace(t.Worktrees)
 	if v := strings.TrimSpace(t.BoardView); v != "" {
 		c.BoardView = v
 	}
@@ -219,6 +237,16 @@ func Save(path string, c Config) error {
 	}
 	text := setRootKey(string(raw), "theme", strconv.Quote(c.Theme))
 	text = setRootKey(text, "welcome_shown", strconv.FormatBool(c.WelcomeShown))
+	text = setBool(text, "setup_done", c.SetupDone)
+	text = setBool(text, "hide_logo", c.HideLogo)
+	text = setString(text, "language", c.Language)
+	text = setString(text, "default_agent", c.DefaultAgent)
+	text = setString(text, "default_model", c.DefaultModel)
+	text = setString(text, "editor", c.Launch.Editor)
+	text = setString(text, "terminal", c.Launch.Terminal)
+	text = setString(text, "merge", c.Launch.Merge)
+	text = setString(text, "branch_prefix", c.Launch.BranchPrefix)
+	text = setString(text, "worktrees", c.WorktreesRaw)
 	if c.BoardView != "" {
 		text = setRootKey(text, "board_view", strconv.Quote(c.BoardView))
 	}
@@ -230,6 +258,76 @@ func Save(path string, c Config) error {
 		text = setRootKey(text, "collapsed", "["+strings.Join(quoted, ", ")+"]")
 	}
 	return os.WriteFile(path, []byte(text), 0o644)
+}
+
+// setString writes key = "value". Empty values are skipped, so a partial
+// Config never wipes what the user wrote; use Unset to remove a key.
+func setString(text, key, value string) string {
+	if value == "" {
+		return text
+	}
+	return setRootKey(text, key, strconv.Quote(value))
+}
+
+// Unset removes a root key from config.toml, so its default applies again.
+func Unset(path, key string) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	lines := strings.Split(string(raw), "\n")
+	out := make([]string, 0, len(lines))
+	inRoot := true
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "[") {
+			inRoot = false
+		}
+		if inRoot {
+			if k, _, ok := strings.Cut(trimmed, "="); ok && strings.TrimSpace(k) == key {
+				continue
+			}
+		}
+		out = append(out, l)
+	}
+	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
+}
+
+// setBool writes key = true, or false only when the key is already there.
+func setBool(text, key string, value bool) string {
+	if !value && !hasRootKey(text, key) {
+		return text
+	}
+	return setRootKey(text, key, strconv.FormatBool(value))
+}
+
+func hasRootKey(text, key string) bool {
+	for _, l := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "[") {
+			return false
+		}
+		if k, _, ok := strings.Cut(trimmed, "="); ok && strings.TrimSpace(k) == key {
+			return true
+		}
+	}
+	return false
+}
+
+// ResolveWorktrees turns a worktrees setting into the folder Troopa uses:
+// empty means the default under the data folder.
+func ResolveWorktrees(raw string) string {
+	if strings.TrimSpace(raw) != "" {
+		return expandHome(strings.TrimSpace(raw))
+	}
+	dataDir, _, _, err := Paths()
+	if err != nil {
+		dataDir = filepath.Join(os.TempDir(), "troopa")
+	}
+	return filepath.Join(dataDir, "worktrees")
 }
 
 // setRootKey replaces key = ... in the root table (before the first [table])

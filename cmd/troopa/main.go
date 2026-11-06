@@ -9,6 +9,7 @@ import (
 
 	"github.com/jesusuzcategui/troopa/internal/cli"
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
 	"github.com/jesusuzcategui/troopa/internal/tui"
 )
@@ -32,6 +33,7 @@ const usage = `Troopa: your AI agent troop in the terminal.
 
 Usage:
   troopa                              open the interactive TUI
+  troopa setup                        run the first-run setup again
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
@@ -57,8 +59,8 @@ func buildVersion() string {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	if len(args) == 0 {
-		if err := runTUI(); err != nil {
+	if len(args) == 0 || (len(args) == 1 && args[0] == "setup") {
+		if err := runTUI(len(args) == 1); err != nil {
 			fmt.Fprintf(stderr, "troopa: %v\n", err)
 			return 1
 		}
@@ -105,7 +107,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	return 1
 }
-func runTUI() error {
+func runTUI(forceSetup bool) error {
 	_, configPath, dbPath, err := config.Paths()
 	if err != nil {
 		return err
@@ -119,7 +121,8 @@ func runTUI() error {
 		return err
 	}
 	defer s.Close()
-	return tui.Run(s, cfg, configPath)
+	i18n.Apply(cfg.Language)
+	return tui.Run(s, cfg, configPath, tui.Options{Version: buildVersion(), ForceSetup: forceSetup})
 }
 func writeJSON(w io.Writer, v any) { _ = json.NewEncoder(w).Encode(v) }
 func writeError(w io.Writer, code, message string) {

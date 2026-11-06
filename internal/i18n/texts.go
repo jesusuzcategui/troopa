@@ -13,7 +13,9 @@ const HelpText = `Shortcuts — projects
   M                  metrics by agent and project
   F                  filter projects by client
   tab                show or hide archived
-  t                  next theme (dark / light / tropic / custom)
+  t                  next theme
+  S                  settings (language, agents, editor, merge…)
+  i                  about Troopa
   Ctrl+K             command palette (every action)
   ?                  this help
   q / ctrl+c         quit
@@ -66,7 +68,9 @@ const HelpText = `Shortcuts — projects
   close terminal     pair-paused; enter to resume
 
   When you save a project whose path does not exist, Troopa offers
-  to create the folder with git init -b main, a README and an initial commit.`
+  to create the folder with git init -b main, a README and an initial commit.
+  Moving a task to ready asks before its agent starts.
+  troopa setup runs the first-run setup again.`
 
 const WelcomeText = `Troopa
 your AI agent troop in the terminal
@@ -89,7 +93,9 @@ const helpTextES = `Atajos — proyectos
   M                  métricas por agente y proyecto
   F                  filtrar proyectos por cliente
   tab                mostrar u ocultar archivados
-  t                  siguiente tema (dark / light / tropic / propios)
+  t                  siguiente tema
+  S                  configuración (idioma, agentes, editor, merge…)
+  i                  acerca de Troopa
   Ctrl+K             paleta de comandos (todas las acciones)
   ?                  esta ayuda
   q / ctrl+c         salir
@@ -142,7 +148,9 @@ const helpTextES = `Atajos — proyectos
   cerrar terminal    pair-paused; enter para retomar
 
   Al guardar un proyecto, si la ruta no existe se ofrece
-  crear la carpeta con git init -b main, README y commit inicial.`
+  crear la carpeta con git init -b main, README y commit inicial.
+  Mover una tarea a ready pregunta antes de lanzar su agente.
+  troopa setup repite la configuración inicial.`
 
 const welcomeTextES = `Troopa
 tu tropa de agentes en la terminal
@@ -153,3 +161,8 @@ tu tropa de agentes en la terminal
   • Agentes en ~/.config/troopa/config.toml
 
 Pulsa enter para empezar.`
+
+// AboutCreator is the creator blurb in the About window.
+const AboutCreator = `Senior web developer who builds tools for people working side by side with AI agents. Troopa is the open-source, terminal-first version of how he runs his own troop of agents: plan the work, hand it out, review it and merge it, without leaving the keyboard.`
+
+const aboutCreatorES = `Desarrollador web senior que crea herramientas para quienes trabajan codo a codo con agentes de IA. Troopa es la versión open source y de terminal de cómo él dirige su propia tropa de agentes: planear el trabajo, repartirlo, revisarlo y hacer el merge, sin soltar el teclado.`

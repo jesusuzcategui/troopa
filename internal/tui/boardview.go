@@ -270,7 +270,7 @@ func (m Model) viewKanban(mainW int) string {
 				style = th.Border
 			}
 			card := style.Width(sl.w - 1).Render(truncate(c.Title, max(4, sl.w-3)) + "\n" +
-				truncate(c.Priority+" · "+c.Agent, max(4, sl.w-3)))
+				truncate(c.Priority+" · "+agentLabel(c.Agent), max(4, sl.w-3)))
 			lines = append(lines, strings.Split(card, "\n")...)
 			lines = append(lines, "")
 			shown++
@@ -290,7 +290,7 @@ func (m Model) viewTaskList(mainW int) string {
 	th := m.theme
 	rows := m.listRows()
 	h := m.listVisibleRows()
-	priW, agentW, dateW := 8, 10, 7
+	priW, agentW, dateW := 8, 12, 7
 	titleW := max(8, mainW-priW-agentW-dateW-14)
 	header := th.Muted.Render(truncate(fmt.Sprintf("    %-*s %-*s %-*s %s", titleW, i18n.T("Title"), priW, i18n.T("Priority"), agentW, i18n.T("Agent"), i18n.T("Updated")), mainW-1))
 	var b strings.Builder
@@ -313,7 +313,7 @@ func (m Model) viewTaskList(mainW int) string {
 			}
 		} else {
 			line = fmt.Sprintf("   %-*s %-*s %-*s %s", titleW, truncate(r.task.Title, titleW), priW, r.task.Priority,
-				agentW, truncate(r.task.Agent, agentW), r.task.UpdatedAt.Local().Format("01-02"))
+				agentW, truncate(agentLabel(r.task.Agent), agentW), r.task.UpdatedAt.Local().Format("01-02"))
 		}
 		if i == m.listCursor {
 			style = th.Selected

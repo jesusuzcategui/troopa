@@ -78,7 +78,7 @@ func (m Model) updateQuickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.err = i18n.T("Title is required")
 			return m, nil
 		}
-		created, err := m.store.CreateTask(store.Task{ProjectID: m.boardProject.ID, Title: title})
+		created, err := m.store.CreateTask(store.Task{ProjectID: m.boardProject.ID, Title: title, Agent: m.cfg.DefaultAgent, Model: m.cfg.DefaultModel})
 		if err != nil {
 			m.err = err.Error()
 			return m, nil

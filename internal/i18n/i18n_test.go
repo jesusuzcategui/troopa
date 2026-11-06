@@ -80,3 +80,28 @@ func TestSpanishKeepsVerbs(t *testing.T) {
 		}
 	}
 }
+
+func TestApply(t *testing.T) {
+	defer SetLang(lang)
+	t.Setenv("TROOPA_LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "es_CO.UTF-8")
+	Apply("")
+	if Lang() != EN {
+		t.Fatal("empty preference must default to English")
+	}
+	Apply("auto")
+	if Lang() != ES {
+		t.Fatal("auto should follow LANG")
+	}
+	Apply("es")
+	if Lang() != ES {
+		t.Fatal("es")
+	}
+	t.Setenv("TROOPA_LANG", "en")
+	Apply("es")
+	if Lang() != EN {
+		t.Fatal("TROOPA_LANG must win")
+	}
+}

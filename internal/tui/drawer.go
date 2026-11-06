@@ -40,6 +40,9 @@ func (m Model) viewDrawer(w, h int) string {
 		b.WriteString(m.drawerHead(t, inner))
 		for i := prop(0); i < propCount; i++ {
 			val := propValue(t, i)
+			if i == propAgent {
+				val = m.agentDisplay(val)
+			}
 			if val == "" {
 				val = "—"
 			}

@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	lang     = Detect()
+	lang     = initial()
 	catalogs = map[string]map[string]string{ES: es}
 )
 
@@ -34,6 +34,31 @@ func Detect() string {
 		return EN
 	}
 	return EN
+}
+
+// initial is the language before the config is read: TROOPA_LANG, else English.
+func initial() string {
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("TROOPA_LANG"))); strings.HasPrefix(v, ES) {
+		return ES
+	}
+	return EN
+}
+
+// Apply sets the language from the config value. TROOPA_LANG always wins;
+// "auto" follows the system locale; anything else but "es" means English.
+func Apply(pref string) {
+	if v := strings.TrimSpace(os.Getenv("TROOPA_LANG")); v != "" {
+		SetLang(initial())
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(pref)) {
+	case ES:
+		SetLang(ES)
+	case "auto":
+		SetLang(Detect())
+	default:
+		SetLang(EN)
+	}
 }
 
 // SetLang switches the active language. Unknown languages mean English.
