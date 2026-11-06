@@ -45,9 +45,10 @@ func (m Model) renderLogo(width int) string {
 			}
 		}
 		line.WriteString(logoGap)
+		// The wordmark sits on the two middle rows, centered on the robots.
 		switch row {
-		case 0, 1:
-			line.WriteString(accent.Render(wordmark[row]))
+		case 1, 2:
+			line.WriteString(accent.Render(wordmark[row-1]))
 		case 3:
 			line.WriteString(tagline)
 		}
