@@ -86,6 +86,9 @@ func (m Model) viewDrawer(w, h int) string {
 			if extra := lastRunBranchLine(m.boardProject.RepoPath, run); extra != "" {
 				b.WriteString(th.Normal.Width(inner).Render(extra) + "\n")
 			}
+			if r := launch.ChangeRounds(run.Worktree); r > 0 {
+				b.WriteString(th.Muted.Width(inner).Render(fmt.Sprintf(i18n.T("Changes requested: %d rounds"), r)) + "\n")
+			}
 			if run.Note != "" {
 				b.WriteString(th.Muted.Width(inner).Render(run.Note) + "\n")
 			}

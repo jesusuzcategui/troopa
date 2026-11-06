@@ -18,7 +18,22 @@ type CheckResult struct {
 }
 
 type projectTOML struct {
-	Checks []string `toml:"checks"`
+	Checks       []string `toml:"checks"`
+	Instructions string   `toml:"instructions"`
+}
+
+// LoadProjectInstructions returns the instructions from troopa.toml, added to
+// every TASK.md of the project.
+func LoadProjectInstructions(repo string) string {
+	raw, err := os.ReadFile(filepath.Join(repo, "troopa.toml"))
+	if err != nil {
+		return ""
+	}
+	var t projectTOML
+	if err := toml.Unmarshal(raw, &t); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(t.Instructions)
 }
 
 func LoadProjectChecks(repo string) []string {

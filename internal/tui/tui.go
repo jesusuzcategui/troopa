@@ -42,6 +42,7 @@ const (
 	screenWelcome
 	screenSetup
 	screenSettings
+	screenChanges
 )
 
 type field int
@@ -138,6 +139,9 @@ type Model struct {
 	settings *settingsState
 	about    bool
 	version  string
+
+	changesInput textarea.Model
+	changesFrom  screen
 }
 
 // Options are what Run needs beyond the store and the config.
@@ -301,6 +305,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.screen == screenTaskForm {
 		return m.updateTaskInputs(msg)
 	}
+	if m.screen == screenChanges {
+		var cmd tea.Cmd
+		m.changesInput, cmd = m.changesInput.Update(msg)
+		return m, cmd
+	}
 	return m, nil
 }
 
@@ -313,6 +322,9 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenSetup {
 		return m.updateSetupKey(msg)
+	}
+	if m.screen == screenChanges {
+		return m.updateChangesKey(msg)
 	}
 	if m.screen == screenSettings && m.settings != nil && m.settings.editing {
 		return m.updateSettingsKey(msg)
@@ -766,6 +778,8 @@ func (m Model) View() string {
 		body = m.viewSetup()
 	case screenSettings:
 		body = m.viewSettings()
+	case screenChanges:
+		body = m.viewChanges()
 	default:
 		body = m.viewList()
 	}

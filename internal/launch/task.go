@@ -26,6 +26,8 @@ func BranchName(prefix, typ, title string) string {
 	return strings.TrimSuffix(prefix, "/") + "/" + b
 }
 
+// WriteTASK writes TASK.md. Project instructions come from troopa.toml at the
+// root of the worktree, so every task of a project gets the same rules.
 func WriteTASK(dir string, t store.Task) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", strings.TrimSpace(t.Title))
@@ -53,6 +55,12 @@ func WriteTASK(dir string, t store.Task) error {
 	b.WriteString("- Do not change tests just to make them pass.\n")
 	if t.Commits == store.CommitsNone {
 		b.WriteString("- Do not commit, push or create branches. Leave the changes uncommitted.\n")
+	}
+	b.WriteString("- In SUMMARY.md, start with a \"How to run\" section: setup (environment, dependencies), the command to run the change and how to test it.\n")
+	if extra := LoadProjectInstructions(dir); extra != "" {
+		b.WriteString("\n## Project instructions\n\n")
+		b.WriteString(extra)
+		b.WriteString("\n")
 	}
 	b.WriteString("\nRead this file and complete the task. When you finish, write SUMMARY.md.\n")
 	return os.WriteFile(filepath.Join(dir, "TASK.md"), []byte(b.String()), 0o644)

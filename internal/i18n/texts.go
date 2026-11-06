@@ -44,6 +44,7 @@ const HelpText = `Shortcuts — projects
   o                  open the worktree (or the project) in your editor
   g                  merge an approved local branch into the base
   c                  clean worktree, keep the branch
+  x                  request changes: send the task back to its agent
   esc                back to projects
 
   Mouse
@@ -55,6 +56,7 @@ const HelpText = `Shortcuts — projects
 
   Yolo agent (ready, not me)
   y / a              approve (auto: commit+push+PR; none: keeps the worktree)
+  x                  request changes (same agent, same worktree)
   g                  merge an approved local branch into the base
   c                  clean worktree, keep the branch
   d                  discard worktree and branch
@@ -124,6 +126,7 @@ const helpTextES = `Atajos — proyectos
   o                  abrir el worktree (o el proyecto) en tu editor
   g                  mergear una rama local aprobada en la base
   c                  limpiar worktree, conservar la rama
+  x                  pedir cambios: devolver la tarea a su agente
   esc                volver a proyectos
 
   Ratón
@@ -135,6 +138,7 @@ const helpTextES = `Atajos — proyectos
 
   Agente yolo (ready, no me)
   y / a              aprobar (auto: commit+push+PR; none: deja el worktree)
+  x                  pedir cambios (mismo agente, mismo worktree)
   g                  mergear una rama local aprobada en la base
   c                  limpiar worktree, conservar la rama
   d                  descartar worktree y rama

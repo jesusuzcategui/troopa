@@ -89,6 +89,21 @@ cache = 0.3
 
 Moving a task to **ready** with an agent other than `me` creates a git worktree on `<type>/<slug>` and writes `TASK.md`. **Yolo** runs the CLI non-interactively (live log, then checks and review). **Pair** also writes `PAIR.md` and opens the agent in a tmux split or `terminal`. **Finish pair** (`f`) runs checks. Closing the terminal without finishing leaves **pair-paused**. Approve with `commits=auto` commits, pushes and opens a PR — never merge, never push `main`. `commits=none` leaves the worktree dirty. Discard (`d`) removes worktree and branch.
 
+### Request changes
+
+When the work is not quite right, press `x` in the review (or on the task in the board, the list or the panel) and write what should change. The same agent runs again **in the same worktree**, keeping what it already did, with your feedback in `CHANGES.md` (one round per request; never committed). It ends in the review again with the whole diff. Pair tasks reopen the interactive agent with the feedback.
+
+Every `TASK.md` asks the agent to start `SUMMARY.md` with a **How to run** section (setup, dependencies, command, how to test), so the review tells you how to try the change.
+
+Rules that apply to every task of a project go in `troopa.toml` at the repo root:
+
+```toml
+checks = ["python3 -m pytest -q"]
+instructions = """
+Python: use a virtual environment in .venv and keep requirements.txt up to date.
+"""
+```
+
 ### After approving
 
 With a remote, Troopa already opened a PR: use `c` to remove the worktree and keep the branch. Without a remote, `g` merges the branch into the project base (squash or merge from `config.toml`) or `c` just cleans the worktree. `d` throws worktree and branch away.
@@ -103,11 +118,11 @@ Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · 
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 
-Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `c` clean worktree · `o` editor · `esc` back
+Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `o` editor · `esc` back
 
 On a narrow terminal the board scrolls sideways and follows the selected column (`◀ 2` / `▶ 3` show hidden statuses). From 120 columns the task panel sits beside the board; on smaller terminals `tab` opens it full screen. The view and the folded statuses are saved as `board_view` and `collapsed` in `config.toml`.
 
-Review: `y` approve · `g` merge · `c` clean worktree · `d` discard · `n`/`p` file · `j`/`k` scroll · `o` editor
+Review: `y` approve · `x` request changes · `g` merge · `c` clean worktree · `d` discard · `n`/`p` file · `j`/`k` scroll · `o` editor
 
 Pair: `f` finish · `r` reopen agent · `o` editor · `esc` board (session keeps running)
 

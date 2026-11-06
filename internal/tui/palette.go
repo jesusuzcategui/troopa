@@ -59,6 +59,7 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "merge", Title: i18n.T("Merge into base"), Keys: "g"},
 		{ID: "clean", Title: i18n.T("Clean worktree (keep branch)"), Keys: "c"},
 		{ID: "discard", Title: i18n.T("Discard worktree"), Keys: "d"},
+		{ID: "request-changes", Title: i18n.T("Request changes"), Hint: i18n.T("send the task back to its agent"), Keys: "x"},
 		{ID: "finish-pair", Title: i18n.T("Finish pair"), Keys: "f"},
 		{ID: "reopen-agent", Title: i18n.T("Reopen agent"), Keys: "r"},
 		{ID: "open-editor", Title: i18n.T("Open in editor"), Hint: i18n.T("worktree or project folder"), Keys: "o"},
@@ -148,6 +149,13 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 	case "settings":
 		m.openSettings(from)
 		return m, nil
+	case "request-changes":
+		if from == screenReview {
+			m.screen = screenReview
+			return m.openChanges(screenReview)
+		}
+		m.screen = screenBoard
+		return m.requestChangesFromTask()
 	case "setup":
 		m.startSetup(screenList)
 		return m, nil

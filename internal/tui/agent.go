@@ -664,6 +664,8 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.requestClean()
 	case "d":
 		return m.openDiscardPopup()
+	case "x":
+		return m.openChanges(screenReview)
 	case "o":
 		return m.openEditor(m.runFolder())
 	case "n", "l", "right":
@@ -752,9 +754,9 @@ func (m Model) viewReview() string {
 
 func reviewStatus(state string) string {
 	if state == store.RunApproved {
-		return i18n.T("g merge  c clean  d discard  n/p file  j/k scroll  o editor  esc board")
+		return i18n.T("g merge  x request changes  c clean  d discard  n/p file  j/k scroll  o editor  esc board")
 	}
-	return i18n.T("y approve  d discard  n/p file  j/k scroll  o editor  esc board")
+	return i18n.T("y approve  x request changes  d discard  n/p file  j/k scroll  o editor  esc board")
 }
 
 func decodeChecks(raw string) []launch.CheckResult {

@@ -213,7 +213,7 @@ func porcelainPath(line string) string {
 func isTroopaExcluded(p string) bool {
 	p = strings.TrimPrefix(p, "./")
 	switch filepath.Base(p) {
-	case "TASK.md", "SUMMARY.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log":
+	case "TASK.md", "SUMMARY.md", "CHANGES.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log":
 		return true
 	}
 	return p == ".venv" || strings.HasPrefix(p, ".venv/") || strings.Contains(p, "/.venv/") ||

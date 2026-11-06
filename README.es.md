@@ -54,6 +54,21 @@ Con remoto, Troopa ya abrió el PR: `c` quita el worktree y conserva la rama. Si
 
 `o` abre el worktree de la tarea en tu editor (o la carpeta del proyecto si el worktree ya no existe o la tarea aún no tiene). El editor sale de `editor` en `config.toml` (por ejemplo `editor = "nvim"` o `"code"`), luego `$VISUAL`, luego `$EDITOR`, luego `nvim`/`vim`/`vi`.
 
+## Pedir cambios
+
+Si el trabajo no quedó bien, pulsa `x` en la revisión (o sobre la tarea en el tablero, la lista o el panel) y escribe qué hay que cambiar. El mismo agente vuelve a trabajar **en el mismo worktree**, conservando lo que ya hizo, con tu comentario en `CHANGES.md` (una ronda por pedido; nunca se commitea). Termina otra vez en la revisión con el diff completo. Las tareas en modo pareja reabren el agente interactivo con el comentario.
+
+Cada `TASK.md` le pide al agente empezar `SUMMARY.md` con una sección **How to run** (preparación, dependencias, comando y cómo probar), así la revisión te dice cómo probar el cambio.
+
+Las reglas para todas las tareas de un proyecto van en `troopa.toml`, en la raíz del repo:
+
+```toml
+checks = ["python3 -m pytest -q"]
+instructions = """
+Python: usa un entorno virtual en .venv y mantén requirements.txt al día.
+"""
+```
+
 ## Atajos
 
 `Ctrl+K` paleta de comandos (cualquier acción). La primera vez hay una pantalla de bienvenida.
@@ -66,7 +81,7 @@ Tablero y lista: `v` cambia tablero/lista · `z` pliega el estado · `Z` pliega 
 
 En una terminal angosta el tablero se desplaza de lado siguiendo la columna seleccionada (`◀ 2` / `▶ 3` indican estados ocultos). Desde 120 columnas el panel de la tarea va al lado del tablero; en terminales más chicas `tab` lo abre a pantalla completa. La vista y los estados plegados se guardan como `board_view` y `collapsed` en `config.toml`.
 
-Revisión: `y` aprobar · `g` mergear · `c` limpiar worktree · `d` descartar · `o` editor
+Revisión: `y` aprobar · `x` pedir cambios · `g` mergear · `c` limpiar worktree · `d` descartar · `o` editor
 
 Pareja: `f` terminar · `r` reabrir agente · `o` editor
 

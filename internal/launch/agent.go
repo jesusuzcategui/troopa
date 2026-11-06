@@ -57,6 +57,11 @@ func insertModel(args []string, model string) []string {
 }
 
 func AgentCommand(cfg config.Launch, agent, model, worktree string) (*exec.Cmd, error) {
+	return AgentCommandPrompt(cfg, agent, model, worktree, YoloPrompt(worktree))
+}
+
+// AgentCommandPrompt is AgentCommand with a prompt of the caller's choice.
+func AgentCommandPrompt(cfg config.Launch, agent, model, worktree, prompt string) (*exec.Cmd, error) {
 	spec, ok := cfg.Agents[agent]
 	if !ok || spec.Command == "" {
 		return nil, fmt.Errorf("no command for agent %s in config.toml", agent)
@@ -65,7 +70,6 @@ func AgentCommand(cfg config.Launch, agent, model, worktree string) (*exec.Cmd, 
 	if err != nil {
 		return nil, fmt.Errorf("agent %s: %s is not installed", agent, spec.Command)
 	}
-	prompt := YoloPrompt(worktree)
 	args := ExpandArgs(spec.Args, prompt, model)
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = worktree
@@ -101,7 +105,7 @@ func DefaultPrompt() string {
 }
 
 func PairPrompt() string {
-	return "Read TASK.md and PAIR.md and work together with the person."
+	return "Read TASK.md and PAIR.md (and CHANGES.md if it exists: the person's review feedback, newest round last) and work together with the person."
 }
 
 func SetupPairAgent(cfg config.Launch, agent, model, worktree string) error {

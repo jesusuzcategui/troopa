@@ -272,6 +272,8 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "S":
 		m.openSettings(screenBoard)
 		return m, nil
+	case "x":
+		return m.requestChangesFromTask()
 	case "i":
 		return m.openAbout()
 	case "v":
