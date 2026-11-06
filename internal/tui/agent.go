@@ -324,6 +324,7 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
+	m.markPlanStarted(t, sess.Base, project)
 	if err := m.stageTask(sess.Worktree, t); err != nil {
 		_ = launch.Discard(sess)
 		m.err = err.Error()

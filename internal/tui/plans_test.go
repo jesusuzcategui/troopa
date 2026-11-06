@@ -220,3 +220,42 @@ func TestProfilesScreen(t *testing.T) {
 		t.Fatalf("delete: %+v default %d", m.profiles.list, m.cfg.DefaultProfile)
 	}
 }
+
+func TestLaunchingAStepFromTheBoardStartsThePlan(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git")
+	}
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(t.TempDir(), "bin")
+	_ = os.MkdirAll(bin, 0o755)
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\necho x >> steps.txt\necho done > SUMMARY.md\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	m := newTestModel(t)
+	m.cfg.Launch = config.DefaultLaunch(t.TempDir())
+	m.cfg.Launch.Brain = m.cfg.BrainRaw
+	m.cfg.Launch.Notify = false
+	p, _ := m.store.Create(store.Project{Name: "App", RepoPath: repo})
+	m.openBoard(p)
+	plan, _ := m.store.CreatePlan(store.Plan{ProjectID: p.ID, Title: "Two", Agent: store.AgentClaude, Auto: true})
+	first, _ := m.store.AddPlanStep(plan.ID, store.Task{Title: "One", Commits: store.CommitsNone})
+	_, _ = m.store.AddPlanStep(plan.ID, store.Task{Title: "Two", Commits: store.CommitsNone})
+
+	// Launched from the board (ready), not with s in the plan.
+	next, _ := m.launchAgent(first)
+	got := waitRun(t, next.(Model))
+	if saved, _ := got.store.GetPlan(plan.ID); saved.State != store.PlanRunning || saved.Base == "" {
+		t.Fatalf("plan should be running: %+v", saved)
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	got = next.(Model)
+	if got.screen != screenLog || got.runTask.PlanStep != 2 {
+		t.Fatalf("approving step 1 should launch step 2: screen %v step %d err %q status %q", got.screen, got.runTask.PlanStep, got.err, got.status)
+	}
+	got = waitRun(t, got)
+}

@@ -432,6 +432,25 @@ func (m Model) startPlan(id int64) (tea.Model, tea.Cmd) {
 	return m.advancePlan(plan.ID)
 }
 
+// markPlanStarted turns a draft plan into a running one when one of its
+// steps is launched from the board, so approving it moves the plan on.
+func (m Model) markPlanStarted(t store.Task, base string, project store.Project) {
+	if t.PlanID == 0 {
+		return
+	}
+	plan, err := m.store.GetPlan(t.PlanID)
+	if err != nil || plan.State != store.PlanDraft {
+		return
+	}
+	if plan.Base == "" {
+		plan.Base = base
+	}
+	plan.State = store.PlanRunning
+	if m.store.UpdatePlan(plan) == nil {
+		m.fireHook(launch.HookEvent{Event: launch.HookPlanStart, PlanID: plan.ID, Plan: plan.Title}, project)
+	}
+}
+
 // advancePlan launches the next step of a running plan, or marks it done.
 func (m Model) advancePlan(id int64) (tea.Model, tea.Cmd) {
 	plan, err := m.store.GetPlan(id)
