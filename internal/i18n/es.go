@@ -289,6 +289,7 @@ var es = map[string]string{
 	"your AI agent troop in the terminal":                                "tu tropa de agentes de IA en la terminal",
 	"↑/↓ choose · enter next · esc back · ctrl+c quit":                   "↑/↓ elegir · enter siguiente · esc atrás · ctrl+c salir",
 	"↑/↓ setting · ←/→ change · enter edit · r rescan agents · esc back": "↑/↓ opción · ←/→ cambiar · enter editar · r detectar agentes · esc volver",
+	"Projects":   "Proyectos",
 	AboutCreator: aboutCreatorES,
 	HelpText:     helpTextES,
 	WelcomeText:  welcomeTextES,

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -60,12 +61,24 @@ func TestMouseSelectsRow(t *testing.T) {
 	m.listOriginY = 3
 	m.listHeight = 10
 	next, _ := m.Update(tea.MouseMsg{
-		X: 1, Y: 4,
+		X: 1, Y: 4 + m.listLogoRows(),
 		Action: tea.MouseActionPress,
 		Button: tea.MouseButtonLeft,
 	})
 	got := next.(Model)
 	if got.cursor != 1 {
 		t.Fatalf("cursor = %d, want 1 (second row)", got.cursor)
+	}
+}
+
+func TestListShowsLogoWhenTall(t *testing.T) {
+	m := newTestModel(t)
+	m.width, m.height = 100, 30
+	if v := m.View(); !strings.Contains(v, "▀█▀ █▀█") || !strings.Contains(v, "[◉_◉]") {
+		t.Fatal("tall terminal should show the logo above the projects")
+	}
+	m.height = 18
+	if strings.Contains(m.View(), "[◉_◉]") {
+		t.Fatal("short terminal should hide the logo")
 	}
 }

@@ -628,8 +628,17 @@ func (m *Model) move(delta int) {
 	m.clampOffset()
 }
 
+// listLogoRows is how many rows the logo takes above the project list; the
+// logo only shows when the terminal is tall enough to keep the list useful.
+func (m Model) listLogoRows() int {
+	if m.height < 22 {
+		return 0
+	}
+	return lipgloss.Height(m.renderLogo(m.width)) + 1
+}
+
 func (m *Model) clampOffset() {
-	h := m.listHeight
+	h := m.listHeight - m.listLogoRows()
 	if h <= 0 {
 		h = 8
 	}
@@ -702,7 +711,7 @@ func (m Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-		rel := msg.Y - m.listOriginY
+		rel := msg.Y - m.listOriginY - m.listLogoRows()
 		if rel >= 0 && rel < m.listHeight {
 			idx := m.offset + rel
 			if idx >= 0 && idx < len(m.projects) {
@@ -783,7 +792,11 @@ func (m Model) View() string {
 
 func (m Model) viewList() string {
 	th := m.theme
+	logoRows := m.listLogoRows()
 	title := th.Title.Render("Troopa") + th.Muted.Render(i18n.T("  ·  projects"))
+	if logoRows > 0 {
+		title = th.Title.Render(i18n.T("Projects"))
+	}
 	if m.showArchived {
 		title += th.Muted.Render(i18n.T("  (incl. archived)"))
 	}
@@ -794,8 +807,13 @@ func (m Model) viewList() string {
 	if listH <= 0 {
 		listH = max(3, m.height-6)
 	}
+	listH = max(1, listH-logoRows)
 
 	var b strings.Builder
+	if logoRows > 0 {
+		b.WriteString(m.renderLogo(m.width))
+		b.WriteString("\n\n")
+	}
 	b.WriteString(title)
 	b.WriteString("\n\n")
 	if len(m.projects) == 0 {
