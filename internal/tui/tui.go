@@ -29,7 +29,6 @@ const (
 	screenQuickCreate
 	screenTaskForm
 	screenSearch
-	screenMoveMenu
 	screenClients
 	screenClientForm
 	screenConfirmArchiveClient
@@ -109,7 +108,12 @@ type Model struct {
 	dragging       bool
 	dragID         int64
 	dragOver       string
-	moveMenuIndex  int
+	boardScroll    int
+	listCursor     int
+	listOffset     int
+	popup          *popup
+	drawerFocus    bool
+	drawerField    int
 
 	taskTitle   textinput.Model
 	taskModelIn textinput.Model
@@ -333,8 +337,6 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateTaskFormKey(msg)
 	case screenSearch:
 		return m.updateSearchKey(msg)
-	case screenMoveMenu:
-		return m.updateMoveMenuKey(msg)
 	case screenClients:
 		return m.updateClientsKey(msg)
 	case screenClientForm:
@@ -591,6 +593,9 @@ func (m *Model) clampOffset() {
 }
 
 func (m Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.popup != nil {
+		return m.updatePopupMouse(msg)
+	}
 	switch m.screen {
 	case screenHelp:
 		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
@@ -614,7 +619,7 @@ func (m Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
-	case screenBoard, screenMoveMenu, screenQuickCreate, screenSearch:
+	case screenBoard, screenQuickCreate, screenSearch:
 		return m.updateBoardMouse(msg)
 	case screenTaskForm:
 		return m.updateTaskFormMouse(msg)
@@ -657,8 +662,6 @@ func (m Model) View() string {
 		body = m.viewTaskForm()
 	case screenSearch:
 		body = m.viewSearch()
-	case screenMoveMenu:
-		body = m.viewMoveMenu()
 	case screenConfirmInit:
 		body = m.viewConfirm(fmt.Sprintf(i18n.T("The path %s does not exist.\nCreate the folder, git init -b main, a README and an initial commit?"), m.initPath), i18n.T("y yes · n save without init · esc back"))
 	case screenConfirmArchive:
@@ -692,7 +695,11 @@ func (m Model) View() string {
 	}
 	bar := th.StatusBar.Width(max(0, m.width)).Render(truncate(status, max(0, m.width-2)))
 	innerH := max(1, m.height-1)
-	body = lipgloss.NewStyle().Width(m.width).Height(innerH).Background(th.App.GetBackground()).Render(body)
+	body = lipgloss.NewStyle().Width(m.width).Height(innerH).MaxHeight(innerH).Background(th.App.GetBackground()).Render(body)
+	if m.popup != nil {
+		box, x, y := m.popupBox()
+		body = overlay(body, box, x, y)
+	}
 	return lipgloss.JoinVertical(lipgloss.Left, body, bar)
 }
 

@@ -25,13 +25,16 @@ const HelpText = `Shortcuts — projects
   tab                show or hide archived
   esc                back to projects
 
-  Board
+  Board and list
+  v                  switch between board and list
   n                  create a task (title only)
   e                  edit the whole task
   enter              edit, or log/review when an agent ran
-  h / l              column
+  h / l              board: column · list: fold / unfold the group
+  z / Z              fold the status · fold every empty status
   [ / ]  or  H / L   move the task to another status
-  m                  status menu
+  m / P / A          popup to change status, priority or agent
+  tab                task panel (beside the board when the terminal is wide)
   /                  search
   f / p              status / priority filter
   C                  client filter
@@ -41,9 +44,10 @@ const HelpText = `Shortcuts — projects
 
   Mouse
   click              select (list or card)
+  click a header     fold or unfold the status
   drag a card        change its status
-  wheel              scroll
-  click in a menu    pick a status
+  wheel              scroll · shift+wheel changes column
+  click in a popup   pick an option
 
   Yolo agent (ready, not me)
   y / a              approve (auto: commit+push+PR; none: keeps the worktree)
@@ -93,13 +97,16 @@ const helpTextES = `Atajos — proyectos
   tab                mostrar u ocultar archivados
   esc                volver a proyectos
 
-  Tablero
+  Tablero y lista
+  v                  cambiar entre tablero y lista
   n                  crear tarea (solo título)
   e                  editar tarea completa
   enter              editar, o log/revisión si hay agente
-  h / l              columna
+  h / l              tablero: columna · lista: plegar / desplegar el grupo
+  z / Z              plegar el estado · plegar todos los vacíos
   [ / ]  o  H / L    mover tarea de estado
-  m                  menú de estado
+  m / P / A          popup para cambiar estado, prioridad o agente
+  tab                panel de la tarea (al lado si la terminal es ancha)
   /                  buscar
   f / p              filtro estado / prioridad
   C                  filtro por cliente
@@ -109,9 +116,10 @@ const helpTextES = `Atajos — proyectos
 
   Ratón
   clic               seleccionar (lista o tarjeta)
+  clic en encabezado plegar o desplegar el estado
   arrastrar tarjeta  cambiar estado
-  rueda              scroll
-  clic en menú       elegir estado
+  rueda              scroll · shift+rueda cambia de columna
+  clic en popup      elegir una opción
 
   Agente yolo (ready, no me)
   y / a              aprobar (auto: commit+push+PR; none: deja el worktree)

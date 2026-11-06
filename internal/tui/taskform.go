@@ -281,6 +281,10 @@ func (m Model) viewTaskForm() string {
 }
 
 func (m Model) renderMarkdown(src string) string {
+	return m.renderMarkdownW(src, max(24, min(m.width-4, 72)))
+}
+
+func (m Model) renderMarkdownW(src string, wrap int) string {
 	src = strings.TrimSpace(src)
 	if src == "" {
 		return m.theme.Muted.Render(i18n.T("  (empty)"))
@@ -289,7 +293,6 @@ func (m Model) renderMarkdown(src string) string {
 	if m.theme.Name == "light" {
 		style = "light"
 	}
-	wrap := max(24, min(m.width-4, 72))
 	r, err := glamour.NewTermRenderer(
 		glamour.WithStandardStyle(style),
 		glamour.WithWordWrap(wrap),

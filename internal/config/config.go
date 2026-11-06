@@ -39,12 +39,16 @@ type Launch struct {
 type Config struct {
 	Theme        string
 	WelcomeShown bool
+	BoardView    string   // "board" or "list"
+	Collapsed    []string // statuses folded on the board and in the list
 	Launch       Launch
 }
 
 type tomlConfig struct {
 	Theme        string                `toml:"theme"`
 	WelcomeShown bool                  `toml:"welcome_shown"`
+	BoardView    string                `toml:"board_view"`
+	Collapsed    []string              `toml:"collapsed"`
 	BranchPrefix string                `toml:"branch_prefix"`
 	Worktrees    string                `toml:"worktrees"`
 	Notify       *bool                 `toml:"notify"`
@@ -138,6 +142,12 @@ func Load(path string) (Config, error) {
 	if t.WelcomeShown {
 		c.WelcomeShown = true
 	}
+	if v := strings.TrimSpace(t.BoardView); v != "" {
+		c.BoardView = v
+	}
+	if t.Collapsed != nil {
+		c.Collapsed = t.Collapsed
+	}
 	if t.BranchPrefix != "" {
 		c.Launch.BranchPrefix = t.BranchPrefix
 	}
@@ -204,6 +214,16 @@ func Save(path string, c Config) error {
 	}
 	text := setRootKey(string(raw), "theme", strconv.Quote(c.Theme))
 	text = setRootKey(text, "welcome_shown", strconv.FormatBool(c.WelcomeShown))
+	if c.BoardView != "" {
+		text = setRootKey(text, "board_view", strconv.Quote(c.BoardView))
+	}
+	if c.Collapsed != nil {
+		quoted := make([]string, len(c.Collapsed))
+		for i, s := range c.Collapsed {
+			quoted[i] = strconv.Quote(s)
+		}
+		text = setRootKey(text, "collapsed", "["+strings.Join(quoted, ", ")+"]")
+	}
 	return os.WriteFile(path, []byte(text), 0o644)
 }
 

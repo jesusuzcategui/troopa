@@ -38,7 +38,13 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "new-task", Title: i18n.T("New task"), Keys: "n"},
 		{ID: "edit-task", Title: i18n.T("Edit task"), Keys: "e"},
 		{ID: "search-tasks", Title: i18n.T("Search tasks"), Keys: "/"},
-		{ID: "status-menu", Title: i18n.T("Status menu"), Keys: "m"},
+		{ID: "status-menu", Title: i18n.T("Change status"), Keys: "m"},
+		{ID: "set-priority", Title: i18n.T("Change priority"), Keys: "P"},
+		{ID: "set-agent", Title: i18n.T("Change agent"), Keys: "A"},
+		{ID: "toggle-view", Title: i18n.T("Switch board / list view"), Keys: "v"},
+		{ID: "fold-status", Title: i18n.T("Collapse or expand status"), Keys: "z"},
+		{ID: "fold-empty", Title: i18n.T("Collapse empty statuses"), Keys: "Z"},
+		{ID: "task-panel", Title: i18n.T("Task panel"), Keys: "tab"},
 		{ID: "move-left", Title: i18n.T("Move task left"), Keys: "["},
 		{ID: "move-right", Title: i18n.T("Move task right"), Keys: "]"},
 		{ID: "filter-status", Title: i18n.T("Status filter"), Keys: "f"},
@@ -122,6 +128,11 @@ func (m Model) updatePaletteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 	from := m.paletteFrom
 	m = m.closePalette()
+	if boardOnlyCommand(id) && m.boardProject.ID == 0 && m.filterClientID == 0 {
+		m.screen = from
+		m.status = i18n.T("Open a project to create tasks")
+		return m, nil
+	}
 	switch id {
 	case "palette":
 		return m.openPalette()
@@ -251,9 +262,31 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		m.screen = screenSearch
 		return m, textinput.Blink
 	case "status-menu":
+		m.screen = screenBoard
+		return m.openFieldPopup(propStatus)
+	case "set-priority":
+		m.screen = screenBoard
+		return m.openFieldPopup(propPriority)
+	case "set-agent":
+		m.screen = screenBoard
+		return m.openFieldPopup(propAgent)
+	case "toggle-view":
+		m.screen = screenBoard
+		m.toggleView()
+		return m, nil
+	case "fold-status":
+		m.screen = screenBoard
+		m.toggleCollapse(store.Statuses[m.colIndex])
+		return m, nil
+	case "fold-empty":
+		m.screen = screenBoard
+		m.toggleEmptyCollapsed()
+		return m, nil
+	case "task-panel":
+		m.screen = screenBoard
 		if _, ok := m.selectedTask(); ok {
-			m.moveMenuIndex = m.colIndex
-			m.screen = screenMoveMenu
+			m.drawerFocus = true
+			m.drawerField = 0
 		} else {
 			m.status = i18n.T("No task selected")
 		}
@@ -420,4 +453,12 @@ func (m Model) viewThemePicker() string {
 	b.WriteString("\n")
 	b.WriteString(th.Muted.Render(i18n.T("enter choose  t cycle  Ctrl+K → Create custom theme  esc back")))
 	return th.App.Render(b.String())
+}
+
+func boardOnlyCommand(id string) bool {
+	switch id {
+	case "status-menu", "set-priority", "set-agent", "toggle-view", "fold-status", "fold-empty", "task-panel":
+		return true
+	}
+	return false
 }

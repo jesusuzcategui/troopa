@@ -128,3 +128,26 @@ func TestLoadLegacyJSON(t *testing.T) {
 		t.Fatalf("legacy config not read: %+v", c)
 	}
 }
+
+func TestSaveBoardLayout(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	c := Config{Theme: "dark", BoardView: "list", Collapsed: []string{"done", "blocked"}}
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BoardView != "list" || len(got.Collapsed) != 2 || got.Collapsed[1] != "blocked" {
+		t.Fatalf("layout not saved: %+v", got)
+	}
+	c.Collapsed = []string{}
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = Load(path)
+	if len(got.Collapsed) != 0 {
+		t.Fatalf("collapsed not cleared: %+v", got.Collapsed)
+	}
+}

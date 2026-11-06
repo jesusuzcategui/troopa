@@ -125,16 +125,16 @@ func TestMouseDragMovesTask(t *testing.T) {
 	got := next.(Model)
 	got.width = 140
 	got.height = 30
-	originY, colW, _, _ := got.boardGeom()
-	// first card of inbox is around originY+1, x in first column
-	press := tea.MouseMsg{X: 2, Y: originY + 1, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}
+	slots, _, _ := got.boardSlots()
+	// first card of inbox sits on the first content row of the first column
+	press := tea.MouseMsg{X: slots[0].x + 2, Y: boardContentY, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}
 	next, _ = got.Update(press)
 	got = next.(Model)
 	if !got.dragging {
 		t.Fatal("expected drag start")
 	}
 	// drop on backlog = second visible column
-	rel := tea.MouseMsg{X: colW + 2, Y: originY + 2, Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft}
+	rel := tea.MouseMsg{X: slots[1].x + 2, Y: boardContentY + 1, Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft}
 	next, _ = got.Update(rel)
 	got = next.(Model)
 	t0, ok := got.selectedTask()

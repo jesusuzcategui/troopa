@@ -510,6 +510,9 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.popup != nil {
+		return m.updatePopupKey(msg)
+	}
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -519,7 +522,7 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y", "a":
 		return m.approveRun()
 	case "d":
-		return m.discardRun()
+		return m.openDiscardPopup()
 	case "o":
 		return m.openEditor(m.runFolder())
 	case "n", "l", "right":
