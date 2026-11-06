@@ -97,12 +97,20 @@ func (m Model) finishBackgroundRun(msg agentDoneMsg) (tea.Model, tea.Cmd) {
 	if r, err := launch.RepoFromWorktree(run.Worktree); err == nil {
 		c.runSess.Repo = r
 	}
-	res, _ := c.finishAgent(msg)
+	res, cmd := c.finishAgent(msg)
 	done := res.(Model)
 	if m.screen == screenBoard {
 		m.reloadTasks()
 	}
 	m.err = ""
 	m.status = fmt.Sprintf("%s · %s", t.Title, done.run.State)
+	if done.run.ID != run.ID {
+		// Auto-approve started the next plan step: keep watching it.
+		m.status = done.status
+		if m.screen == screenBoard {
+			m.reloadTasks()
+		}
+		return m, cmd
+	}
 	return m, nil
 }

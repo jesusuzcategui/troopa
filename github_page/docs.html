@@ -99,6 +99,7 @@
             <li>Each step goes through the normal review. Approving a step commits it on its branch, and the next step starts <strong>from that branch</strong>, so it builds on the work before it. With auto-advance on, it starts by itself; otherwise press <kbd>s</kbd>.</li>
             <li>When every step is done, open the plan and press <kbd>g</kbd>: the last branch (the whole plan) is merged into the branch the plan started from, or pushed with a PR when the repo has a remote. The step worktrees are removed.</li>
           </ol>
+          <p><strong>Auto-approve</strong> (<kbd>A</kbd>, or in the plan form) lets a plan run alone: when a step's agent finishes and every check of <code>troopa.toml</code> passes, the step is approved and the next one starts. If a step fails, the plan stops there as <em>blocked</em> (the <code>blocked</code> hook can tell you), and after <kbd>x</kbd> fixes it the plan goes on. The merge at the end is always yours. Give the project real checks (tests, linters) before you turn it on: they are what decides.</p>
           <p><kbd>p</kbd> pauses (the running step finishes, the next one waits), <kbd>t</kbd> toggles auto-advance. A step that is blocked stops the plan until you fix it with <kbd>x</kbd>. Steps never merge on their own.</p>
         </section>
 
@@ -274,6 +275,7 @@ merge = "./scripts/deploy-staging.sh"</pre>
             <li>Cada paso pasa por la revisión normal. Al aprobar un paso se hace commit en su rama y el siguiente arranca <strong>desde esa rama</strong>, así construye sobre el trabajo anterior. Con avance automático arranca solo; si no, pulsa <kbd>s</kbd>.</li>
             <li>Cuando todos los pasos están listos, abre el plan y pulsa <kbd>g</kbd>: la última rama (el plan completo) se mergea en la rama desde la que empezó el plan, o se hace push con PR si el repo tiene remoto. Los worktrees de los pasos se eliminan.</li>
           </ol>
+          <p>La <strong>aprobación automática</strong> (<kbd>A</kbd>, o en el formulario del plan) deja que el plan corra solo: cuando el agente de un paso termina y todos los checks de <code>troopa.toml</code> pasan, el paso se aprueba y arranca el siguiente. Si un paso falla, el plan se detiene ahí en <em>blocked</em> (el hook <code>blocked</code> te puede avisar), y cuando lo arreglas con <kbd>x</kbd> el plan sigue. El merge final siempre es tuyo. Dale al proyecto checks de verdad (tests, linters) antes de activarla: son los que deciden.</p>
           <p><kbd>p</kbd> pausa (el paso en curso termina y el siguiente espera), <kbd>t</kbd> activa o desactiva el avance automático. Un paso bloqueado detiene el plan hasta que lo arregles con <kbd>x</kbd>. Los pasos nunca hacen merge por separado.</p>
         </section>
 

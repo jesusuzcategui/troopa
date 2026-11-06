@@ -34,7 +34,7 @@ type plansState struct {
 	plan    store.Plan
 	steps   []store.Task
 	stepCur int
-	focus   int // plan form: 0 title, 1 goal, 2 agent, 3 model, 4 auto
+	focus   int // plan form: 0 title, 1 goal, 2 agent, 3 model, 4 auto, 5 auto-approve
 	title   textinput.Model
 	goal    textarea.Model
 	model   textinput.Model
@@ -43,7 +43,7 @@ type plansState struct {
 	confirm int64
 }
 
-const planFormFields = 5
+const planFormFields = 6
 
 func (m *Model) openPlans() {
 	ps := &plansState{}
@@ -79,7 +79,7 @@ func planListHelp() string {
 }
 
 func planDetailHelp() string {
-	return i18n.T("a add step · enter edit step · K/J move · s start · p pause · t auto · e edit · g merge · esc plans")
+	return i18n.T("a add step · enter edit step · K/J move · s start · p pause · t auto · A auto-approve · e edit · g merge · esc plans")
 }
 
 func (m *Model) reloadPlans() {
@@ -285,6 +285,13 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		ps.plan.Auto = !ps.plan.Auto
 		_ = m.store.UpdatePlan(ps.plan)
 		m.status = i18n.T("Auto-advance: ") + onOff(ps.plan.Auto)
+	case "A":
+		ps.plan.AutoApprove = !ps.plan.AutoApprove
+		if ps.plan.AutoApprove {
+			ps.plan.Auto = true
+		}
+		_ = m.store.UpdatePlan(ps.plan)
+		m.status = i18n.T("Auto-approve: ") + onOff(ps.plan.AutoApprove)
 	case "p":
 		if ps.plan.State == store.PlanRunning {
 			ps.plan.State = store.PlanPaused
@@ -348,6 +355,12 @@ func (m Model) updatePlanFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case 4:
 			ps.draft.Auto = !ps.draft.Auto
+			return m, nil
+		case 5:
+			ps.draft.AutoApprove = !ps.draft.AutoApprove
+			if ps.draft.AutoApprove {
+				ps.draft.Auto = true
+			}
 			return m, nil
 		}
 	}
@@ -649,6 +662,7 @@ func (m Model) viewPlans() string {
 			{i18n.T("Agent"), "‹ " + launch.AgentName(ps.draft.Agent) + " ›"},
 			{i18n.T("Model"), ps.model.View()},
 			{i18n.T("Auto-advance"), "‹ " + onOff(ps.draft.Auto) + " ›  " + th.Muted.Render(i18n.T("launch the next step when one is approved"))},
+			{i18n.T("Auto-approve"), "‹ " + onOff(ps.draft.AutoApprove) + " ›  " + th.Muted.Render(i18n.T("approve a step by itself when its checks pass"))},
 		}
 		for i, r := range rows {
 			marker := "  "
@@ -680,6 +694,9 @@ func (m Model) viewPlans() string {
 	done, total, _ := m.store.PlanProgress(p.ID)
 	b.WriteString(th.Label.Render(p.Title) + th.Muted.Render(fmt.Sprintf("  ·  %s  ·  %d/%d  ·  %s %s  ·  auto %s",
 		planStateLabel(p.State), done, total, launch.AgentName(p.Agent), p.Model, onOff(p.Auto))) + "\n")
+	if p.AutoApprove {
+		b.WriteString(th.Muted.Render(i18n.T("Auto-approve on: steps whose checks pass are approved without you; the merge stays yours.")) + "\n")
+	}
 	if p.Goal != "" {
 		b.WriteString(th.Muted.Render(truncate(firstLine(p.Goal), max(10, m.width-4))) + "\n")
 	}

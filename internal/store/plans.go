@@ -20,20 +20,23 @@ var PlanStates = []string{PlanDraft, PlanRunning, PlanPaused, PlanDone, PlanMerg
 // Plan is an ordered list of tasks of one project. Each step starts from the
 // branch of the step before it, so the last branch holds the whole plan.
 type Plan struct {
-	ID        int64     `json:"id"`
-	ProjectID int64     `json:"project_id"`
-	Title     string    `json:"title"`
-	Goal      string    `json:"goal"`
-	Agent     string    `json:"agent"` // default agent for new steps
-	Model     string    `json:"model"`
-	State     string    `json:"state"`
-	Auto      bool      `json:"auto"` // launch the next step when one is approved
-	Base      string    `json:"base"` // branch the plan started from
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"project_id"`
+	Title     string `json:"title"`
+	Goal      string `json:"goal"`
+	Agent     string `json:"agent"` // default agent for new steps
+	Model     string `json:"model"`
+	State     string `json:"state"`
+	Auto      bool   `json:"auto"` // launch the next step when one is approved
+	// AutoApprove approves a step by itself when its agent finished and every
+	// check passed, so the plan runs alone until a step fails or it is done.
+	AutoApprove bool      `json:"auto_approve"`
+	Base        string    `json:"base"` // branch the plan started from
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-const planCols = `id, project_id, title, goal, agent, model, state, auto, base, created_at, updated_at`
+const planCols = `id, project_id, title, goal, agent, model, state, auto, auto_approve, base, created_at, updated_at`
 
 func (s *Store) ListPlans(projectID int64) ([]Plan, error) {
 	q := `SELECT ` + planCols + ` FROM plans`
@@ -89,9 +92,9 @@ func (s *Store) CreatePlan(p Plan) (Plan, error) {
 		return Plan{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	res, err := s.db.Exec(`INSERT INTO plans (project_id, title, goal, agent, model, state, auto, base, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ProjectID, p.Title, p.Goal, p.Agent, p.Model, p.State, boolInt(p.Auto), p.Base, now, now)
+	res, err := s.db.Exec(`INSERT INTO plans (project_id, title, goal, agent, model, state, auto, auto_approve, base, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ProjectID, p.Title, p.Goal, p.Agent, p.Model, p.State, boolInt(p.Auto), boolInt(p.AutoApprove), p.Base, now, now)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -108,8 +111,8 @@ func (s *Store) UpdatePlan(p Plan) error {
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = s.db.Exec(`UPDATE plans SET title = ?, goal = ?, agent = ?, model = ?, state = ?, auto = ?, base = ?, updated_at = ? WHERE id = ?`,
-		p.Title, p.Goal, p.Agent, p.Model, p.State, boolInt(p.Auto), p.Base, now, p.ID)
+	_, err = s.db.Exec(`UPDATE plans SET title = ?, goal = ?, agent = ?, model = ?, state = ?, auto = ?, auto_approve = ?, base = ?, updated_at = ? WHERE id = ?`,
+		p.Title, p.Goal, p.Agent, p.Model, p.State, boolInt(p.Auto), boolInt(p.AutoApprove), p.Base, now, p.ID)
 	return err
 }
 
@@ -221,12 +224,13 @@ func (s *Store) PlanProgress(planID int64) (done, total int, err error) {
 
 func scanPlan(row scanner) (Plan, error) {
 	var p Plan
-	var auto int
+	var auto, autoApprove int
 	var created, updated string
-	if err := row.Scan(&p.ID, &p.ProjectID, &p.Title, &p.Goal, &p.Agent, &p.Model, &p.State, &auto, &p.Base, &created, &updated); err != nil {
+	if err := row.Scan(&p.ID, &p.ProjectID, &p.Title, &p.Goal, &p.Agent, &p.Model, &p.State, &auto, &autoApprove, &p.Base, &created, &updated); err != nil {
 		return Plan{}, err
 	}
 	p.Auto = auto != 0
+	p.AutoApprove = autoApprove != 0
 	p.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 	return p, nil

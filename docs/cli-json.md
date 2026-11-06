@@ -59,7 +59,8 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
 # Plans
  troopa plan list --json [--project ID]
  troopa plan show --json --id ID
- troopa plan create --json --project ID --title TITLE [--goal TEXT --agent AGENT --model MODEL --manual]
+ troopa plan create --json --project ID --title TITLE [--goal TEXT --agent AGENT --model MODEL --manual --auto-approve]
+ troopa plan update --json --id ID [--title TITLE --goal TEXT --agent AGENT --model MODEL --manual=false --auto-approve]
  troopa plan add-step --json --id ID --title TITLE [--description TEXT --criteria TEXT --agent AGENT --model MODEL]
  troopa plan delete --json --id ID
 
@@ -74,7 +75,7 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
  troopa brain sync --json
 ```
 
-`plan create` makes a draft; steps are tasks with `plan_id` and `plan_step`. Plans are started, reviewed step by step and merged from the TUI (`w` on the board). `--manual` turns off auto-advance. `plan delete` keeps the steps as ordinary tasks.
+`plan create` makes a draft; steps are tasks with `plan_id` and `plan_step`. Plans are started, reviewed step by step and merged from the TUI (`w` on the board). `--manual` turns off auto-advance; `--auto-approve` approves each step whose checks pass, so the plan runs alone until a step fails. `plan delete` keeps the steps as ordinary tasks.
 
 `profile` stores who the agents work for; the project's profile (or `default_profile` in config.toml) is written into every TASK.md. `--account` on a project picks an `[accounts.NAME]` login from config.toml.
 

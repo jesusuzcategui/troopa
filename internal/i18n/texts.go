@@ -58,6 +58,8 @@ const HelpText = `Shortcuts — projects
   K / J              move the step up / down
   s / p              start or resume / pause the plan
   t                  auto-advance: approve a step and the next one starts
+  A                  auto-approve: steps whose checks pass approve themselves,
+                     so the plan runs alone until a step fails (merge stays yours)
   g                  merge the finished plan (or push and open a PR)
 
   Profiles and accounts
@@ -184,6 +186,8 @@ const helpTextES = `Atajos — proyectos
   K / J              subir / bajar el paso
   s / p              iniciar o retomar / pausar el plan
   t                  avance automático: apruebas un paso y arranca el siguiente
+  A                  aprobación automática: los pasos cuyos checks pasan se aprueban
+                     solos y el plan corre hasta que uno falle (el merge es tuyo)
   g                  merge del plan terminado (o push y PR)
 
   Perfiles y cuentas

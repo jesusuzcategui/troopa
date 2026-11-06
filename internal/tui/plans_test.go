@@ -259,3 +259,52 @@ func TestLaunchingAStepFromTheBoardStartsThePlan(t *testing.T) {
 	}
 	got = waitRun(t, got)
 }
+
+func TestAutoApprovePlanRunsAlone(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git")
+	}
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "troopa.toml"), []byte("checks = [\"test ! -f FAIL\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = launch.Git(repo, "add", "troopa.toml")
+	_, _ = launch.Git(repo, "commit", "-m", "checks")
+	bin := filepath.Join(t.TempDir(), "bin")
+	_ = os.MkdirAll(bin, 0o755)
+	// The third step breaks the checks.
+	script := "#!/bin/sh\necho x >> steps.txt\nif [ \"$(wc -l < steps.txt)\" -ge 3 ]; then touch FAIL; fi\necho done > SUMMARY.md\n"
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	m := newTestModel(t)
+	m.cfg.Launch = config.DefaultLaunch(t.TempDir())
+	m.cfg.Launch.Brain = m.cfg.BrainRaw
+	m.cfg.Launch.Notify = false
+	p, _ := m.store.Create(store.Project{Name: "App", RepoPath: repo})
+	m.openBoard(p)
+	plan, _ := m.store.CreatePlan(store.Plan{ProjectID: p.ID, Title: "Alone", Agent: store.AgentClaude, AutoApprove: true})
+	for _, title := range []string{"One", "Two", "Three", "Four"} {
+		_, _ = m.store.AddPlanStep(plan.ID, store.Task{Title: title, Commits: store.CommitsNone})
+	}
+	next, _ := m.startPlan(plan.ID)
+	got := next.(Model)
+	for i := 0; i < 3; i++ {
+		got = waitRun(t, got)
+	}
+	steps, _ := got.store.PlanSteps(plan.ID)
+	want := []string{store.StatusDone, store.StatusDone, store.StatusBlocked, store.StatusBacklog}
+	for i, s := range steps {
+		if s.Status != want[i] {
+			t.Fatalf("step %d status %s, want %s (status %q err %q)", i+1, s.Status, want[i], got.status, got.err)
+		}
+	}
+	if saved, _ := got.store.GetPlan(plan.ID); saved.State != store.PlanRunning {
+		t.Fatalf("a blocked step leaves the plan running for x: %s", saved.State)
+	}
+}

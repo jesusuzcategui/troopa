@@ -446,6 +446,12 @@ func (m Model) finishAgent(msg agentDoneMsg) (tea.Model, tea.Cmd) {
 	} else {
 		m.fireRunHook(launch.HookBlocked, m.runTask, run, run.Note)
 	}
+	if dest == store.StatusReview && m.runTask.PlanID != 0 {
+		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && plan.AutoApprove {
+			// The agent finished and every check passed: approve and go on.
+			return m.approveRun()
+		}
+	}
 	if m.cfg.Launch.Notify {
 		title := "Troopa: " + dest
 		launch.Notify(title, m.runTask.Title)
@@ -529,7 +535,7 @@ func (m Model) approveRun() (tea.Model, tea.Cmd) {
 	m.status = msg
 	m.err = ""
 	if m.runTask.PlanID != 0 {
-		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && plan.Auto {
+		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && (plan.Auto || plan.AutoApprove) {
 			return m.advancePlan(plan.ID)
 		} else if err == nil && plan.State == store.PlanRunning {
 			if _, more, _ := m.store.NextPlanStep(plan.ID); !more {

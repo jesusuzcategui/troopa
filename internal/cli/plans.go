@@ -41,6 +41,7 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 	desc := f.String("description", "", "")
 	crit := f.String("criteria", "", "")
 	manual := f.Bool("manual", false, "")
+	autoApprove := f.Bool("auto-approve", false, "")
 	if e := f.Parse(args); e != nil {
 		return nil, input(e.Error())
 	}
@@ -84,6 +85,33 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		return planDetailOf(s, p)
+	case "update":
+		p, e := getPlan()
+		if e != nil {
+			return nil, e
+		}
+		if seen(f, "title") {
+			p.Title = *title
+		}
+		if seen(f, "goal") {
+			p.Goal = *goal
+		}
+		if seen(f, "agent") {
+			p.Agent = *agent
+		}
+		if seen(f, "model") {
+			p.Model = *model
+		}
+		if seen(f, "manual") {
+			p.Auto = !*manual
+		}
+		if seen(f, "auto-approve") {
+			p.AutoApprove = *autoApprove
+		}
+		if err := s.UpdatePlan(p); err != nil {
+			return nil, input(err.Error())
+		}
+		return planDetailOf(s, p)
 	case "create":
 		pid, e := id(f, "project")
 		if e != nil {
@@ -92,7 +120,7 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if _, err := getProject(s, pid); err != nil {
 			return nil, err
 		}
-		p, err := s.CreatePlan(store.Plan{ProjectID: pid, Title: *title, Goal: *goal, Agent: *agent, Model: *model, Auto: !*manual})
+		p, err := s.CreatePlan(store.Plan{ProjectID: pid, Title: *title, Goal: *goal, Agent: *agent, Model: *model, Auto: !*manual, AutoApprove: *autoApprove})
 		if err != nil {
 			return nil, input(err.Error())
 		}
