@@ -38,8 +38,12 @@ esac
 
 tag="${TROOPA_VERSION:-}"
 if [ -z "$tag" ]; then
-  tag=$(fetch "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
-  [ -n "$tag" ] || fail "could not find the latest release"
+  tag=$( (fetch "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || true) | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+  if [ -z "$tag" ]; then
+    # Only pre-releases (betas) so far: take the newest one.
+    tag=$( (fetch "https://api.github.com/repos/$REPO/releases?per_page=1" 2>/dev/null || true) | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+  fi
+  [ -n "$tag" ] || fail "could not find a release"
 fi
 version="${tag#v}"
 asset="troopa_${version}_${os}_${arch}.tar.gz"
