@@ -1,4 +1,4 @@
-.PHONY: build test lint
+.PHONY: build test lint site snapshot
 
 build:
 	go build -o bin/troopa ./cmd/troopa
@@ -8,3 +8,9 @@ test:
 
 lint:
 	go vet ./...
+
+site:
+	cd github_page && npm ci && npm run build
+
+snapshot:
+	goreleaser release --snapshot --clean

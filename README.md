@@ -6,25 +6,24 @@ Captures: [docs/demo.tape](docs/demo.tape) (`vhs docs/demo.tape` → `docs/demo.
 
 ## Install
 
-Go 1.26+ and Git.
+Website: https://jesusuzcategui.github.io/troopa/
 
 ```bash
+# Linux and macOS: latest release, checksum verified, into ~/.local/bin
+curl -fsSL https://jesusuzcategui.github.io/troopa/install.sh | sh
+
+# Or with Go 1.26+
 go install github.com/jesusuzcategui/troopa/cmd/troopa@latest
 ```
 
-Or from this repo:
+Every [release](https://github.com/jesusuzcategui/troopa/releases) also ships archives for Linux, macOS and Windows (amd64 and arm64) and `.deb`, `.rpm`, `.apk` and Arch packages:
 
 ```bash
-make build   # ./bin/troopa
-go run ./cmd/troopa
+sudo apt install ./troopa_*_linux_amd64.deb      # Debian / Ubuntu
+sudo dnf install ./troopa_*_linux_amd64.rpm      # Fedora
 ```
 
-Snapshot binaries (Linux, macOS, Windows; not published):
-
-```bash
-goreleaser build --snapshot --clean
-# dist/troopa_<os>_<arch>/troopa
-```
+From this repo: `make build` (→ `./bin/troopa`) or `go run ./cmd/troopa`.
 
 Data: `$XDG_DATA_HOME/troopa/troopa.db` (default `~/.local/share/troopa/`).
 Config: `$XDG_CONFIG_HOME/troopa/config.toml` (theme, agents, worktrees, terminal and token prices). Troopa only rewrites the keys you change in the setup or in Settings; comments, agents and prices stay as you wrote them.
@@ -127,6 +126,11 @@ Review: `y` approve · `x` request changes · `g` merge · `c` clean worktree ·
 Pair: `f` finish · `r` reopen agent · `o` editor · `esc` board (session keeps running)
 
 Mouse: click to select, drag a card to another column, wheel to scroll.
+
+## Releases and website
+
+- `git tag v0.2.0 && git push origin v0.2.0` runs `.github/workflows/release.yml`: tests, then GoReleaser builds every platform, the Linux packages and `checksums.txt`, and publishes the GitHub release. Try it locally with `goreleaser release --snapshot --clean`.
+- The website lives in `github_page/` (HTML, CSS and JavaScript built with Vite into `github_page/dist`). `cd github_page && npm install && npm run dev` to work on it; pushing changes to `main` publishes it through `.github/workflows/pages.yml`.
 
 ## License
 

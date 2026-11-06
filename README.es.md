@@ -6,29 +6,19 @@ Capturas: [docs/demo.tape](docs/demo.tape) (`vhs docs/demo.tape` → `docs/demo.
 
 ## Instalación
 
-Go 1.26+ y Git.
+Sitio: https://jesusuzcategui.github.io/troopa/
 
 ```bash
+# Linux y macOS: última versión, con checksum verificado, en ~/.local/bin
+curl -fsSL https://jesusuzcategui.github.io/troopa/install.sh | sh
+
+# O con Go 1.26+
 go install github.com/jesusuzcategui/troopa/cmd/troopa@latest
 ```
 
-O desde este repo:
+Cada [versión](https://github.com/jesusuzcategui/troopa/releases) trae archivos para Linux, macOS y Windows (amd64 y arm64) y paquetes `.deb`, `.rpm`, `.apk` y de Arch.
 
-```bash
-make build   # ./bin/troopa
-go run ./cmd/troopa
-```
-
-Binarios snapshot (Linux, macOS, Windows; no se publican):
-
-```bash
-goreleaser build --snapshot --clean
-# dist/troopa_<os>_<arch>/troopa
-```
-
-Datos: `$XDG_DATA_HOME/troopa/troopa.db` (por defecto `~/.local/share/troopa/`).
-Configuración: `$XDG_CONFIG_HOME/troopa/config.toml` (tema, agentes, worktrees, terminal y precios). Troopa solo reescribe las líneas `theme` y `welcome_shown`; el resto queda como lo escribiste.
-Checks por proyecto: `troopa.toml` en la raíz del repo.
+Desde este repo: `make build` (→ `./bin/troopa`) o `go run ./cmd/troopa`.
 
 ## Primer arranque y configuración
 
@@ -84,6 +74,11 @@ En una terminal angosta el tablero se desplaza de lado siguiendo la columna sele
 Revisión: `y` aprobar · `x` pedir cambios · `g` mergear · `c` limpiar worktree · `d` descartar · `o` editor
 
 Pareja: `f` terminar · `r` reabrir agente · `o` editor
+
+## Versiones y sitio web
+
+- `git tag v0.2.0 && git push origin v0.2.0` corre `.github/workflows/release.yml`: pruebas y luego GoReleaser compila todas las plataformas, los paquetes de Linux y `checksums.txt`, y publica la versión en GitHub.
+- El sitio está en `github_page/` (HTML, CSS y JavaScript compilados con Vite a `github_page/dist`). `cd github_page && npm install && npm run dev` para trabajarlo; al subir cambios a `main` se publica con `.github/workflows/pages.yml`.
 
 ## Licencia
 

@@ -8,6 +8,10 @@ builds:
     binary: troopa
     env:
       - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
     goos:
       - linux
       - darwin
@@ -22,9 +26,54 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - README.es.md
 
-release:
-  disable: true
+checksum:
+  name_template: checksums.txt
+
+# Linux packages attached to every release: .deb, .rpm, .apk and Arch.
+nfpms:
+  - id: packages
+    package_name: troopa
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    homepage: https://jesusuzcategui.github.io/troopa/
+    description: Your AI agent troop in the terminal.
+    maintainer: Jesús Uzcátegui <jesusuzcategui@users.noreply.github.com>
+    license: MIT
+    formats: [deb, rpm, apk, archlinux]
+    recommends:
+      - git
+    bindir: /usr/bin
 
 changelog:
-  disable: true
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: jesusuzcategui
+    name: troopa
+  draft: false
+  prerelease: auto
+
+# Homebrew (macOS and Linux): create the public repo jesusuzcategui/homebrew-tap,
+# add a token with write access to it as the HOMEBREW_TAP_TOKEN secret, then
+# uncomment this block. Users install with: brew install jesusuzcategui/tap/troopa
+# brews:
+#   - name: troopa
+#     repository:
+#       owner: jesusuzcategui
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     homepage: https://jesusuzcategui.github.io/troopa/
+#     description: Your AI agent troop in the terminal.
+#     license: MIT
+#     dependencies:
+#       - name: git
