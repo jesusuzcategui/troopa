@@ -228,3 +228,24 @@ func TestExpandArgsAndDefaultAgents(t *testing.T) {
 		t.Fatal("opencode --auto")
 	}
 }
+
+func TestAgentRunsInWorktree(t *testing.T) {
+	t.Setenv("PWD", "/somewhere/else")
+	wt := t.TempDir()
+	env := AgentEnv(wt)
+	pwd := ""
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "PWD=") {
+			if pwd != "" {
+				t.Fatal("PWD set twice")
+			}
+			pwd = strings.TrimPrefix(kv, "PWD=")
+		}
+	}
+	if pwd != wt {
+		t.Fatalf("PWD = %q, want %q", pwd, wt)
+	}
+	if p := YoloPrompt(wt); !strings.Contains(p, filepath.Join(wt, "TASK.md")) || !strings.Contains(p, filepath.Join(wt, "SUMMARY.md")) {
+		t.Fatalf("prompt does not name the worktree: %s", p)
+	}
+}

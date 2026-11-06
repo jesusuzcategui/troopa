@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
@@ -64,15 +65,35 @@ func AgentCommand(cfg config.Launch, agent, model, worktree string) (*exec.Cmd, 
 	if err != nil {
 		return nil, fmt.Errorf("agent %s: %s is not installed", agent, spec.Command)
 	}
-	prompt := "Read TASK.md and complete the task. When you finish, write SUMMARY.md."
+	prompt := YoloPrompt(worktree)
 	args := ExpandArgs(spec.Args, prompt, model)
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = worktree
-	cmd.Env = os.Environ()
+	cmd.Env = AgentEnv(worktree)
 	for k, v := range spec.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
 	return cmd, nil
+}
+
+// AgentEnv is the parent environment with PWD pointing at the worktree. Some
+// agent CLIs (opencode) take their project folder from PWD instead of the
+// process working directory, so an inherited PWD sends them to the folder
+// Troopa was started from.
+func AgentEnv(worktree string) []string {
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "PWD=") {
+			env = append(env, kv)
+		}
+	}
+	return append(env, "PWD="+worktree)
+}
+
+// YoloPrompt names the worktree explicitly so the agent never works elsewhere.
+func YoloPrompt(worktree string) string {
+	return fmt.Sprintf("Work only inside %s. Read %s and complete the task. When you finish, write %s.",
+		worktree, filepath.Join(worktree, "TASK.md"), filepath.Join(worktree, "SUMMARY.md"))
 }
 
 func DefaultPrompt() string {
