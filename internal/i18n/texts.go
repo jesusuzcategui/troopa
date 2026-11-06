@@ -96,6 +96,7 @@ const HelpText = `Shortcuts — projects
   When you save a project whose path does not exist, Troopa offers
   to create the folder with git init -b main, a README and an initial commit.
   Moving a task to ready asks before its agent starts.
+  Agents keep working if you close Troopa; it picks them up when it opens.
   The second brain folder is chosen in the first-run setup and in Settings.
   troopa setup runs the first-run setup again.`
 
@@ -203,6 +204,7 @@ const helpTextES = `Atajos — proyectos
   Al guardar un proyecto, si la ruta no existe se ofrece
   crear la carpeta con git init -b main, README y commit inicial.
   Mover una tarea a ready pregunta antes de lanzar su agente.
+  Los agentes siguen trabajando si cierras Troopa; los retoma al abrirlo.
   La carpeta del segundo cerebro se elige en el primer arranque y en Configuración.
   troopa setup repite la configuración inicial.`
 

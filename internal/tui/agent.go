@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -351,20 +350,11 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 	m.err = ""
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusInProgress)
-	return m, tea.Batch(runAgent(cmd, sess.LogPath, run.ID), tickLog())
-}
-
-func runAgent(cmd *exec.Cmd, logPath string, runID int64) tea.Cmd {
-	return func() tea.Msg {
-		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-		if err != nil {
-			return agentDoneMsg{runID: runID, err: err}
-		}
-		defer f.Close()
-		cmd.Stdout = f
-		cmd.Stderr = f
-		return agentDoneMsg{runID: runID, err: cmd.Run()}
+	watch, err := startAgent(cmd, run)
+	if err != nil {
+		return m.finishAgent(agentDoneMsg{runID: run.ID, err: err})
 	}
+	return m, tea.Batch(watch, tickLog())
 }
 
 func tickLog() tea.Cmd {
@@ -372,17 +362,14 @@ func tickLog() tea.Cmd {
 }
 
 func (m Model) finishAgent(msg agentDoneMsg) (tea.Model, tea.Cmd) {
-	if m.run.ID != 0 && m.run.ID != msg.runID {
+	if m.run.ID != msg.runID {
+		return m.finishBackgroundRun(msg)
+	}
+	// Finalize once: a run already out of "running" was handled before.
+	if fresh, err := m.store.GetRun(msg.runID); err != nil || fresh.State != store.RunRunning {
 		return m, nil
 	}
 	run := m.run
-	if run.ID == 0 {
-		var err error
-		run, err = m.store.GetRun(msg.runID)
-		if err != nil {
-			return m, nil
-		}
-	}
 	sess := m.runSess
 	if sess.Worktree == "" {
 		repo := m.boardProject.RepoPath
@@ -464,6 +451,9 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 			m.screen = screenPair
 			m.status = i18n.T("f finish pair  r reopen  o editor  esc board")
 			return m, nil
+		}
+		if st, _ := launch.AgentStatus(run.Worktree); st != launch.AgentRunning {
+			return m.finishAgent(agentStatusMsg(run.ID, run.Worktree).(agentDoneMsg))
 		}
 		m.screen = screenLog
 		m.status = i18n.T("Agent running · ") + run.Branch
@@ -668,7 +658,7 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc", "b":
 		m.screen = screenBoard
-		m.status = i18n.T("Agent is still running")
+		m.status = i18n.T("Agent is still running (it keeps going if you close Troopa)")
 		return m, nil
 	case "o":
 		return m.openEditor(m.runFolder())

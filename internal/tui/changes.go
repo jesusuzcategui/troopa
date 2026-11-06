@@ -155,7 +155,11 @@ func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
 	m.status = note + " · " + launch.AgentName(t.Agent)
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusInProgress)
-	return m, tea.Batch(runAgent(cmd, m.run.LogPath, m.run.ID), tickLog())
+	watch, err := startAgent(cmd, m.run)
+	if err != nil {
+		return m.finishAgent(agentDoneMsg{runID: m.run.ID, err: err})
+	}
+	return m, tea.Batch(watch, tickLog())
 }
 
 func (m Model) viewChanges() string {

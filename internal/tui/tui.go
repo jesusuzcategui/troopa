@@ -323,10 +323,11 @@ func Run(s *store.Store, cfg config.Config, configPath string, opts Options) err
 }
 
 func (m Model) Init() tea.Cmd {
+	first := textinput.Blink
 	if m.screen == screenWelcome {
-		return tea.Tick(1800*time.Millisecond, func(time.Time) tea.Msg { return splashDoneMsg{} })
+		first = tea.Tick(1800*time.Millisecond, func(time.Time) tea.Msg { return splashDoneMsg{} })
 	}
-	return textinput.Blink
+	return tea.Batch(append([]tea.Cmd{first}, reconcileRuns(m.store)...)...)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -356,6 +357,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tickLog()
 		}
 		return m, nil
+	case agentWatchMsg:
+		return m, watchAgent(msg.runID, msg.worktree)
 	case agentDoneMsg:
 		return m.finishAgent(msg)
 	case pairClosedMsg:
