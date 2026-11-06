@@ -76,6 +76,8 @@ func TestCycleTheme(t *testing.T) {
 }
 
 func TestFirstRunSetup(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir := t.TempDir()
 	s, err := store.Open(filepath.Join(dir, "db"))
 	if err != nil {

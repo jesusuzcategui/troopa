@@ -24,10 +24,12 @@ const (
 	propCommits
 	propType
 	propCount
-	propConfirmDiscard // not a task field: yes/no before discarding a run
-	propConfirmLaunch  // yes/no before an agent starts on a task
-	propConfirmMerge   // not a task field: yes/no before merging a local branch
-	propConfirmClean   // not a task field: yes/no before cleaning a worktree
+	propConfirmDiscard       // not a task field: yes/no before discarding a run
+	propConfirmLaunch        // yes/no before an agent starts on a task
+	propConfirmMerge         // not a task field: yes/no before merging a local branch
+	propConfirmClean         // not a task field: yes/no before cleaning a worktree
+	propConfirmDeleteComment // not a task field: yes/no before deleting a review comment
+	propConfirmDetach        // not a task field: yes/no before removing an attachment
 )
 
 func (p prop) label() string {
@@ -67,6 +69,10 @@ func (p prop) options() []string {
 	case propConfirmMerge:
 		return []string{"yes", "no"}
 	case propConfirmClean:
+		return []string{"yes", "no"}
+	case propConfirmDeleteComment:
+		return []string{"yes", "no"}
+	case propConfirmDetach:
 		return []string{"yes", "no"}
 	}
 	return nil
@@ -231,6 +237,19 @@ func (m Model) applyPopup(value string) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if p.kind == propConfirmDeleteComment {
+		if value == "yes" {
+			return m.deleteComment(m.commentDeleteID)
+		}
+		m.commentDeleteID = 0
+		return m, nil
+	}
+	if p.kind == propConfirmDetach {
+		if value == "yes" {
+			return m.detachConfirmed(p.taskID)
+		}
+		return m, nil
+	}
 	t, err := m.store.GetTask(p.taskID)
 	if err != nil {
 		m.err = err.Error()
@@ -270,6 +289,7 @@ func (m Model) setTaskProp(t store.Task, p prop, value string) (tea.Model, tea.C
 		m.err = err.Error()
 		return m, nil
 	}
+	m.rememberTask(t)
 	m.err = ""
 	m.reloadTasks()
 	m.selectTaskID(t.ID)

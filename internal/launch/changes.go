@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
 // CHANGES.md keeps every round of feedback the person gave after a review.
@@ -50,6 +52,29 @@ func RequestChanges(worktree, feedback string) (int, error) {
 		return 0, err
 	}
 	return round, nil
+}
+
+// FormatCommentFeedback builds the CHANGES.md body: optional general notes,
+// then each comment as path:line, the quoted line, and the comment.
+func FormatCommentFeedback(general string, comments []store.ReviewComment) string {
+	var b strings.Builder
+	general = strings.TrimSpace(general)
+	if general != "" {
+		b.WriteString(general)
+		b.WriteString("\n")
+	}
+	for _, c := range comments {
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "%s:%d\n", c.Path, c.Line)
+		if q := strings.TrimSpace(c.Quote); q != "" {
+			fmt.Fprintf(&b, "> %s\n", q)
+		}
+		b.WriteString(strings.TrimSpace(c.Body))
+		b.WriteString("\n")
+	}
+	return strings.TrimSpace(b.String())
 }
 
 // ChangesPrompt asks the agent to apply the newest round on top of its work.

@@ -6,11 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/gitinit"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
@@ -43,6 +45,10 @@ const (
 	screenSetup
 	screenSettings
 	screenChanges
+	screenComment
+	screenCommentList
+	screenFilePicker
+	screenBrain
 )
 
 type field int
@@ -126,6 +132,18 @@ type Model struct {
 	taskFocus   taskField
 	taskDraft   store.Task
 
+	attachments    []store.Attachment
+	attachCursor   int
+	pendingFiles   []string
+	picker         filepicker.Model
+	pickerFrom     screen
+	attachPath     textinput.Model
+	attachPathOpen bool
+	repoFiles      []string
+	mentionHits    []string
+	mentionCursor  int
+	mentionQuery   string
+
 	run        store.Run
 	runSess    launch.Session
 	runTask    store.Task
@@ -134,6 +152,16 @@ type Model struct {
 	diffFiles  []launch.FileDiff
 	diffIndex  int
 	diffOffset int
+	diffCursor int
+	rounds     []store.Round
+	roundIndex int
+	roundOpen  map[int]bool
+
+	comments        []store.ReviewComment
+	commentInput    textarea.Model
+	commentEditID   int64
+	commentListCur  int
+	commentDeleteID int64
 
 	setup    *setupState
 	settings *settingsState
@@ -142,6 +170,27 @@ type Model struct {
 
 	changesInput textarea.Model
 	changesFrom  screen
+
+	brainFrom     screen
+	brainNodes    []brain.Node
+	brainCursor   int
+	brainOffset   int
+	brainFold     map[string]bool
+	brainRel      string
+	brainBody     string
+	brainNoteOff  int
+	brainLinks    []brain.Link
+	brainOutN     int
+	brainLinkIdx  int
+	brainHist     []string
+	brainNotePane bool
+	brainFind     bool
+	brainHits     []brain.Hit
+	brainHitCur   int
+	brainHitLine  string
+	brainInbox    bool
+	inboxInput    textinput.Model
+	brainDirty    bool
 }
 
 // Options are what Run needs beyond the store and the config.
@@ -154,15 +203,17 @@ type splashDoneMsg struct{}
 
 func New(s *store.Store, cfg config.Config, configPath string) Model {
 	m := Model{
-		store:       s,
-		cfg:         cfg,
-		configPath:  configPath,
-		themeDir:    config.ThemesDir(configPath),
-		screen:      screenList,
-		width:       80,
-		height:      24,
-		listOriginY: 3,
-		listHeight:  18,
+		store:        s,
+		cfg:          cfg,
+		configPath:   configPath,
+		themeDir:     config.ThemesDir(configPath),
+		screen:       screenList,
+		width:        80,
+		height:       24,
+		listOriginY:  3,
+		listHeight:   18,
+		brainFold:    map[string]bool{},
+		brainLinkIdx: -1,
 	}
 	m.inputs = newInputs()
 	m.quickInput = textinput.New()
@@ -176,12 +227,21 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 	m.searchInput.Width = 40
 	m.searchInput.Prompt = ""
 	m.taskTitle, m.taskModelIn, m.taskDesc, m.taskCrit = newTaskInputs()
+	m.attachPath = textinput.New()
+	m.attachPath.CharLimit = 512
+	m.attachPath.Width = 56
+	m.attachPath.Prompt = ""
 	m.clientInputs = newClientInputs()
 	m.paletteInput = textinput.New()
 	m.paletteInput.Placeholder = i18n.T("search command")
 	m.paletteInput.CharLimit = 80
 	m.paletteInput.Width = 40
 	m.paletteInput.Prompt = ""
+	m.inboxInput = textinput.New()
+	m.inboxInput.Placeholder = i18n.T("line for inbox.md")
+	m.inboxInput.CharLimit = 200
+	m.inboxInput.Width = 48
+	m.inboxInput.Prompt = ""
 	m.themes = loadThemes(m.themeDir)
 	m.theme = themeByName(m.themes, cfg.NormalizedTheme())
 	m.version = "dev"
@@ -202,13 +262,16 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 	if !cfg.SetupDone && !cfg.WelcomeShown {
 		m.startSetup(screenList)
 	}
+	if m.cfg.Launch.Brain == "" {
+		m.cfg.Launch.Brain = config.ResolveBrain(m.cfg.BrainRaw)
+	}
 	m.reload()
 	m.status = listStatus()
 	return m
 }
 
 func listStatus() string {
-	return i18n.T("Ctrl+K palette · n new · enter board · c clients · F filter · M metrics · t theme · ? help · q quit")
+	return i18n.T("Ctrl+K palette · n new · enter board · B brain · c clients · F filter · M metrics · t theme · ? help · q quit")
 }
 
 func newInputs() []textinput.Model {
@@ -274,8 +337,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.listOriginY = 3
 		m.listHeight = max(3, m.height-6)
 		m.clampOffset()
+		if m.screen == screenFilePicker {
+			m.picker.SetHeight(max(8, m.height-6))
+			var cmd tea.Cmd
+			m.picker, cmd = m.picker.Update(msg)
+			return m, cmd
+		}
 		return m, nil
 	case tea.KeyMsg:
+		if m.attachPathOpen {
+			return m.updateAttachPath(msg)
+		}
 		return m.updateKey(msg)
 	case tea.MouseMsg:
 		return m.updateMouse(msg)
@@ -289,6 +361,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pairClosedMsg:
 		return m.handlePairClosed(msg)
 	case editorClosedMsg:
+		if m.screen == screenBrain && m.brainRel != "" {
+			m.refreshBrainTree()
+			m.loadBrainNote(m.brainRel, false)
+		}
 		return m.handleEditorClosed(msg)
 	case splashDoneMsg:
 		if m.screen == screenWelcome {
@@ -302,12 +378,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.screen == screenClientForm {
 		return m.updateClientInputs(msg)
 	}
+	if m.screen == screenFilePicker {
+		return m.updateFilePicker(msg)
+	}
 	if m.screen == screenTaskForm {
 		return m.updateTaskInputs(msg)
 	}
 	if m.screen == screenChanges {
 		var cmd tea.Cmd
 		m.changesInput, cmd = m.changesInput.Update(msg)
+		return m, cmd
+	}
+	if m.screen == screenComment {
+		var cmd tea.Cmd
+		m.commentInput, cmd = m.commentInput.Update(msg)
 		return m, cmd
 	}
 	return m, nil
@@ -325,6 +409,15 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.screen == screenChanges {
 		return m.updateChangesKey(msg)
+	}
+	if m.screen == screenComment {
+		return m.updateCommentKey(msg)
+	}
+	if m.screen == screenCommentList {
+		return m.updateCommentListKey(msg)
+	}
+	if m.screen == screenFilePicker {
+		return m.updateFilePicker(msg)
 	}
 	if m.screen == screenSettings && m.settings != nil && m.settings.editing {
 		return m.updateSettingsKey(msg)
@@ -360,6 +453,8 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if err := m.store.Archive(m.pending.ID); err != nil {
 				m.err = err.Error()
 			} else {
+				m.pending.Archived = true
+				m.rememberProject(m.pending)
 				m.status = i18n.T("Archived: ") + m.pending.Name
 				m.err = ""
 			}
@@ -410,6 +505,8 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updatePairKey(msg)
 	case screenMetrics:
 		return m.updateMetricsKey(msg)
+	case screenBrain:
+		return m.updateBrainKey(msg)
 	default:
 		return m.updateListKey(msg)
 	}
@@ -447,6 +544,8 @@ func (m Model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openMetrics()
 	case "F":
 		m.cycleClientFilter(1)
+	case "B":
+		return m.openBrain(screenList, "inbox.md")
 	case "enter", "o":
 		if p, ok := m.selected(); ok {
 			m.openBoard(p)
@@ -563,11 +662,14 @@ func (m Model) savePending() (tea.Model, tea.Cmd) {
 		var created store.Project
 		created, err = m.store.Create(m.pending)
 		if err == nil {
+			m.pending = created
+			m.rememberProject(created)
 			m.status = i18n.T("Created: ") + created.Name
 		}
 	} else {
 		err = m.store.Update(m.pending)
 		if err == nil {
+			m.rememberProject(m.pending)
 			m.status = i18n.T("Saved: ") + m.pending.Name
 		}
 	}
@@ -707,10 +809,16 @@ func (m Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+	case screenBrain:
+		return m.updateBrainMouse(msg)
 	case screenBoard, screenQuickCreate, screenSearch:
 		return m.updateBoardMouse(msg)
 	case screenTaskForm:
 		return m.updateTaskFormMouse(msg)
+	case screenReview:
+		return m.updateReviewMouse(msg)
+	case screenCommentList:
+		return m.updateCommentListMouse(msg)
 	}
 
 	wheel := msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown
@@ -780,6 +888,14 @@ func (m Model) View() string {
 		body = m.viewSettings()
 	case screenChanges:
 		body = m.viewChanges()
+	case screenComment:
+		body = m.viewComment()
+	case screenCommentList:
+		body = m.viewCommentList()
+	case screenFilePicker:
+		body = m.viewFilePicker()
+	case screenBrain:
+		body = m.viewBrain()
 	default:
 		body = m.viewList()
 	}
@@ -799,6 +915,12 @@ func (m Model) View() string {
 	}
 	if m.about {
 		box, x, y := m.aboutBox()
+		body = overlay(body, box, x, y)
+	}
+	if m.attachPathOpen {
+		box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(m.viewAttachPathOverlay())
+		x := max(0, (m.width-lipgloss.Width(box))/2)
+		y := max(0, (innerH-lipgloss.Height(box))/3)
 		body = overlay(body, box, x, y)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, body, bar)
@@ -867,7 +989,7 @@ func (m Model) viewList() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(i18n.T("Ctrl+K palette  enter board  c clients  F filter  M metrics  n new  t theme  ? help  q quit")))
+	b.WriteString(th.Muted.Render(i18n.T("Ctrl+K palette  enter board  B brain  c clients  F filter  M metrics  n new  t theme  ? help  q quit")))
 	return th.App.Render(b.String())
 }
 

@@ -31,7 +31,7 @@ Per-project checks: `troopa.toml` at the repo root (`checks = ["go test ./..."]`
 
 ## First run and settings
 
-The first time you open Troopa, a short setup asks for the language, the theme, your default agent and model, your editor, the terminal for pair sessions and the merge strategy. It lists the agent CLIs it finds on your computer (Claude Code, Codex, OpenCode, Pi) with their versions. Run it again any time with `troopa setup`.
+The first time you open Troopa, a short setup asks for the language, the theme, your default agent and model, your editor, the terminal for pair sessions, the merge strategy and the second brain folder. It lists the agent CLIs it finds on your computer (Claude Code, Codex, OpenCode, Pi) with their versions. Run it again any time with `troopa setup`.
 
 Everything it asks lives in Settings afterwards: press `S` (or Ctrl+K → Settings) to change a value; it is saved to `config.toml` right away. `i` opens About. Moving a task to **ready** always asks before its agent starts, and names the agent.
 
@@ -72,6 +72,9 @@ default_model = ""
 merge = "squash"           # or "merge"
 branch_prefix = ""
 worktrees = "~/.local/share/troopa/worktrees"
+brain = "~/.local/share/troopa/brain"   # or an existing vault
+brain_git = false                       # local commit after writes; never push
+max_attachment_mb = 50
 notify = true
 terminal = "kitty -e"
 editor = "nvim"            # or "code", "zed", "code --new-window"…
@@ -86,13 +89,38 @@ output = 15
 cache = 0.3
 ```
 
+On the task form and the task panel, `a` opens a file picker (project repo, or home) and `p` accepts a pasted path. Files are copied to `$XDG_DATA_HOME/troopa/attachments/<task-id>/` so the task does not depend on the original (limit `max_attachment_mb`, default 50). The list shows name, type and size; `d` removes with confirmation; `o` opens text in the editor and other files with `xdg-open`/`open`. In the description and criteria, `@` autocompletes tracked files (`git ls-files`; tab/enter completes as `@path`). Launch (and request changes) copies attachments to `.troopa/attachments/` in the worktree (git-excluded, out of the review diff) and lists them in `TASK.md` with `@` references.
+
 Moving a task to **ready** with an agent other than `me` creates a git worktree on `<type>/<slug>` and writes `TASK.md`. **Yolo** runs the CLI non-interactively (live log, then checks and review). **Pair** also writes `PAIR.md` and opens the agent in a tmux split or `terminal`. **Finish pair** (`f`) runs checks. Closing the terminal without finishing leaves **pair-paused**. Approve with `commits=auto` commits, pushes and opens a PR — never merge, never push `main`. `commits=none` leaves the worktree dirty. Discard (`d`) removes worktree and branch.
 
 ### Request changes
 
-When the work is not quite right, press `x` in the review (or on the task in the board, the list or the panel) and write what should change. The same agent runs again **in the same worktree**, keeping what it already did, with your feedback in `CHANGES.md` (one round per request; never committed). It ends in the review again with the whole diff. Pair tasks reopen the interactive agent with the feedback.
+When the work is not quite right, press `x` in the review (or on the task in the board, the list or the panel) and write what should change. The same agent runs again **in the same worktree**, keeping what it already did, with your feedback in `CHANGES.md` (one round per request; never committed). In the review, `j`/`k` move a line cursor on the diff (`n`/`p` change file); `enter` or a click comments that line (real new-file number from the hunk headers). Lines with comments show a mark and the text under the row; `e` edits, `D` deletes, `C` lists pending comments. Requesting changes includes those comments as `path:line`, the quoted line and the note; general text is optional if there are comments. Sent comments are resolved and shown on that round. Each round is stored separately: the review and the task panel show older rounds folded and the latest open (`r` or click toggles; `[` `]` or `tab` change round). The log can be filtered to one round. Pair tasks reopen the interactive agent with the feedback. The diff is still the whole worktree.
 
-Every `TASK.md` asks the agent to start `SUMMARY.md` with a **How to run** section (setup, dependencies, command, how to test), so the review tells you how to try the change.
+Every `TASK.md` asks the agent to start `SUMMARY.md` with a **How to run** section (setup, dependencies, command, how to test), so the review tells you how to try the change. It also includes a **Project context** section with the absolute paths of `project.md` and `INDEX.md` and the Current state / Next / Decisions text. The agent may read the rest of the brain; it must not edit it unless the task says so.
+
+## Second brain
+
+Markdown notes Troopa keeps next to SQLite. Default folder: `$XDG_DATA_HOME/troopa/brain`. The first-run setup and Settings (`S`) pick Troopa's own folder or an existing vault. If the folder is missing, Troopa creates it with this tree:
+
+```
+brain/
+├── README.md
+├── inbox.md
+├── today.md
+├── projects/
+│   ├── INDEX.md
+│   └── <slug>/
+│       ├── project.md
+│       ├── tasks/
+│       │   └── <id>-<slug>.md
+│       └── guides/
+│           └── <YYYY-MM-DD>-<slug>.md
+```
+
+Creating or editing a project updates `INDEX.md` and the YAML frontmatter of `project.md` without touching **Current state**, **Next** or **Decisions**. Tasks write `projects/<slug>/tasks/<id>-<slug>.md`. Approving a run appends a History line (HTML id, so it is not duplicated). A local merge (`g`) adds another History line and a guide in `projects/<slug>/guides/` with the **How to run** section of `SUMMARY.md`. `troopa brain sync --json` rebuilds everything from SQLite (idempotent). If `brain_git = true` and the folder is a git repo, Troopa commits locally (`troopa: update <slug>`) and never pushes.
+
+Press `B` from the project list, the board, the task panel or the command palette to read the vault in Troopa. The tree is on the left (inbox, today, `projects/INDEX`, each `project.md`, `tasks/` and `guides/`); the note is rendered with Glamour on the right. A narrow terminal shows one pane at a time (`enter` / `esc`). `tab` cycles `[[wiki]]` and relative Markdown links, `enter` follows them, `esc`/`backspace` go back, and each note lists backlinks. `/` searches every note. `o` opens the current file in your editor; `i` appends a line to `inbox.md`. With `brain_git`, the status bar shows uncommitted changes and `ctrl+s` commits locally. There is no graph view in the TUI.
 
 Rules that apply to every task of a project go in `troopa.toml` at the repo root:
 
@@ -117,11 +145,11 @@ Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · 
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 
-Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `o` editor · `esc` back
+Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `o` editor · panel `a` attach · `esc` back
 
 On a narrow terminal the board scrolls sideways and follows the selected column (`◀ 2` / `▶ 3` show hidden statuses). From 120 columns the task panel sits beside the board; on smaller terminals `tab` opens it full screen. The view and the folded statuses are saved as `board_view` and `collapsed` in `config.toml`.
 
-Review: `y` approve · `x` request changes · `g` merge · `c` clean worktree · `d` discard · `n`/`p` file · `j`/`k` scroll · `o` editor
+Review: `y` approve · `x` request changes · `j`/`k` line · `n`/`p` file · `enter` comment · `e` edit · `D` delete · `C` comments · `r` fold round · `[` `]`/`tab` change round · `g` merge · `c` clean worktree · `d` discard · `o` editor
 
 Pair: `f` finish · `r` reopen agent · `o` editor · `esc` board (session keeps running)
 

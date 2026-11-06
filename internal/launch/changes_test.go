@@ -37,13 +37,32 @@ func TestRequestChangesRounds(t *testing.T) {
 	}
 }
 
+func TestFormatCommentFeedback(t *testing.T) {
+	body := FormatCommentFeedback("Please also add tests.", []store.ReviewComment{
+		{Path: "main.go", Line: 12, Quote: "return nil", Body: "handle the error"},
+		{Path: "main.go", Line: 0, Quote: "", Body: "rename the file"},
+	})
+	if !strings.Contains(body, "Please also add tests.") {
+		t.Fatalf("missing general: %s", body)
+	}
+	if !strings.Contains(body, "main.go:12\n> return nil\nhandle the error") {
+		t.Fatalf("missing line comment: %s", body)
+	}
+	if !strings.Contains(body, "main.go:0\nrename the file") {
+		t.Fatalf("missing file comment: %s", body)
+	}
+	if FormatCommentFeedback("  ", nil) != "" {
+		t.Fatal("empty input should stay empty")
+	}
+}
+
 func TestTaskHasHowToRunAndProjectInstructions(t *testing.T) {
 	dir := t.TempDir()
 	toml := "instructions = \"\"\"\nPython: use a venv in .venv and keep requirements.txt updated.\n\"\"\"\n"
 	if err := os.WriteFile(filepath.Join(dir, "troopa.toml"), []byte(toml), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteTASK(dir, store.Task{Title: "App"}); err != nil {
+	if err := WriteTASK(dir, store.Task{Title: "App"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(filepath.Join(dir, "TASK.md"))

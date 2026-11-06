@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -43,7 +44,7 @@ func Prepare(cfg config.Launch, project store.Project, task store.Task) (Session
 		_ = RemoveWorktree(repo, dest, branch)
 		return Session{}, err
 	}
-	if err := WriteTASK(dest, task); err != nil {
+	if err := writeTASK(dest, task, nil, brain.TASKContext(cfg.Brain, project.Slug)); err != nil {
 		_ = RemoveWorktree(repo, dest, branch)
 		return Session{}, err
 	}

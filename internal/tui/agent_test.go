@@ -74,6 +74,13 @@ func TestLaunchOnReadyShowsLogAndReview(t *testing.T) {
 	if !strings.Contains(view, "Checks") {
 		t.Fatalf("review missing checks: %s", view)
 	}
+	if !strings.Contains(view, "Rounds") || !strings.Contains(view, "Launch") {
+		t.Fatalf("review missing rounds: %s", view)
+	}
+	rounds, err := got.store.ListRounds(got.run.ID)
+	if err != nil || len(rounds) != 1 || rounds[0].Kind != store.RoundLaunch || rounds[0].State != store.RoundReview {
+		t.Fatalf("rounds=%+v err=%v", rounds, err)
+	}
 	saved, err := got.store.GetRun(got.run.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -355,6 +362,37 @@ func TestDiscardWarnsWhenApprovedCommitsAreUnmerged(t *testing.T) {
 	}
 	if len(got.popup.options) < 3 || got.popup.options[0] != "merge" {
 		t.Fatalf("want Merge instead first, got %+v", got.popup.options)
+	}
+}
+
+func TestLegacyRunShowsOneRound(t *testing.T) {
+	m := newTestModel(t)
+	p, err := m.store.Create(store.Project{Name: "App", RepoPath: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := m.store.CreateTask(store.Task{ProjectID: p.ID, Title: "Old"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run, err := m.store.CreateRun(store.Run{
+		TaskID: task.ID, ProjectID: p.ID, State: store.RunReview, Summary: "## done\n",
+		Checks: `[{"name":"true","ok":true}]`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.boardProject = p
+	m.bindRun(task, run)
+	m.loadRounds()
+	m.screen = screenReview
+	m.width, m.height = 80, 24
+	view := m.viewReview()
+	if !strings.Contains(view, "Launch") || !strings.Contains(view, "Rounds") {
+		t.Fatalf("legacy run should show one round: %s", view)
+	}
+	if len(m.rounds) != 1 || m.rounds[0].ID != 0 {
+		t.Fatalf("synthetic %+v", m.rounds)
 	}
 }
 

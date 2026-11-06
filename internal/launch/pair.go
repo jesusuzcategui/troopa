@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
@@ -34,7 +35,7 @@ func WritePAIR(dir string, t store.Task) error {
 
 func PreparePair(cfg config.Launch, project store.Project, task store.Task, prev Session) (Session, error) {
 	if sess, ok := reusePair(prev, cfg, project, task); ok {
-		if err := WriteTASK(sess.Worktree, task); err != nil {
+		if err := writeTASK(sess.Worktree, task, nil, brain.TASKContext(cfg.Brain, project.Slug)); err != nil {
 			return Session{}, err
 		}
 		if err := WritePAIR(sess.Worktree, task); err != nil {

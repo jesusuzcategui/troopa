@@ -83,6 +83,7 @@ func (m Model) updateQuickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.err = err.Error()
 			return m, nil
 		}
+		m.rememberTask(created)
 		m.screen = screenBoard
 		m.err = ""
 		m.status = i18n.T("Created: ") + created.Title

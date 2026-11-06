@@ -37,6 +37,8 @@ var settingRows = []settingRow{
 	{"merge", settingChoice},
 	{"branch_prefix", settingText},
 	{"worktrees", settingText},
+	{"brain", settingText},
+	{"brain_git", settingToggle},
 	{"show_logo", settingToggle},
 	{"rerun_setup", settingAction},
 	{"about", settingAction},
@@ -80,6 +82,10 @@ func (m Model) settingLabel(key string) string {
 		return i18n.T("Branch prefix")
 	case "worktrees":
 		return i18n.T("Worktrees folder")
+	case "brain":
+		return i18n.T("Second brain")
+	case "brain_git":
+		return i18n.T("Commit the brain locally")
 	case "show_logo":
 		return i18n.T("Logo at start")
 	case "rerun_setup":
@@ -128,6 +134,8 @@ func (m Model) settingValue(key string) string {
 		return m.cfg.Launch.BranchPrefix
 	case "worktrees":
 		return m.cfg.WorktreesRaw
+	case "brain":
+		return m.cfg.BrainRaw
 	}
 	return ""
 }
@@ -135,10 +143,14 @@ func (m Model) settingValue(key string) string {
 func (m Model) settingDisplay(row settingRow) string {
 	switch row.kind {
 	case settingToggle:
-		if m.cfg.HideLogo {
-			return i18n.T("off")
+		on := !m.cfg.HideLogo
+		if row.key == "brain_git" {
+			on = m.cfg.BrainGit
 		}
-		return i18n.T("on")
+		if on {
+			return i18n.T("on")
+		}
+		return i18n.T("off")
 	case settingAction:
 		return "→"
 	case settingText:
@@ -146,6 +158,9 @@ func (m Model) settingDisplay(row settingRow) string {
 		if v == "" {
 			if row.key == "worktrees" {
 				return config.ResolveWorktrees("") + "  " + i18n.T("(default)")
+			}
+			if row.key == "brain" {
+				return config.ResolveBrain("") + "  " + i18n.T("(default)")
 			}
 			return "—"
 		}
@@ -188,6 +203,10 @@ func (m *Model) setSetting(key, value string) {
 	case "worktrees":
 		m.cfg.WorktreesRaw = value
 		m.cfg.Launch.Worktrees = config.ResolveWorktrees(value)
+	case "brain":
+		m.cfg.BrainRaw = value
+		m.cfg.Launch.Brain = config.ResolveBrain(value)
+		m.ensureBrain()
 	}
 	if err := m.saveConfig(); err != nil {
 		m.err = i18n.T("Could not save the config: ") + err.Error()
@@ -253,7 +272,7 @@ func (m Model) updateSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.setSetting(row.key, cycleValue(m.settingValue(row.key), vals, dir))
 			}
 		case settingToggle:
-			m.toggleLogo()
+			m.toggleSetting(row.key)
 		}
 	case "enter", " ":
 		switch row.kind {
@@ -264,7 +283,7 @@ func (m Model) updateSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			s.input.Focus()
 			return m, textinput.Blink
 		case settingToggle:
-			m.toggleLogo()
+			m.toggleSetting(row.key)
 		case settingChoice:
 			ch := m.settingChoices(row.key)
 			vals := make([]string, len(ch))
@@ -286,13 +305,19 @@ func (m Model) updateSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) toggleLogo() {
-	m.cfg.HideLogo = !m.cfg.HideLogo
+func (m *Model) toggleSetting(key string) {
+	switch key {
+	case "brain_git":
+		m.cfg.BrainGit = !m.cfg.BrainGit
+	default:
+		m.cfg.HideLogo = !m.cfg.HideLogo
+		key = "show_logo"
+	}
 	if err := m.saveConfig(); err != nil {
 		m.err = i18n.T("Could not save the config: ") + err.Error()
 		return
 	}
-	m.status = m.settingLabel("show_logo") + ": " + m.settingDisplay(settingRow{key: "show_logo", kind: settingToggle})
+	m.status = m.settingLabel(key) + ": " + m.settingDisplay(settingRow{key: key, kind: settingToggle})
 }
 
 const settingsTop = 2 // title, blank line, then the rows

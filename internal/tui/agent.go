@@ -2,6 +2,7 @@ package tui
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -48,7 +49,7 @@ func (m Model) startAgentFor(t store.Task) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) applyMove(t store.Task, dest string) (tea.Model, tea.Cmd) {
-	if err := m.store.MoveTask(t.ID, dest); err != nil {
+	if err := m.moveTask(t.ID, dest); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
@@ -84,6 +85,13 @@ func (m Model) startPair(t store.Task) (tea.Model, tea.Cmd) {
 	}
 	sess, err := launch.PreparePair(m.cfg.Launch, m.boardProject, t, prev)
 	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	if err := m.stageTask(sess.Worktree, t); err != nil {
+		if prev.Worktree == "" {
+			_ = launch.Discard(sess)
+		}
 		m.err = err.Error()
 		return m, nil
 	}
@@ -139,11 +147,15 @@ func (m Model) startPair(t store.Task) (tea.Model, tea.Cmd) {
 		}
 		run = created
 	}
-	if err := m.store.MoveTask(t.ID, store.StatusInProgress); err != nil {
+	m.run = run
+	if err := m.ensureRound(store.RoundLaunch, ""); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	m.run = run
+	if err := m.moveTask(t.ID, store.StatusInProgress); err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
 	m.runSess = sess
 	m.runTask = t
 	m.runPair = proc
@@ -189,7 +201,7 @@ func (m Model) pausePair() (tea.Model, tea.Cmd) {
 	m.run.State = store.RunPairPaused
 	m.run.Note = i18n.T("Pair session paused. Press enter to resume.")
 	_ = m.store.UpdateRun(m.run)
-	_ = m.store.MoveTask(m.run.TaskID, store.StatusPairPaused)
+	_ = m.moveTask(m.run.TaskID, store.StatusPairPaused)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusPairPaused)
@@ -224,12 +236,17 @@ func (m Model) finishPair() (tea.Model, tea.Cmd) {
 		dest = store.StatusBlocked
 		m.run.State = store.RunBlocked
 	}
-	applyRunMetrics(&m.run, m.run.LogPath, m.runTask.Agent, m.cfg.Launch.PriceFor(m.runTask.Agent))
+	price := m.cfg.Launch.PriceFor(m.runTask.Agent)
+	applyRunMetrics(&m.run, m.run.LogPath, m.runTask.Agent, price)
+	m.closeOpenRound(m.run.State, summary, checksJSON, m.run.LogPath, price)
 	_ = m.store.UpdateRun(m.run)
-	_ = m.store.MoveTask(m.run.TaskID, dest)
+	_ = m.moveTask(m.run.TaskID, dest)
+	m.loadRounds()
 	m.diffFiles, _ = launch.WorktreeDiff(m.runSess.Worktree, m.run.Base)
 	m.diffIndex = 0
 	m.diffOffset = 0
+	m.diffCursor = 0
+	m.loadComments()
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(dest)
 	m.screen = screenReview
@@ -291,6 +308,11 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
+	if err := m.stageTask(sess.Worktree, t); err != nil {
+		_ = launch.Discard(sess)
+		m.err = err.Error()
+		return m, nil
+	}
 	cmd, err := launch.AgentCommand(m.cfg.Launch, t.Agent, t.Model, sess.Worktree)
 	if err != nil {
 		_ = launch.Discard(sess)
@@ -312,11 +334,15 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
-	if err := m.store.MoveTask(t.ID, store.StatusInProgress); err != nil {
+	m.run = run
+	if err := m.beginRound(store.RoundLaunch, ""); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	m.run = run
+	if err := m.moveTask(t.ID, store.StatusInProgress); err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
 	m.runSess = sess
 	m.runTask = t
 	m.logOffset = 0
@@ -393,13 +419,18 @@ func (m Model) finishAgent(msg agentDoneMsg) (tea.Model, tea.Cmd) {
 			run.Note = msg.err.Error()
 		}
 	}
-	applyRunMetrics(&run, run.LogPath, m.runTask.Agent, m.cfg.Launch.PriceFor(m.runTask.Agent))
-	_ = m.store.UpdateRun(run)
-	_ = m.store.MoveTask(run.TaskID, dest)
+	price := m.cfg.Launch.PriceFor(m.runTask.Agent)
+	applyRunMetrics(&run, run.LogPath, m.runTask.Agent, price)
 	m.run = run
+	m.closeOpenRound(run.State, summary, string(raw), run.LogPath, price)
+	_ = m.store.UpdateRun(run)
+	_ = m.moveTask(run.TaskID, dest)
+	m.loadRounds()
 	m.diffFiles, _ = launch.WorktreeDiff(sess.Worktree, run.Base)
 	m.diffIndex = 0
 	m.diffOffset = 0
+	m.diffCursor = 0
+	m.loadComments()
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(dest)
 	m.screen = screenReview
@@ -421,6 +452,7 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 		return m.withTaskFocus()
 	}
 	m.bindRun(t, run)
+	m.loadRounds()
 	switch run.State {
 	case store.RunPairPaused:
 		return m.startPair(t)
@@ -440,8 +472,10 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 		m.diffFiles, _ = launch.WorktreeDiff(run.Worktree, run.Base)
 		m.diffIndex = 0
 		m.diffOffset = 0
+		m.diffCursor = 0
+		m.loadComments()
 		m.screen = screenReview
-		m.status = reviewStatus(run.State)
+		m.status = m.reviewBar()
 		return m, nil
 	default:
 		m.openTaskForm(t)
@@ -463,7 +497,8 @@ func (m Model) approveRun() (tea.Model, tea.Cmd) {
 	m.run.State = store.RunApproved
 	m.run.Note = msg
 	_ = m.store.UpdateRun(m.run)
-	_ = m.store.MoveTask(m.run.TaskID, store.StatusDone)
+	_ = m.moveTask(m.run.TaskID, store.StatusDone)
+	m.rememberApprove(m.boardProject, m.runTask, m.run)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusDone)
@@ -568,7 +603,8 @@ func (m Model) mergeRun() (tea.Model, tea.Cmd) {
 	m.run.State = store.RunMerged
 	m.run.Note = msg
 	_ = m.store.UpdateRun(m.run)
-	_ = m.store.MoveTask(m.run.TaskID, store.StatusDone)
+	_ = m.moveTask(m.run.TaskID, store.StatusDone)
+	m.rememberMerge(m.boardProject, m.runTask, m.run)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusDone)
@@ -595,7 +631,7 @@ func (m Model) discardRun() (tea.Model, tea.Cmd) {
 	}
 	m.run.State = store.RunDiscarded
 	_ = m.store.UpdateRun(m.run)
-	_ = m.store.MoveTask(m.run.TaskID, store.StatusBacklog)
+	_ = m.moveTask(m.run.TaskID, store.StatusBacklog)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusBacklog)
@@ -617,7 +653,7 @@ func (m Model) cleanRun() (tea.Model, tea.Cmd) {
 	m.run.State = store.RunCleaned
 	m.run.Note = launch.CleanedNote(m.runSess.Branch)
 	_ = m.store.UpdateRun(m.run)
-	_ = m.store.MoveTask(m.run.TaskID, store.StatusDone)
+	_ = m.moveTask(m.run.TaskID, store.StatusDone)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusDone)
@@ -636,6 +672,12 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "o":
 		return m.openEditor(m.runFolder())
+	case "[":
+		m.moveRound(-1)
+		m.logOffset = 0
+	case "]", "tab":
+		m.moveRound(1)
+		m.logOffset = 0
 	case "j", "down":
 		m.logOffset++
 	case "k", "up":
@@ -666,24 +708,41 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openDiscardPopup()
 	case "x":
 		return m.openChanges(screenReview)
+	case "r":
+		m.toggleSelectedRound()
+		return m, nil
+	case "[":
+		m.moveRound(-1)
+		return m, nil
+	case "]", "tab":
+		m.moveRound(1)
+		return m, nil
 	case "o":
 		return m.openEditor(m.runFolder())
+	case "enter":
+		return m.openCommentOnCursor()
+	case "e":
+		return m.editCommentOnCursor()
+	case "D":
+		return m.confirmDeleteCommentOnCursor()
+	case "C":
+		return m.openCommentList()
 	case "n", "l", "right":
 		if m.diffIndex < len(m.diffFiles)-1 {
 			m.diffIndex++
 			m.diffOffset = 0
+			m.diffCursor = 0
 		}
 	case "p", "h", "left":
 		if m.diffIndex > 0 {
 			m.diffIndex--
 			m.diffOffset = 0
+			m.diffCursor = 0
 		}
 	case "j", "down":
-		m.diffOffset++
+		m.moveDiffCursor(1)
 	case "k", "up":
-		if m.diffOffset > 0 {
-			m.diffOffset--
-		}
+		m.moveDiffCursor(-1)
 	}
 	return m, nil
 }
@@ -691,8 +750,11 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) viewLog() string {
 	th := m.theme
 	raw, _ := os.ReadFile(m.run.LogPath)
+	if r, ok := m.selectedRound(); ok {
+		raw = roundLogSlice(raw, r)
+	}
 	lines := strings.Split(string(raw), "\n")
-	h := max(4, m.height-6)
+	h := max(4, m.height-7)
 	off := m.logOffset
 	if off > len(lines) {
 		off = max(0, len(lines)-1)
@@ -700,25 +762,27 @@ func (m Model) viewLog() string {
 	end := min(len(lines), off+h)
 	body := strings.Join(lines[off:end], "\n")
 	title := th.Title.Render(i18n.T("Agent")) + th.Muted.Render("  ·  "+m.run.Branch+"  ·  "+m.run.State)
-	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(i18n.T("j/k scroll  o editor  esc board")))
+	if r, ok := m.selectedRound(); ok {
+		title += th.Muted.Render(fmt.Sprintf("  ·  %s %d/%d", i18n.T("Round"), r.Number, len(m.rounds)))
+	}
+	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(i18n.T("j/k scroll  [ ] round  o editor  esc board")))
 }
 
 func (m Model) viewReview() string {
 	th := m.theme
+	inner := max(20, m.width-2)
 	var b strings.Builder
 	b.WriteString(th.Title.Render(i18n.T("Review")))
 	b.WriteString(th.Muted.Render("  ·  " + m.run.Branch + "  ·  " + m.run.State))
-	b.WriteString("\n\n")
-	if m.run.Summary != "" {
-		b.WriteString(th.Muted.Render(i18n.T("Summary")))
-		b.WriteString("\n")
-		b.WriteString(truncate(m.run.Summary, 800))
-		b.WriteString("\n\n")
+	if n := m.pendingCommentCount(); n == 1 {
+		b.WriteString(th.Muted.Render("  ·  " + i18n.T("1 pending comment")))
+	} else if n > 1 {
+		b.WriteString(th.Muted.Render("  ·  " + i18n.T("%d pending comments", n)))
 	}
-	b.WriteString(th.Muted.Render("Checks"))
-	b.WriteString("\n")
-	b.WriteString(launch.FormatChecks(decodeChecks(m.run.Checks)))
 	b.WriteString("\n\n")
+	rounds, _ := m.renderRounds(inner, false)
+	b.WriteString(rounds)
+	b.WriteString("\n")
 	if len(m.diffFiles) == 0 {
 		b.WriteString(th.Muted.Render(i18n.T("No diff")))
 	} else {
@@ -726,37 +790,63 @@ func (m Model) viewReview() string {
 		b.WriteString(th.Title.Render(f.Path))
 		b.WriteString(th.Muted.Render(fmtIndex(m.diffIndex+1, len(m.diffFiles))))
 		b.WriteString("\n")
-		h := max(4, m.height-16)
+		used := lipglossHeight(b.String())
+		h := max(4, m.height-used-3)
 		start := m.diffOffset
 		if start > len(f.Lines) {
 			start = max(0, len(f.Lines)-1)
 		}
-		end := min(len(f.Lines), start+h)
-		for _, line := range f.Lines[start:end] {
-			text := truncate(line.Text, max(8, m.width-2))
+		shown := 0
+		for i := start; i < len(f.Lines); i++ {
+			line := f.Lines[i]
+			need := m.diffLineHeight(f.Path, line)
+			if shown > 0 && shown+need > h {
+				break
+			}
+			mark := " "
+			notes := m.commentsOnLine(f.Path, line)
+			if len(notes) > 0 {
+				mark = "●"
+			}
+			num, _ := line.CommentTarget()
+			gutter := "    "
+			if num > 0 {
+				gutter = fmt.Sprintf("%4d", num)
+			}
+			prefix := mark + gutter + " "
+			text := truncate(prefix+line.Text, max(8, m.width-2))
+			style := th.Muted
 			switch line.Kind {
 			case '+':
-				b.WriteString(th.DiffAdd.Render(text))
+				style = th.DiffAdd
 			case '-':
-				b.WriteString(th.DiffDel.Render(text))
+				style = th.DiffDel
 			case '@':
-				b.WriteString(th.DiffHunk.Render(text))
-			default:
-				b.WriteString(th.Muted.Render(text))
+				style = th.DiffHunk
+			}
+			if i == m.diffCursor {
+				b.WriteString(th.Selected.UnsetPadding().Width(max(8, m.width-2)).Render(text))
+			} else {
+				b.WriteString(style.Render(text))
 			}
 			b.WriteString("\n")
+			shown++
+			for _, c := range notes {
+				b.WriteString(th.Muted.Render(truncate("    │ "+firstLine(c.Body), max(8, m.width-2))) + "\n")
+				shown++
+			}
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(reviewStatus(m.run.State)))
+	b.WriteString(th.Muted.Render(m.reviewBar()))
 	return th.App.Render(b.String())
 }
 
-func reviewStatus(state string) string {
+func reviewHelp(state string) string {
 	if state == store.RunApproved {
-		return i18n.T("g merge  x request changes  c clean  d discard  n/p file  j/k scroll  o editor  esc board")
+		return i18n.T("g merge  x request changes  C comments  enter comment  e edit  D delete  c clean  d discard  r fold  [ ] round  n/p file  j/k line  o editor  esc board")
 	}
-	return i18n.T("y approve  x request changes  d discard  n/p file  j/k scroll  o editor  esc board")
+	return i18n.T("y approve  x request changes  C comments  enter comment  e edit  D delete  d discard  r fold  [ ] round  n/p file  j/k line  o editor  esc board")
 }
 
 func decodeChecks(raw string) []launch.CheckResult {

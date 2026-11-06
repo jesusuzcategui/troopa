@@ -68,6 +68,23 @@ func (m Model) viewDrawer(w, h int) string {
 		b.WriteString("\n" + th.Muted.Render(i18n.T("Description")) + "\n")
 		b.WriteString(m.renderMarkdownW(t.Description, inner))
 		b.WriteString("\n")
+		b.WriteString("\n" + th.Muted.Render(i18n.T("Attachments")) + "\n")
+		atts := m.attachments
+		if list, err := m.store.ListAttachments(t.ID); err == nil {
+			atts = list
+		}
+		if len(atts) == 0 {
+			b.WriteString(th.Muted.Render(i18n.T("(none yet)")) + "\n")
+		} else {
+			for i, a := range atts {
+				line := fmt.Sprintf("%s · %s · %s", a.Name, a.MIME, store.FormatSize(a.Size))
+				if m.drawerFocus && i == m.attachCursor {
+					b.WriteString(th.Selected.UnsetPadding().Width(inner).Render(line) + "\n")
+				} else {
+					b.WriteString(th.Normal.Width(inner).Render(line) + "\n")
+				}
+			}
+		}
 		if strings.TrimSpace(t.AcceptanceCriteria) != "" {
 			b.WriteString("\n" + th.Muted.Render(i18n.T("Criteria")) + "\n")
 			for _, line := range strings.Split(t.AcceptanceCriteria, "\n") {
@@ -92,6 +109,16 @@ func (m Model) viewDrawer(w, h int) string {
 			if run.Note != "" {
 				b.WriteString(th.Muted.Width(inner).Render(run.Note) + "\n")
 			}
+			if items, err := m.store.RoundsForRun(run); err == nil && len(items) > 0 {
+				b.WriteString("\n")
+				dm := m
+				dm.rounds = items
+				if notes, err := m.store.ListComments(run.ID); err == nil {
+					dm.comments = notes
+				}
+				block, _ := dm.renderRounds(inner, true)
+				b.WriteString(block + "\n")
+			}
 		}
 	}
 	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
@@ -101,7 +128,7 @@ func (m Model) viewDrawer(w, h int) string {
 	}
 	hint := i18n.T("tab panel  m P A change")
 	if m.drawerFocus {
-		hint = i18n.T("j/k  ←/→  enter  e edit  esc")
+		hint = i18n.T("j/k field  J/K attach  a attach  p path  d remove  o open  e edit  B brain  esc")
 	}
 	for len(lines) < room {
 		lines = append(lines, "")
@@ -140,6 +167,10 @@ func (m Model) updateDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.drawerField = (m.drawerField + 1) % int(propCount)
 	case "k", "up":
 		m.drawerField = (m.drawerField - 1 + int(propCount)) % int(propCount)
+	case "J":
+		m.moveAttachCursor(1)
+	case "K":
+		m.moveAttachCursor(-1)
 	case "enter", " ":
 		return m.openFieldPopup(p)
 	case "left", "h", "right", "l":
@@ -161,7 +192,24 @@ func (m Model) updateDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.drawerFocus = false
 		m.openTaskForm(t)
 		return m.withTaskFocus()
+	case "a":
+		m.taskDraft = t
+		m.loadAttachments(t.ID)
+		return m.openFilePicker()
+	case "p":
+		m.taskDraft = t
+		m.loadAttachments(t.ID)
+		return m.openAttachPath()
+	case "d":
+		m.taskDraft = t
+		m.loadAttachments(t.ID)
+		return m.confirmDetach()
+	case "B":
+		return m.openBrainProject()
 	case "o":
+		if len(m.attachments) > 0 {
+			return m.openSelectedAttachment()
+		}
 		return m.openEditor(m.taskFolder())
 	case "g":
 		return m.requestMergeFromTask()

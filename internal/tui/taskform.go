@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/glamour"
 
 	"github.com/jesusuzcategui/troopa/internal/i18n"
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -18,6 +19,7 @@ const (
 	tfTitle taskField = iota
 	tfDesc
 	tfCriteria
+	tfAttach
 	tfPriority
 	tfAgent
 	tfModel
@@ -70,9 +72,13 @@ func (m *Model) openTaskForm(t store.Task) {
 	m.taskDesc.SetValue(t.Description)
 	m.taskCrit.SetValue(t.AcceptanceCriteria)
 	m.taskFocus = tfTitle
+	m.pendingFiles = nil
+	m.mentionHits = nil
+	m.repoFiles = launch.ListRepoFiles(m.boardProject.RepoPath)
+	m.loadAttachments(t.ID)
 	m.err = ""
 	m.screen = screenTaskForm
-	m.status = i18n.T("ctrl+s save  tab field  ←/→ options  esc cancel")
+	m.status = i18n.T("ctrl+s save  tab field  a attach  @ files  esc cancel")
 }
 
 func (m Model) withTaskFocus() (Model, tea.Cmd) {
@@ -98,6 +104,39 @@ func (m Model) withTaskFocus() (Model, tea.Cmd) {
 }
 
 func (m Model) updateTaskFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.taskFocus == tfAttach {
+		switch msg.String() {
+		case "a":
+			return m.openFilePicker()
+		case "p":
+			return m.openAttachPath()
+		case "d":
+			return m.confirmDetach()
+		case "o", "enter":
+			return m.openSelectedAttachment()
+		case "j", "down":
+			m.moveAttachCursor(1)
+			return m, nil
+		case "k", "up":
+			m.moveAttachCursor(-1)
+			return m, nil
+		}
+	}
+	if len(m.mentionHits) > 0 && (m.taskFocus == tfDesc || m.taskFocus == tfCriteria) {
+		switch msg.String() {
+		case "esc":
+			m.mentionHits = nil
+			return m, nil
+		case "down":
+			m.mentionCursor = (m.mentionCursor + 1) % len(m.mentionHits)
+			return m, nil
+		case "up":
+			m.mentionCursor = (m.mentionCursor - 1 + len(m.mentionHits)) % len(m.mentionHits)
+			return m, nil
+		case "tab", "enter":
+			return m.applyMention()
+		}
+	}
 	switch msg.String() {
 	case "ctrl+c":
 		return m, tea.Quit
@@ -117,9 +156,10 @@ func (m Model) updateTaskFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			dir = -1
 		}
 		m.taskFocus = taskField((int(m.taskFocus) + dir + int(tfCount)) % int(tfCount))
+		m.mentionHits = nil
 		return m.withTaskFocus()
 	case "enter":
-		if m.taskFocus != tfDesc && m.taskFocus != tfCriteria {
+		if m.taskFocus != tfDesc && m.taskFocus != tfCriteria && m.taskFocus != tfAttach {
 			return m.saveTaskForm()
 		}
 	case "left":
@@ -131,7 +171,10 @@ func (m Model) updateTaskFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
-	return m.updateTaskInputs(msg)
+	mod, cmd := m.updateTaskInputs(msg)
+	got := mod.(Model)
+	got.refreshMentions()
+	return got, cmd
 }
 
 func (m *Model) cycleEnum(dir int) bool {
@@ -198,15 +241,22 @@ func (m Model) saveTaskForm() (tea.Model, tea.Cmd) {
 		created, err = m.store.CreateTask(t)
 		if err == nil {
 			t = created
+			m.rememberTask(t)
 			m.status = i18n.T("Created: ") + created.Title
 		}
 	} else {
 		err = m.store.UpdateTask(t)
 		if err == nil {
+			m.rememberTask(t)
 			m.status = i18n.T("Saved: ") + t.Title
 		}
 	}
 	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	m.taskDraft = t
+	if m, err = m.flushPendingFiles(t.ID); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
@@ -256,6 +306,7 @@ func (m Model) viewTaskForm() string {
 		{i18n.T("Title"), m.taskTitle.View(), tfTitle},
 		{i18n.T("Description"), m.taskDesc.View(), tfDesc},
 		{i18n.T("Criteria"), m.taskCrit.View(), tfCriteria},
+		{i18n.T("Attachments"), m.renderAttachList(), tfAttach},
 		{i18n.T("Priority"), m.taskDraft.Priority + "  ←/→", tfPriority},
 		{i18n.T("Agent"), m.agentDisplay(m.taskDraft.Agent) + "  ←/→", tfAgent},
 		{i18n.T("Model"), m.taskModelIn.View(), tfModel},
@@ -271,12 +322,17 @@ func (m Model) viewTaskForm() string {
 		}
 		b.WriteString(marker + th.Label.Render(r.label) + " " + r.value + "\n")
 	}
+	if hits := m.viewMentions(); hits != "" {
+		b.WriteString("\n")
+		b.WriteString(hits)
+		b.WriteString("\n")
+	}
 	b.WriteString("\n")
 	b.WriteString(th.Muted.Render(i18n.T("Markdown preview")))
 	b.WriteString("\n")
 	b.WriteString(m.renderMarkdown(m.taskDesc.Value()))
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(i18n.T("ctrl+s save  tab field  esc cancel")))
+	b.WriteString(th.Muted.Render(i18n.T("ctrl+s save  tab field  a attach  p path  d remove  @ files  esc cancel")))
 	return th.App.Render(b.String())
 }
 

@@ -45,6 +45,9 @@ args = ["-p", "{{prompt}}"]
 	if c.Launch.Merge != "" {
 		t.Fatalf("merge default %q", c.Launch.Merge)
 	}
+	if c.MaxAttachmentBytes() != int64(DefaultMaxAttachmentMB)<<20 {
+		t.Fatalf("default attach limit %d", c.MaxAttachmentBytes())
+	}
 	if c.Launch.Agents["claude"].Command != "claude" {
 		t.Fatal("claude missing")
 	}
@@ -212,5 +215,38 @@ func TestSaveSetupSettings(t *testing.T) {
 	got, _ = Load(path)
 	if got.Launch.Editor != "" {
 		t.Fatalf("editor not cleared: %q", got.Launch.Editor)
+	}
+}
+
+func TestLoadBrain(t *testing.T) {
+	dir := t.TempDir()
+	tomlPath := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(tomlPath, []byte("brain = \"~/Notes\"\nbrain_git = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.BrainRaw != "~/Notes" || !c.BrainGit {
+		t.Fatalf("brain %+v git %v", c.BrainRaw, c.BrainGit)
+	}
+	if !strings.Contains(c.Launch.Brain, "Notes") {
+		t.Fatalf("resolved brain %q", c.Launch.Brain)
+	}
+	c.Theme = "dark"
+	c.WelcomeShown = true
+	if err := Save(tomlPath, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BrainRaw != "~/Notes" || !got.BrainGit {
+		t.Fatalf("Save lost brain: %+v", got)
+	}
+	if ResolveBrain("") == "" || !strings.HasSuffix(ResolveBrain(""), "brain") {
+		t.Fatalf("default brain %q", ResolveBrain(""))
 	}
 }

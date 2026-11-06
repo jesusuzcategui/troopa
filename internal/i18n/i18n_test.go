@@ -1,6 +1,13 @@
 package i18n
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -50,6 +57,98 @@ func TestT(t *testing.T) {
 	}
 }
 
+func TestSpanishCoversTCalls(t *testing.T) {
+	_, this, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("caller")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(this), "..", ".."))
+	fset := token.NewFileSet()
+	var missing []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "vendor":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		f, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "T" || len(call.Args) == 0 {
+				return true
+			}
+			pkg, ok := sel.X.(*ast.Ident)
+			if !ok || pkg.Name != "i18n" {
+				return true
+			}
+			key := tCallKey(call.Args[0])
+			if key == "" {
+				return true
+			}
+			if _, have := es[key]; !have {
+				rel, _ := filepath.Rel(root, path)
+				missing = append(missing, rel+": "+key)
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) > 0 {
+		t.Fatalf("Spanish catalog missing keys:\n  %s", strings.Join(missing, "\n  "))
+	}
+}
+
+func tCallKey(arg ast.Expr) string {
+	switch v := arg.(type) {
+	case *ast.BasicLit:
+		if v.Kind == token.STRING {
+			s, err := strconv.Unquote(v.Value)
+			if err != nil {
+				return ""
+			}
+			return s
+		}
+	case *ast.SelectorExpr:
+		if pkg, ok := v.X.(*ast.Ident); ok && pkg.Name == "i18n" {
+			return constValue(v.Sel.Name)
+		}
+	case *ast.Ident:
+		return constValue(v.Name)
+	}
+	return ""
+}
+
+func constValue(name string) string {
+	switch name {
+	case "HelpText":
+		return HelpText
+	case "WelcomeText":
+		return WelcomeText
+	case "AboutCreator":
+		return AboutCreator
+	default:
+		return name
+	}
+}
+
 func TestSpanishCoversCloseTaskKeys(t *testing.T) {
 	keys := []string{
 		"Merged %s into %s (%s) as %s",
@@ -59,6 +158,9 @@ func TestSpanishCoversCloseTaskKeys(t *testing.T) {
 		"Clean the worktree and keep the branch?",
 		"Merge %s into %s (%s)?",
 		"g merge  c clean  d discard  n/p file  j/k scroll  o editor  esc board",
+		"1 pending comment",
+		"%d pending comments",
+		"y approve  x request changes  C comments  enter comment  e edit  D delete  d discard  r fold  [ ] round  n/p file  j/k line  o editor  esc board",
 		"No",
 		"Commits",
 	}

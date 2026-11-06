@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -42,9 +43,56 @@ func Execute(s *store.Store, args []string) (any, error) {
 		return task(s, command, rest)
 	case "run":
 		return run(s, command, rest)
+	case "brain":
+		return brainCmd(s, command, rest)
 	default:
 		return nil, input("unknown resource: " + resource)
 	}
+}
+
+func brainSettings() brain.Settings {
+	_, path, _, err := config.Paths()
+	if err != nil {
+		return brain.Settings{}
+	}
+	c, err := config.Load(path)
+	if err != nil {
+		return brain.Settings{}
+	}
+	return brain.FromConfig(c)
+}
+
+func rememberProject(s *store.Store, p store.Project) {
+	items, err := s.List(true)
+	if err != nil {
+		return
+	}
+	_ = brain.OnProject(brainSettings(), items, p)
+}
+
+func rememberTask(s *store.Store, t store.Task) {
+	p, err := s.Get(t.ProjectID)
+	if err != nil {
+		return
+	}
+	_ = brain.OnTask(brainSettings(), p, t)
+}
+
+func brainCmd(s *store.Store, cmd string, args []string) (any, error) {
+	f, e := flags("brain "+cmd, args)
+	if e != nil {
+		return nil, e
+	}
+	if e := f.Parse(args); e != nil {
+		return nil, input(e.Error())
+	}
+	if f.NArg() != 0 {
+		return nil, input("unexpected argument: " + f.Arg(0))
+	}
+	if cmd != "sync" {
+		return nil, input("unknown brain command: " + cmd)
+	}
+	return brain.Sync(brainSettings(), s)
 }
 func removeJSON(args []string) []string {
 	out := make([]string, 0, len(args))
@@ -146,7 +194,11 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		return s.Create(store.Project{Name: *name, Slug: *slug, RepoPath: *repo, Stack: *stack, Description: *desc, ClientID: cid})
+		p, err := s.Create(store.Project{Name: *name, Slug: *slug, RepoPath: *repo, Stack: *stack, Description: *desc, ClientID: cid})
+		if err == nil {
+			rememberProject(s, p)
+		}
+		return p, err
 	case "update":
 		n, e := id(f, "id")
 		if e != nil {
@@ -160,6 +212,7 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 		if e = s.Update(p); e != nil {
 			return nil, e
 		}
+		rememberProject(s, p)
 		return getProject(s, n)
 	case "archive":
 		n, e := id(f, "id")
@@ -168,6 +221,9 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 		}
 		if e = s.Archive(n); e != nil {
 			return nil, normalize(e, "project")
+		}
+		if p, err := s.Get(n); err == nil {
+			rememberProject(s, p)
 		}
 		return map[string]any{"id": n, "archived": true}, nil
 	default:
@@ -278,6 +334,8 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 	mode := f.String("mode", "", "")
 	commits := f.String("commits", "", "")
 	typ := f.String("type", "", "")
+	file := f.String("file", "", "")
+	_ = f.String("attachment", "", "")
 	_ = tid
 	if e := f.Parse(args); e != nil {
 		return nil, input(e.Error())
@@ -308,7 +366,11 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		return s.CreateTask(store.Task{ProjectID: p, Title: *title, Description: *desc, AcceptanceCriteria: *criteria, Status: *status, Priority: *priority, Agent: *agent, Model: *model, Mode: *mode, Commits: *commits, Type: *typ})
+		t, err := s.CreateTask(store.Task{ProjectID: p, Title: *title, Description: *desc, AcceptanceCriteria: *criteria, Status: *status, Priority: *priority, Agent: *agent, Model: *model, Mode: *mode, Commits: *commits, Type: *typ})
+		if err == nil {
+			rememberTask(s, t)
+		}
+		return t, err
 	case "update":
 		n, e := id(f, "id")
 		if e != nil {
@@ -322,6 +384,7 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if e = s.UpdateTask(t); e != nil {
 			return nil, e
 		}
+		rememberTask(s, t)
 		return getTask(s, n)
 	case "move", "launch":
 		n, e := id(f, "id")
@@ -338,16 +401,84 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if e = s.MoveTask(n, dest); e != nil {
 			return nil, normalize(e, "task")
 		}
-		return getTask(s, n)
+		t, e := getTask(s, n)
+		if e == nil {
+			rememberTask(s, t)
+		}
+		return t, e
 	case "approve", "discard":
 		n, e := id(f, "id")
 		if e != nil {
 			return nil, e
 		}
 		return transitionTaskRun(s, n, cmd)
+	case "attach":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		if _, e := getTask(s, n); e != nil {
+			return nil, e
+		}
+		if strings.TrimSpace(*file) == "" {
+			return nil, input("--file is required")
+		}
+		dir, err := config.AttachmentsDir(n)
+		if err != nil {
+			return nil, err
+		}
+		return s.AttachFile(n, *file, dir, attachmentLimit())
+	case "attachments":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		if _, e := getTask(s, n); e != nil {
+			return nil, e
+		}
+		items, err := s.ListAttachments(n)
+		return attachmentsOut(items), err
+	case "detach":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		if _, e := getTask(s, n); e != nil {
+			return nil, e
+		}
+		aid, e := id(f, "attachment")
+		if e != nil {
+			return nil, e
+		}
+		a, e := s.GetAttachment(aid)
+		if e != nil {
+			return nil, notFound("attachment")
+		}
+		if a.TaskID != n {
+			return nil, notFound("attachment")
+		}
+		if e = s.DeleteAttachment(aid); e != nil {
+			return nil, notFound("attachment")
+		}
+		return struct {
+			ID       int64 `json:"id"`
+			Detached bool  `json:"detached"`
+		}{ID: aid, Detached: true}, nil
 	default:
 		return nil, input("unknown task command: " + cmd)
 	}
+}
+
+func attachmentLimit() int64 {
+	_, cfgPath, _, err := config.Paths()
+	if err != nil {
+		return int64(config.DefaultMaxAttachmentMB) << 20
+	}
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return int64(config.DefaultMaxAttachmentMB) << 20
+	}
+	return cfg.MaxAttachmentBytes()
 }
 func patchTask(t *store.Task, f *flag.FlagSet) {
 	if seen(f, "project") {
@@ -409,6 +540,15 @@ func transitionTaskRun(s *store.Store, taskID int64, action string) (any, error)
 	if e = s.UpdateRun(r); e != nil {
 		return nil, e
 	}
+	if fresh, err := s.GetTask(taskID); err == nil {
+		t = fresh
+	}
+	p, _ := s.Get(t.ProjectID)
+	if action == "approve" {
+		_ = brain.OnApprove(brainSettings(), p, t, r)
+	} else {
+		rememberTask(s, t)
+	}
 	return map[string]any{"task": t.ID, "run": r.ID, "state": r.State}, nil
 }
 
@@ -436,6 +576,17 @@ func run(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		return getRun(s, n)
+	case "rounds":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		r, e := getRun(s, n)
+		if e != nil {
+			return nil, e
+		}
+		items, err := s.RoundsForRun(r)
+		return roundsOut(items), err
 	case "merge", "clean":
 		n, e := id(f, "id")
 		if e != nil {
@@ -497,6 +648,14 @@ func closeRun(s *store.Store, id int64, action string) (any, error) {
 	if e = s.UpdateRun(r); e != nil {
 		return nil, e
 	}
+	if fresh, err := s.GetTask(t.ID); err == nil {
+		t = fresh
+	}
+	if action == "merge" {
+		_ = brain.OnMerge(brainSettings(), p, t, r)
+	} else {
+		rememberTask(s, t)
+	}
 	return getRun(s, r.ID)
 }
 func normalize(err error, kind string) error {
@@ -505,7 +664,7 @@ func normalize(err error, kind string) error {
 	}
 	return err
 }
-func Usage() string { return "usage: troopa <project|client|task|run> <command> --json [flags]" }
+func Usage() string { return "usage: troopa <project|client|task|run|brain> <command> --json [flags]" }
 func ValidateJSON(args []string) error {
 	for _, a := range args {
 		if a == "--json" {
@@ -536,6 +695,18 @@ func tasks(items []store.Task) []store.Task {
 func runs(items []store.Run) []store.Run {
 	if items == nil {
 		return []store.Run{}
+	}
+	return items
+}
+func roundsOut(items []store.Round) []store.Round {
+	if items == nil {
+		return []store.Round{}
+	}
+	return items
+}
+func attachmentsOut(items []store.Attachment) []store.Attachment {
+	if items == nil {
+		return []store.Attachment{}
 	}
 	return items
 }

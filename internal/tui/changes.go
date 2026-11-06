@@ -60,6 +60,7 @@ func (m Model) openChanges(from screen) (tea.Model, tea.Cmd) {
 	in.Focus()
 	m.changesInput = in
 	m.changesFrom = from
+	m.loadComments()
 	m.screen = screenChanges
 	m.err = ""
 	m.status = i18n.T("ctrl+s send to the agent · esc cancel")
@@ -85,7 +86,10 @@ func (m Model) updateChangesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // sendChanges writes the feedback to CHANGES.md and starts the same agent
 // again in the same worktree, keeping what it already did.
 func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
-	if strings.TrimSpace(feedback) == "" {
+	m.loadComments()
+	pending := m.pendingComments()
+	body := launch.FormatCommentFeedback(feedback, pending)
+	if body == "" {
 		m.err = i18n.T("Write what should change")
 		return m, nil
 	}
@@ -99,12 +103,27 @@ func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	wt := m.runSess.Worktree
-	round, err := launch.RequestChanges(wt, feedback)
+	round, err := launch.RequestChanges(wt, body)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
+	if err := m.stageTask(wt, t); err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
 	note := i18n.T("Changes requested (round %d)", round)
+	if err := m.beginRound(store.RoundChanges, strings.TrimSpace(feedback)); err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	if r, ok := m.selectedRound(); ok {
+		if err := m.store.ResolvePendingComments(m.run.ID, r.Number); err != nil {
+			m.err = err.Error()
+			return m, nil
+		}
+		m.loadComments()
+	}
 	if t.Mode == store.ModePair {
 		m.run.Note = note
 		_ = m.store.UpdateRun(m.run)
@@ -117,7 +136,7 @@ func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if f, err := os.OpenFile(m.run.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-		fmt.Fprintf(f, "\n\n── Troopa · %s ──\n%s\n\n", note, strings.TrimSpace(feedback))
+		fmt.Fprintf(f, "\n\n── Troopa · %s ──\n%s\n\n", note, body)
 		f.Close()
 	}
 	m.run.State = store.RunRunning
@@ -126,7 +145,7 @@ func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
-	if err := m.store.MoveTask(t.ID, store.StatusInProgress); err != nil {
+	if err := m.moveTask(t.ID, store.StatusInProgress); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
@@ -149,6 +168,19 @@ func (m Model) viewChanges() string {
 		b.WriteString(th.Muted.Render(fmt.Sprintf(i18n.T("Rounds so far: %d (in CHANGES.md)"), r)) + "\n\n")
 	}
 	b.WriteString(th.Muted.Render(i18n.T("The agent keeps its work in the same worktree and applies what you write here.")) + "\n\n")
+	if pending := m.pendingComments(); len(pending) > 0 {
+		b.WriteString(th.Title.Render(i18n.T("Pending comments")) + th.Muted.Render(fmt.Sprintf("  ·  %d", len(pending))) + "\n")
+		prev := ""
+		for _, c := range pending {
+			if c.Path != prev {
+				b.WriteString(th.Muted.Render(c.Path) + "\n")
+				prev = c.Path
+			}
+			b.WriteString(th.Normal.UnsetPadding().Render(fmt.Sprintf("  %s:%d  %s", c.Path, c.Line, firstLine(c.Body))) + "\n")
+		}
+		b.WriteString("\n")
+		b.WriteString(th.Muted.Render(i18n.T("General notes are optional when there are line comments.")) + "\n\n")
+	}
 	b.WriteString(m.changesInput.View())
 	b.WriteString("\n\n")
 	b.WriteString(th.Muted.Render(i18n.T("ctrl+s send to the agent · esc cancel")))

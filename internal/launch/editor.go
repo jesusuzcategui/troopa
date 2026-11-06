@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -41,5 +43,69 @@ func EditorCommand(configured, dir string) (*exec.Cmd, error) {
 	cmd := exec.Command(bin, append(parts[1:], dir)...)
 	cmd.Dir = dir
 	cmd.Env = AgentEnv(dir)
+	return cmd, nil
+}
+
+func IsTextMIME(mime, name string) bool {
+	mime = strings.ToLower(strings.TrimSpace(strings.Split(mime, ";")[0]))
+	if strings.HasPrefix(mime, "text/") || strings.HasSuffix(mime, "+json") || strings.HasSuffix(mime, "+xml") {
+		return true
+	}
+	switch mime {
+	case "application/json", "application/xml", "application/javascript", "application/x-yaml", "application/toml", "inode/x-empty":
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".md", ".txt", ".go", ".py", ".js", ".ts", ".tsx", ".json", ".toml", ".yaml", ".yml", ".xml", ".html", ".css", ".sh", ".sql", ".rs", ".c", ".h", ".cpp":
+		return true
+	}
+	return false
+}
+
+func OpenAttachment(configured, path, mime string) (*exec.Cmd, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("file not found: %s", path)
+	}
+	if st.IsDir() {
+		return EditorCommand(configured, path)
+	}
+	if IsTextMIME(mime, filepath.Base(path)) {
+		editor, err := ResolveEditor(configured)
+		if err != nil {
+			return OpenExternal(path)
+		}
+		parts := strings.Fields(editor)
+		bin, err := exec.LookPath(parts[0])
+		if err != nil {
+			return OpenExternal(path)
+		}
+		cmd := exec.Command(bin, append(parts[1:], path)...)
+		cmd.Dir = filepath.Dir(path)
+		return cmd, nil
+	}
+	return OpenExternal(path)
+}
+
+func OpenExternal(path string) (*exec.Cmd, error) {
+	var bin string
+	var args []string
+	switch runtime.GOOS {
+	case "darwin":
+		bin = "open"
+		args = []string{path}
+	case "windows":
+		bin = "cmd"
+		args = []string{"/c", "start", "", path}
+	default:
+		bin = "xdg-open"
+		args = []string{path}
+	}
+	found, err := exec.LookPath(bin)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open %s: %s is not installed", path, bin)
+	}
+	cmd := exec.Command(found, args...)
+	cmd.Dir = filepath.Dir(path)
 	return cmd, nil
 }

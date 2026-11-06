@@ -108,7 +108,7 @@ func ExcludeWorkFiles(worktree string) error {
 		return err
 	}
 	cur, _ := os.ReadFile(exclude)
-	need := []string{"TASK.md", "SUMMARY.md", "CHANGES.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log", ".venv/", "node_modules/"}
+	need := []string{"TASK.md", "SUMMARY.md", "CHANGES.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log", ".troopa/", ".venv/", "node_modules/"}
 	var add []string
 	body := "\n" + string(cur) + "\n"
 	for _, p := range need {

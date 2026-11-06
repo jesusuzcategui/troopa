@@ -240,6 +240,53 @@ func applyRunMetrics(run *store.Run, logPath, agent string, price config.TokenPr
 	}
 }
 
+func applyRoundMetrics(r *store.Round, logPath string, price config.TokenPrice) {
+	if !r.CreatedAt.IsZero() {
+		ms := time.Since(r.CreatedAt).Milliseconds()
+		if ms < 0 {
+			ms = 0
+		}
+		r.DurationMS = sql.NullInt64{Int64: ms, Valid: true}
+	}
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		raw = nil
+	}
+	from := r.LogFrom
+	to := int64(len(raw))
+	if r.LogTo.Valid {
+		to = r.LogTo.Int64
+	}
+	if from < 0 {
+		from = 0
+	}
+	if from > int64(len(raw)) {
+		from = int64(len(raw))
+	}
+	if to > int64(len(raw)) {
+		to = int64(len(raw))
+	}
+	if to < from {
+		to = from
+	}
+	u := launch.ParseUsage(string(raw[from:to]))
+	r.TokensIn = nullI64(u.Input)
+	r.TokensOut = nullI64(u.Output)
+	r.TokensCache = nullI64(u.Cache)
+	r.TokensContext = nullI64(u.InitialContext)
+	if cost, ok := launch.EstimateCost(u, price); ok {
+		r.CostUSD = sql.NullFloat64{Float64: cost, Valid: true}
+	}
+}
+
+func logSize(path string) int64 {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return fi.Size()
+}
+
 func nullI64(v *int64) sql.NullInt64 {
 	if v == nil {
 		return sql.NullInt64{}

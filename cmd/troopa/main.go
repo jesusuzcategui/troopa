@@ -38,10 +38,13 @@ Usage:
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
 
-Resources: project, client, task, run.
+Resources: project, client, task, run, brain.
 Examples:
   troopa project list --json
   troopa task list --json --project 1
+  troopa run rounds --json --id 1
+  troopa task attachments --json --id 1
+  troopa brain sync --json
 
 Full command reference: docs/cli-json.md
 `

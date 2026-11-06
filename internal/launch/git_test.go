@@ -308,3 +308,38 @@ func TestAgentRunsInWorktree(t *testing.T) {
 		t.Fatalf("prompt does not name the worktree: %s", p)
 	}
 }
+
+func TestPrepareTASKIncludesBrainContext(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git")
+	}
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	brainDir := t.TempDir()
+	proj := store.Project{RepoPath: repo, Slug: "demo", Name: "Demo"}
+	if err := os.MkdirAll(filepath.Join(brainDir, "projects", "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "---\nname: \"Demo\"\n---\n# Demo\n\n## Current state\n\nLive on staging.\n\n## Next\n\nShip it.\n\n## Decisions\n\nSQLite.\n"
+	if err := os.WriteFile(filepath.Join(brainDir, "projects", "demo", "project.md"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Launch{Worktrees: filepath.Join(t.TempDir(), "wt"), Brain: brainDir}
+	sess, err := Prepare(cfg, proj, store.Task{ID: 1, Title: "Hello", Type: store.TypeFeature})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(sess.Worktree, "TASK.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	if !strings.Contains(s, "## Project context") || !strings.Contains(s, "Live on staging.") {
+		t.Fatalf("TASK.md missing brain context:\n%s", s)
+	}
+	if !strings.Contains(s, "Do not modify the second brain unless this task asks you to") {
+		t.Fatal("brain rule missing")
+	}
+}

@@ -237,9 +237,9 @@ func (m *Model) moveList(delta int) {
 
 func (m Model) boardHints() string {
 	if m.listMode() {
-		return i18n.T("v board  space/z fold  m status  P priority  A agent  [ ] move  tab panel  n new  e edit  / search  f/p filter  o editor  ? help")
+		return i18n.T("v board  space/z fold  m status  P priority  A agent  [ ] move  tab panel  n new  e edit  / search  B brain  o editor  ? help")
 	}
-	return i18n.T("v list  z fold  Z fold empty  m status  P priority  A agent  [ ] move  tab panel  n new  e edit  / search  o editor  ? help")
+	return i18n.T("v list  z fold  Z fold empty  m status  P priority  A agent  [ ] move  tab panel  n new  e edit  / search  B brain  o editor  ? help")
 }
 
 func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -258,6 +258,8 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = listStatus()
 		m.reload()
 		return m, nil
+	case "B":
+		return m.openBrainProject()
 	case "?":
 		m.helpFrom = screenBoard
 		m.screen = screenHelp
@@ -283,10 +285,11 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "Z":
 		m.toggleEmptyCollapsed()
 	case "tab":
-		if _, ok := m.selectedTask(); ok {
+		if t, ok := m.selectedTask(); ok {
 			m.drawerFocus = true
 			m.drawerField = 0
-			m.status = i18n.T("j/k field  ←/→ change  enter options  e edit  o editor  tab/esc back")
+			m.loadAttachments(t.ID)
+			m.status = i18n.T("j/k field  a attach  p path  d remove  e edit  o editor  tab/esc back")
 		} else {
 			m.status = i18n.T("No task selected")
 		}

@@ -31,6 +31,7 @@ type Launch struct {
 	Terminal     string                `toml:"terminal"`
 	Editor       string                `toml:"editor"`
 	Merge        string                `toml:"merge"`
+	Brain        string                `toml:"-"`
 	Agents       map[string]AgentSpec  `toml:"agents"`
 	Prices       map[string]TokenPrice `toml:"prices"`
 }
@@ -46,30 +47,54 @@ type Config struct {
 	DefaultModel string
 	HideLogo     bool // skip the logo screen at start
 	// WorktreesRaw is worktrees exactly as written in config.toml ("" = default).
-	WorktreesRaw string
-	BoardView    string   // "board" or "list"
-	Collapsed    []string // statuses folded on the board and in the list
-	Launch       Launch
+	WorktreesRaw    string
+	BrainRaw        string // brain folder as written in config.toml ("" = default)
+	BrainGit        bool   // local commit after grouped writes; never push
+	BoardView       string // "board" or "list"
+	Collapsed       []string
+	MaxAttachmentMB int
+	Launch          Launch
 }
 
 type tomlConfig struct {
-	Theme        string                `toml:"theme"`
-	WelcomeShown bool                  `toml:"welcome_shown"`
-	SetupDone    bool                  `toml:"setup_done"`
-	Language     string                `toml:"language"`
-	DefaultAgent string                `toml:"default_agent"`
-	DefaultModel string                `toml:"default_model"`
-	HideLogo     bool                  `toml:"hide_logo"`
-	BoardView    string                `toml:"board_view"`
-	Collapsed    []string              `toml:"collapsed"`
-	BranchPrefix string                `toml:"branch_prefix"`
-	Worktrees    string                `toml:"worktrees"`
-	Notify       *bool                 `toml:"notify"`
-	Terminal     string                `toml:"terminal"`
-	Editor       string                `toml:"editor"`
-	Merge        string                `toml:"merge"`
-	Agents       map[string]AgentSpec  `toml:"agents"`
-	Prices       map[string]TokenPrice `toml:"prices"`
+	Theme           string                `toml:"theme"`
+	WelcomeShown    bool                  `toml:"welcome_shown"`
+	SetupDone       bool                  `toml:"setup_done"`
+	Language        string                `toml:"language"`
+	DefaultAgent    string                `toml:"default_agent"`
+	DefaultModel    string                `toml:"default_model"`
+	HideLogo        bool                  `toml:"hide_logo"`
+	BoardView       string                `toml:"board_view"`
+	Collapsed       []string              `toml:"collapsed"`
+	BranchPrefix    string                `toml:"branch_prefix"`
+	Worktrees       string                `toml:"worktrees"`
+	Notify          *bool                 `toml:"notify"`
+	Terminal        string                `toml:"terminal"`
+	Editor          string                `toml:"editor"`
+	Merge           string                `toml:"merge"`
+	MaxAttachmentMB int                   `toml:"max_attachment_mb"`
+	Brain           string                `toml:"brain"`
+	BrainGit        *bool                 `toml:"brain_git"`
+	Agents          map[string]AgentSpec  `toml:"agents"`
+	Prices          map[string]TokenPrice `toml:"prices"`
+}
+
+const DefaultMaxAttachmentMB = 50
+
+func (c Config) MaxAttachmentBytes() int64 {
+	mb := c.MaxAttachmentMB
+	if mb <= 0 {
+		mb = DefaultMaxAttachmentMB
+	}
+	return int64(mb) << 20
+}
+
+func AttachmentsDir(taskID int64) (string, error) {
+	dataDir, _, _, err := Paths()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, "attachments", strconv.FormatInt(taskID, 10)), nil
 }
 
 func (c Config) NormalizedTheme() string {
@@ -142,6 +167,7 @@ func Load(path string) (Config, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			c.Launch.Brain = ResolveBrain("")
 			return c, nil
 		}
 		return Config{}, err
@@ -185,6 +211,14 @@ func Load(path string) (Config, error) {
 	}
 	if strings.TrimSpace(t.Merge) != "" {
 		c.Launch.Merge = strings.TrimSpace(t.Merge)
+	}
+	if t.MaxAttachmentMB > 0 {
+		c.MaxAttachmentMB = t.MaxAttachmentMB
+	}
+	c.BrainRaw = strings.TrimSpace(t.Brain)
+	c.Launch.Brain = ResolveBrain(c.BrainRaw)
+	if t.BrainGit != nil {
+		c.BrainGit = *t.BrainGit
 	}
 	for name, spec := range t.Agents {
 		if spec.Command == "" {
@@ -247,6 +281,8 @@ func Save(path string, c Config) error {
 	text = setString(text, "merge", c.Launch.Merge)
 	text = setString(text, "branch_prefix", c.Launch.BranchPrefix)
 	text = setString(text, "worktrees", c.WorktreesRaw)
+	text = setString(text, "brain", c.BrainRaw)
+	text = setBool(text, "brain_git", c.BrainGit)
 	if c.BoardView != "" {
 		text = setRootKey(text, "board_view", strconv.Quote(c.BoardView))
 	}
@@ -328,6 +364,19 @@ func ResolveWorktrees(raw string) string {
 		dataDir = filepath.Join(os.TempDir(), "troopa")
 	}
 	return filepath.Join(dataDir, "worktrees")
+}
+
+// ResolveBrain turns a brain setting into the folder Troopa uses:
+// empty means $XDG_DATA_HOME/troopa/brain.
+func ResolveBrain(raw string) string {
+	if strings.TrimSpace(raw) != "" {
+		return expandHome(strings.TrimSpace(raw))
+	}
+	dataDir, _, _, err := Paths()
+	if err != nil {
+		dataDir = filepath.Join(os.TempDir(), "troopa")
+	}
+	return filepath.Join(dataDir, "brain")
 }
 
 // setRootKey replaces key = ... in the root table (before the first [table])

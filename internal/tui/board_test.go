@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -61,6 +64,15 @@ func TestQuickCreateTask(t *testing.T) {
 	}
 	if len(list) != 3 {
 		t.Fatalf("list = %d", len(list))
+	}
+	var created store.Task
+	for _, tsk := range list {
+		if tsk.Title == "Tres" {
+			created = tsk
+		}
+	}
+	if _, err := os.Stat(filepath.Join(got.cfg.Launch.Brain, "projects", got.boardProject.Slug, "tasks", fmt.Sprintf("%d-tres.md", created.ID))); err != nil {
+		t.Fatal("brain task file", err)
 	}
 }
 

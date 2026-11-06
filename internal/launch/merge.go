@@ -216,7 +216,8 @@ func isTroopaExcluded(p string) bool {
 	case "TASK.md", "SUMMARY.md", "CHANGES.md", "PAIR.md", "pair.sh", "pair.pid", "agent.log":
 		return true
 	}
-	return p == ".venv" || strings.HasPrefix(p, ".venv/") || strings.Contains(p, "/.venv/") ||
+	return p == ".troopa" || strings.HasPrefix(p, ".troopa/") ||
+		p == ".venv" || strings.HasPrefix(p, ".venv/") || strings.Contains(p, "/.venv/") ||
 		p == "node_modules" || strings.HasPrefix(p, "node_modules/") || strings.Contains(p, "/node_modules/")
 }
 

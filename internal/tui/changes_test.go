@@ -91,4 +91,52 @@ func TestRequestChangesRerunsInSameWorktree(t *testing.T) {
 	if !strings.Contains(string(prompt), "CHANGES.md") {
 		t.Fatalf("second prompt should point at CHANGES.md: %s", prompt)
 	}
+	got = press(t, got, "x")
+	got.changesInput.SetValue("Explain the venv")
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+	got = next.(Model)
+	cmd, err = launch.AgentCommandPrompt(got.cfg.Launch, store.AgentClaude, "", wt, launch.ChangesPrompt(wt, 2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, _ = got.Update(runAgent(cmd, got.runSess.LogPath, got.run.ID)())
+	got = next.(Model)
+	if got.screen != screenReview {
+		t.Fatalf("third round should end in review, screen %v", got.screen)
+	}
+	rounds, err := got.store.ListRounds(runID)
+	if err != nil || len(rounds) != 3 {
+		t.Fatalf("want 3 rounds, got %+v err=%v", rounds, err)
+	}
+	if rounds[0].Kind != store.RoundLaunch || rounds[0].Feedback != "" {
+		t.Fatalf("round 1 %+v", rounds[0])
+	}
+	if rounds[1].Kind != store.RoundChanges || rounds[1].Feedback != "Add requirements.txt" {
+		t.Fatalf("round 2 %+v", rounds[1])
+	}
+	if rounds[2].Feedback != "Explain the venv" || !rounds[2].DurationMS.Valid {
+		t.Fatalf("round 3 %+v", rounds[2])
+	}
+	view := got.viewReview()
+	if !strings.Contains(view, "▾ 3") {
+		t.Fatalf("last round should be open: %s", view)
+	}
+	if !strings.Contains(view, "Add requirements.txt") {
+		t.Fatalf("folded round should show feedback line: %s", view)
+	}
+	got = press(t, got, "r")
+	view = got.viewReview()
+	if !strings.Contains(view, "▸ 3") {
+		t.Fatalf("r should fold the last round: %s", view)
+	}
+	got = press(t, got, "[")
+	if got.roundIndex != 1 {
+		t.Fatalf(" [ should select previous round, index=%d", got.roundIndex)
+	}
+	next, _ = got.Update(tea.MouseMsg{X: 1, Y: 2, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	got = next.(Model)
+	drawer := got.viewDrawer(50, 40)
+	if !strings.Contains(drawer, "Rounds") {
+		t.Fatalf("drawer missing rounds: %s", drawer)
+	}
 }

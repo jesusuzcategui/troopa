@@ -31,6 +31,8 @@ const (
 	stepEditor
 	stepTerminal
 	stepMerge
+	stepBrain
+	stepBrainPath
 	stepSummary
 	stepCount
 )
@@ -135,6 +137,14 @@ func mergeChoices() []choice {
 	}
 }
 
+func (m Model) brainChoices() []choice {
+	def := config.ResolveBrain("")
+	return []choice{
+		{value: "troopa", label: i18n.T("Troopa folder"), detail: def},
+		{value: "existing", label: i18n.T("Existing folder"), detail: i18n.T("a vault or notes folder you already have")},
+	}
+}
+
 func (m Model) setupChoices() []choice {
 	switch m.setup.step {
 	case stepLanguage:
@@ -149,6 +159,8 @@ func (m Model) setupChoices() []choice {
 		return m.terminalChoices()
 	case stepMerge:
 		return mergeChoices()
+	case stepBrain:
+		return m.brainChoices()
 	}
 	return nil
 }
@@ -181,6 +193,11 @@ func (m Model) setupCurrentValue() string {
 			return "squash"
 		}
 		return m.cfg.Launch.Merge
+	case stepBrain:
+		if strings.TrimSpace(m.cfg.BrainRaw) != "" {
+			return "existing"
+		}
+		return "troopa"
 	}
 	return ""
 }
@@ -193,7 +210,14 @@ func (m *Model) setupCursorToCurrent() {
 			m.setup.cursor = i
 		}
 	}
-	if m.setup.step == stepModel {
+	if m.setup.step == stepModel || m.setup.step == stepBrainPath {
+		if m.setup.step == stepBrainPath {
+			m.setup.model.Placeholder = i18n.T("folder path (~/Notes, or leave empty for the default)")
+			m.setup.model.SetValue(m.cfg.BrainRaw)
+		} else {
+			m.setup.model.Placeholder = i18n.T("leave empty for the agent's default")
+			m.setup.model.SetValue(m.cfg.DefaultModel)
+		}
 		m.setup.model.Focus()
 	} else {
 		m.setup.model.Blur()
@@ -237,12 +261,26 @@ func (m *Model) commitSetupStep() {
 		m.cfg.Launch.Terminal = val
 	case stepMerge:
 		m.cfg.Launch.Merge = val
+	case stepBrain:
+		if val == "existing" {
+			if strings.TrimSpace(m.cfg.BrainRaw) == "" {
+				m.cfg.BrainRaw = config.ResolveBrain("")
+			}
+		} else {
+			m.cfg.BrainRaw = ""
+		}
+		m.cfg.Launch.Brain = config.ResolveBrain(m.cfg.BrainRaw)
+	case stepBrainPath:
+		m.cfg.BrainRaw = strings.TrimSpace(m.setup.model.Value())
+		m.cfg.Launch.Brain = config.ResolveBrain(m.cfg.BrainRaw)
 	}
 }
 
 func (m Model) finishSetup() (tea.Model, tea.Cmd) {
 	m.cfg.SetupDone = true
 	m.cfg.WelcomeShown = true
+	m.cfg.Launch.Brain = config.ResolveBrain(m.cfg.BrainRaw)
+	m.ensureBrain()
 	if err := m.saveConfig(); err != nil {
 		m.err = i18n.T("Could not save the config: ") + err.Error()
 		return m, nil
@@ -272,6 +310,7 @@ func (m *Model) saveConfig() error {
 		"default_model": m.cfg.DefaultModel,
 		"branch_prefix": m.cfg.Launch.BranchPrefix,
 		"worktrees":     m.cfg.WorktreesRaw,
+		"brain":         m.cfg.BrainRaw,
 	}
 	for key, v := range empty {
 		if v == "" {
@@ -289,7 +328,7 @@ func (m Model) updateSetupKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key == "ctrl+c" {
 		return m, tea.Quit
 	}
-	if s.step == stepModel {
+	if s.step == stepModel || s.step == stepBrainPath {
 		switch key {
 		case "enter":
 			m.commitSetupStep()
@@ -322,9 +361,13 @@ func (m Model) updateSetupKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.finishSetup()
 		}
 		m.commitSetupStep()
-		s.step++
+		if s.step == stepBrain && strings.TrimSpace(m.cfg.BrainRaw) == "" {
+			s.step = stepSummary
+		} else {
+			s.step++
+		}
 		m.setupCursorToCurrent()
-		if s.step == stepModel {
+		if s.step == stepModel || s.step == stepBrainPath {
 			return m, textinput.Blink
 		}
 	case "esc", "left", "h":
@@ -338,21 +381,29 @@ func (m Model) updateSetupKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		s.step--
+		if s.step == stepSummary && strings.TrimSpace(m.cfg.BrainRaw) == "" {
+			s.step = stepBrain
+		} else {
+			s.step--
+		}
 		m.setupCursorToCurrent()
 	}
 	return m, nil
 }
 
 func (m Model) updateSetupMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft || m.setup.step == stepModel || m.setup.step == stepSummary {
+	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft || m.setup.step == stepModel || m.setup.step == stepBrainPath || m.setup.step == stepSummary {
 		return m, nil
 	}
 	idx := msg.Y - m.setupOptionsTop()
 	if idx >= 0 && idx < len(m.setupChoices()) {
 		if m.setup.cursor == idx {
 			m.commitSetupStep()
-			m.setup.step++
+			if m.setup.step == stepBrain && strings.TrimSpace(m.cfg.BrainRaw) == "" {
+				m.setup.step = stepSummary
+			} else {
+				m.setup.step++
+			}
 			m.setupCursorToCurrent()
 			return m, nil
 		}
@@ -378,6 +429,10 @@ func (m Model) setupTitle(step setupStep) (string, string) {
 		return i18n.T("Terminal"), i18n.T("Where pair sessions open when you are not inside tmux.")
 	case stepMerge:
 		return i18n.T("Merge strategy"), i18n.T("How g brings an approved branch into the base branch.")
+	case stepBrain:
+		return i18n.T("Second brain"), i18n.T("A markdown folder for project notes. Troopa writes INDEX, tasks and history; you keep Current state, Next and Decisions.")
+	case stepBrainPath:
+		return i18n.T("Brain folder"), i18n.T("Absolute path or ~/folder. Created with inbox.md, today.md, projects/INDEX.md and a short README if it does not exist.")
 	}
 	return i18n.T("Summary"), i18n.T("Press enter to save these settings to config.toml.")
 }
@@ -402,6 +457,8 @@ func (m Model) viewSetup() string {
 	switch m.setup.step {
 	case stepModel:
 		b.WriteString(th.Muted.Render(i18n.T("Model")+"  ") + m.setup.model.View())
+	case stepBrainPath:
+		b.WriteString(th.Muted.Render(i18n.T("Path")+"  ") + m.setup.model.View())
 	case stepSummary:
 		rows := [][2]string{
 			{i18n.T("Language"), m.languageLabel()},
@@ -411,6 +468,7 @@ func (m Model) viewSetup() string {
 			{i18n.T("Editor"), orAuto(m.cfg.Launch.Editor)},
 			{i18n.T("Terminal"), orAuto(m.cfg.Launch.Terminal)},
 			{i18n.T("Merge strategy"), orDefault(m.cfg.Launch.Merge, "squash")},
+			{i18n.T("Second brain"), orDefault(m.cfg.BrainRaw, config.ResolveBrain(""))},
 		}
 		for _, r := range rows {
 			b.WriteString(th.Muted.Render(fmt.Sprintf("  %-16s", r[0])) + th.Normal.UnsetPadding().Render(r[1]) + "\n")

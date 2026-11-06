@@ -30,6 +30,8 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "edit-project", Title: i18n.T("Edit project"), Keys: "e"},
 		{ID: "archive-project", Title: i18n.T("Archive project"), Keys: "a"},
 		{ID: "open-board", Title: i18n.T("Open board"), Keys: "enter"},
+		{ID: "brain", Title: i18n.T("Open second brain"), Hint: i18n.T("notes tree and markdown"), Keys: "B"},
+		{ID: "brain-project", Title: i18n.T("Open project.md"), Hint: i18n.T("this project's note")},
 		{ID: "toggle-archived", Title: i18n.T("Show or hide archived"), Keys: "tab"},
 		{ID: "clients", Title: i18n.T("Clients view"), Keys: "c"},
 		{ID: "new-client", Title: i18n.T("New client"), Keys: "n"},
@@ -40,6 +42,7 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "metrics", Title: i18n.T("Metrics"), Keys: "M"},
 		{ID: "new-task", Title: i18n.T("New task"), Keys: "n"},
 		{ID: "edit-task", Title: i18n.T("Edit task"), Keys: "e"},
+		{ID: "attach-file", Title: i18n.T("Attach a file"), Keys: "a"},
 		{ID: "search-tasks", Title: i18n.T("Search tasks"), Keys: "/"},
 		{ID: "status-menu", Title: i18n.T("Change status"), Keys: "m"},
 		{ID: "set-priority", Title: i18n.T("Change priority"), Keys: "P"},
@@ -60,6 +63,8 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "clean", Title: i18n.T("Clean worktree (keep branch)"), Keys: "c"},
 		{ID: "discard", Title: i18n.T("Discard worktree"), Keys: "d"},
 		{ID: "request-changes", Title: i18n.T("Request changes"), Hint: i18n.T("send the task back to its agent"), Keys: "x"},
+		{ID: "comment-line", Title: i18n.T("Comment on this line"), Keys: "enter"},
+		{ID: "comment-list", Title: i18n.T("Pending comments"), Keys: "C"},
 		{ID: "finish-pair", Title: i18n.T("Finish pair"), Keys: "f"},
 		{ID: "reopen-agent", Title: i18n.T("Reopen agent"), Keys: "r"},
 		{ID: "open-editor", Title: i18n.T("Open in editor"), Hint: i18n.T("worktree or project folder"), Keys: "o"},
@@ -156,6 +161,20 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		}
 		m.screen = screenBoard
 		return m.requestChangesFromTask()
+	case "comment-line":
+		if from != screenReview && m.screen != screenReview {
+			m.status = i18n.T("No review open")
+			return m, nil
+		}
+		m.screen = screenReview
+		return m.openCommentOnCursor()
+	case "comment-list":
+		if from != screenReview && m.screen != screenReview {
+			m.status = i18n.T("No review open")
+			return m, nil
+		}
+		m.screen = screenReview
+		return m.openCommentList()
 	case "setup":
 		m.startSetup(screenList)
 		return m, nil
@@ -198,6 +217,14 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 			m.status = i18n.T("No project selected")
 		}
 		return m, nil
+	case "brain":
+		rel := "inbox.md"
+		if from == screenBoard && m.boardProject.ID != 0 {
+			return m.openBrainProject()
+		}
+		return m.openBrain(from, rel)
+	case "brain-project":
+		return m.openBrainProject()
 	case "toggle-archived":
 		m.showArchived = !m.showArchived
 		m.cursor = 0
@@ -270,6 +297,17 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		if t, ok := m.selectedTask(); ok {
 			m.openTaskForm(t)
 			return m.withTaskFocus()
+		}
+		m.status = i18n.T("No task selected")
+		return m, nil
+	case "attach-file":
+		if t, ok := m.selectedTask(); ok {
+			m.taskDraft = t
+			m.loadAttachments(t.ID)
+			return m.openFilePicker()
+		}
+		if m.screen == screenTaskForm {
+			return m.openFilePicker()
 		}
 		m.status = i18n.T("No task selected")
 		return m, nil

@@ -6,6 +6,7 @@ const HelpText = `Shortcuts — projects
 
   j / k  or  ↑ / ↓   move in the list
   enter / o          open the task board
+  B                  open the second brain
   e                  edit the project
   n                  create a project
   a                  archive
@@ -14,7 +15,7 @@ const HelpText = `Shortcuts — projects
   F                  filter projects by client
   tab                show or hide archived
   t                  next theme
-  S                  settings (language, agents, editor, merge…)
+  S                  settings (language, agents, editor, merge, second brain…)
   i                  about Troopa
   Ctrl+K             command palette (every action)
   ?                  this help
@@ -37,6 +38,8 @@ const HelpText = `Shortcuts — projects
   [ / ]  or  H / L   move the task to another status
   m / P / A          popup to change status, priority or agent
   tab                task panel (beside the board when the terminal is wide)
+  a                  attach a file (task form attachments section and panel)
+  p                  paste a file path (attachments)
   /                  search
   f / p              status / priority filter
   C                  client filter
@@ -45,6 +48,7 @@ const HelpText = `Shortcuts — projects
   g                  merge an approved local branch into the base
   c                  clean worktree, keep the branch
   x                  request changes: send the task back to its agent
+  B                  open this project's project.md
   esc                back to projects
 
   Mouse
@@ -57,6 +61,13 @@ const HelpText = `Shortcuts — projects
   Yolo agent (ready, not me)
   y / a              approve (auto: commit+push+PR; none: keeps the worktree)
   x                  request changes (same agent, same worktree)
+  j / k              move the line cursor on the diff
+  n / p              next / previous file
+  enter / click      comment on the line
+  e / D              edit / delete the comment on the line
+  C                  list pending comments
+  r                  fold or unfold the selected round
+  [ / ] or tab       change round (review and log)
   g                  merge an approved local branch into the base
   c                  clean worktree, keep the branch
   d                  discard worktree and branch
@@ -69,9 +80,23 @@ const HelpText = `Shortcuts — projects
   esc                back to the board (the session keeps going)
   close terminal     pair-paused; enter to resume
 
+  Second brain
+  B                  from projects (inbox) · board or task panel (project.md)
+  j / k              tree · on a narrow terminal, scroll the note
+  h / l              fold / unfold a folder
+  enter              open the note or follow the selected link
+  tab                cycle [[wiki]] and relative Markdown links
+  esc / backspace    history, then the tree, then leave
+  /                  search every note (note + line)
+  o                  edit this note in your editor
+  i                  add a line to inbox.md
+  ctrl+s             local commit when brain_git is on
+  click / wheel      select a note · scroll
+
   When you save a project whose path does not exist, Troopa offers
   to create the folder with git init -b main, a README and an initial commit.
   Moving a task to ready asks before its agent starts.
+  The second brain folder is chosen in the first-run setup and in Settings.
   troopa setup runs the first-run setup again.`
 
 const WelcomeText = `Troopa
@@ -88,6 +113,7 @@ const helpTextES = `Atajos — proyectos
 
   j / k  o  ↑ / ↓    moverse en la lista
   enter / o          abrir tablero de tareas
+  B                  abrir el segundo cerebro
   e                  editar el proyecto
   n                  crear proyecto
   a                  archivar
@@ -96,7 +122,7 @@ const helpTextES = `Atajos — proyectos
   F                  filtrar proyectos por cliente
   tab                mostrar u ocultar archivados
   t                  siguiente tema
-  S                  configuración (idioma, agentes, editor, merge…)
+  S                  configuración (idioma, agentes, editor, merge, segundo cerebro…)
   i                  acerca de Troopa
   Ctrl+K             paleta de comandos (todas las acciones)
   ?                  esta ayuda
@@ -119,6 +145,8 @@ const helpTextES = `Atajos — proyectos
   [ / ]  o  H / L    mover tarea de estado
   m / P / A          popup para cambiar estado, prioridad o agente
   tab                panel de la tarea (al lado si la terminal es ancha)
+  a                  adjuntar un archivo (sección Adjuntos del formulario y el panel)
+  p                  pegar la ruta de un archivo (adjuntos)
   /                  buscar
   f / p              filtro estado / prioridad
   C                  filtro por cliente
@@ -127,6 +155,7 @@ const helpTextES = `Atajos — proyectos
   g                  mergear una rama local aprobada en la base
   c                  limpiar worktree, conservar la rama
   x                  pedir cambios: devolver la tarea a su agente
+  B                  abrir el project.md de este proyecto
   esc                volver a proyectos
 
   Ratón
@@ -139,6 +168,13 @@ const helpTextES = `Atajos — proyectos
   Agente yolo (ready, no me)
   y / a              aprobar (auto: commit+push+PR; none: deja el worktree)
   x                  pedir cambios (mismo agente, mismo worktree)
+  j / k              mover el cursor de línea en el diff
+  n / p              archivo siguiente / anterior
+  enter / clic       comentar la línea
+  e / D              editar / borrar el comentario de la línea
+  C                  listar comentarios pendientes
+  r                  plegar o desplegar la ronda seleccionada
+  [ / ] o tab        cambiar de ronda (revisión y log)
   g                  mergear una rama local aprobada en la base
   c                  limpiar worktree, conservar la rama
   d                  descartar worktree y rama
@@ -151,9 +187,23 @@ const helpTextES = `Atajos — proyectos
   esc                volver al tablero (la sesión sigue)
   cerrar terminal    pair-paused; enter para retomar
 
+  Segundo cerebro
+  B                  desde proyectos (inbox) · tablero o panel (project.md)
+  j / k              árbol · en terminal angosta, scroll de la nota
+  h / l              plegar / desplegar carpeta
+  enter              abrir la nota o seguir el enlace seleccionado
+  tab                recorrer [[wiki]] y enlaces Markdown relativos
+  esc / backspace    historial, luego el árbol, luego salir
+  /                  buscar en todas las notas (nota + línea)
+  o                  editar esta nota en tu editor
+  i                  añadir una línea a inbox.md
+  ctrl+s             commit local si brain_git está activo
+  clic / rueda       elegir una nota · scroll
+
   Al guardar un proyecto, si la ruta no existe se ofrece
   crear la carpeta con git init -b main, README y commit inicial.
   Mover una tarea a ready pregunta antes de lanzar su agente.
+  La carpeta del segundo cerebro se elige en el primer arranque y en Configuración.
   troopa setup repite la configuración inicial.`
 
 const welcomeTextES = `Troopa
