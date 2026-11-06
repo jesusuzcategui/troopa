@@ -63,7 +63,17 @@ export const strings = {
     "foot.made": "Made by",
     "foot.license": "MIT license",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "f9.t": "Comments on the diff",
+    "f9.d": "Move through the diff, comment any line, and send every comment back to the agent as file:line notes in a new round.",
+    "f10.t": "Every round, kept",
+    "f10.d": "Each launch and each request for changes is its own round with your feedback, the agent's summary, checks and log. Older rounds fold away; the latest stays open.",
+    "f11.t": "Attachments and @files",
+    "f11.d": "Attach images, PDFs, code or video to a task, and type @ to reference files from the repo. The agent gets them in its worktree; they never reach your commits.",
+    "f12.t": "A second brain",
+    "f12.d": "A Markdown vault (Obsidian-friendly) with a note per project, its tasks and how-to-run guides. Troopa keeps it up to date, gives the agent the project context, and lets you browse it with B.",
+    "keys.brain": "second brain",
+    "keys.comment": "comment a diff line"
   },
   "es": {
     "demo.client": "Cliente",
@@ -128,6 +138,16 @@ export const strings = {
     "foot.made": "Hecho por",
     "foot.license": "licencia MIT",
     "copy": "Copiar",
-    "copied": "Copiado"
+    "copied": "Copiado",
+    "f9.t": "Comentarios en el diff",
+    "f9.d": "Recorre el diff, comenta cualquier línea y envía todos los comentarios al agente como notas archivo:línea en una ronda nueva.",
+    "f10.t": "Cada ronda, guardada",
+    "f10.d": "Cada lanzamiento y cada pedido de cambios es una ronda con tu comentario, el resumen del agente, los checks y el log. Las anteriores se pliegan; la última queda abierta.",
+    "f11.t": "Adjuntos y @archivos",
+    "f11.d": "Adjunta imágenes, PDFs, código o video a una tarea, y escribe @ para referenciar archivos del repo. El agente los recibe en su worktree y nunca llegan a tus commits.",
+    "f12.t": "Un segundo cerebro",
+    "f12.d": "Una carpeta de Markdown (compatible con Obsidian) con una nota por proyecto, sus tareas y guías de cómo correrlo. Troopa la mantiene al día, le da al agente el contexto del proyecto y la puedes recorrer con B.",
+    "keys.brain": "segundo cerebro",
+    "keys.comment": "comentar una línea del diff"
   }
 };

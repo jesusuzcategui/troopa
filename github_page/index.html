@@ -66,6 +66,10 @@
           <article><h3 data-i18n="f2.t">Agents in worktrees</h3><p data-i18n="f2.d">Move a task to ready and its agent works on a branch in an isolated git worktree. Yolo runs alone; pair opens the agent next to you with TDD.</p></article>
           <article><h3 data-i18n="f3.t">Review and request changes</h3><p data-i18n="f3.d">See the diff, the checks and a "How to run" summary. Not right yet? Write what should change and the same agent picks it up in the same worktree.</p></article>
           <article><h3 data-i18n="f4.t">Merge without leaving</h3><p data-i18n="f4.d">Approve, then merge into the base branch with squash or a merge commit. Conflicts abort cleanly. With a remote, Troopa pushes and opens the PR.</p></article>
+          <article><h3 data-i18n="f9.t">Comments on the diff</h3><p data-i18n="f9.d">Move through the diff, comment any line, and send every comment back to the agent as file:line notes in a new round.</p></article>
+          <article><h3 data-i18n="f10.t">Every round, kept</h3><p data-i18n="f10.d">Each launch and each request for changes is its own round with your feedback, the agent's summary, checks and log. Older rounds fold away; the latest stays open.</p></article>
+          <article><h3 data-i18n="f11.t">Attachments and @files</h3><p data-i18n="f11.d">Attach images, PDFs, code or video to a task, and type @ to reference files from the repo. The agent gets them in its worktree; they never reach your commits.</p></article>
+          <article><h3 data-i18n="f12.t">A second brain</h3><p data-i18n="f12.d">A Markdown vault (Obsidian-friendly) with a note per project, its tasks and how-to-run guides. Troopa keeps it up to date, gives the agent the project context, and lets you browse it with B.</p></article>
           <article><h3 data-i18n="f5.t">Detects your agents</h3><p data-i18n="f5.d">A first-run setup finds Claude Code, Codex, OpenCode and Pi on your computer, and asks before any agent starts.</p></article>
           <article><h3 data-i18n="f6.t">Fifteen themes, two languages</h3><p data-i18n="f6.d">Nord, Dracula, Gruvbox, Catppuccin, Tokyo Night and more, or your own TOML. English and Spanish interface.</p></article>
           <article><h3 data-i18n="f7.t">Projects, clients and metrics</h3><p data-i18n="f7.d">Group work by client, filter boards, and compare time, tokens and cost per agent and per project.</p></article>
@@ -136,6 +140,8 @@ sudo pacman -U ./troopa_*_linux_amd64.pkg.tar.zst</pre>
           <div><kbd>x</kbd><span data-i18n="keys.changes">request changes</span></div>
           <div><kbd>g</kbd><span data-i18n="keys.merge">merge into main</span></div>
           <div><kbd>o</kbd><span data-i18n="keys.editor">open in your editor</span></div>
+          <div><kbd>B</kbd><span data-i18n="keys.brain">second brain</span></div>
+          <div><kbd>enter</kbd><span data-i18n="keys.comment">comment a diff line</span></div>
           <div><kbd>S</kbd><span data-i18n="keys.settings">settings</span></div>
           <div><kbd>t</kbd><span data-i18n="keys.theme">next theme</span></div>
           <div><kbd>?</kbd><span data-i18n="keys.help">every shortcut</span></div>
