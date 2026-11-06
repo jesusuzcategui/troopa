@@ -50,10 +50,17 @@ func (m Model) taskFolder() string {
 
 // runFolder is the worktree of the run shown on screen.
 func (m Model) runFolder() string {
-	if m.run.Worktree != "" {
-		return m.run.Worktree
+	wt := m.run.Worktree
+	if wt == "" {
+		wt = m.runSess.Worktree
 	}
-	return m.runSess.Worktree
+	if dirExists(wt) {
+		return wt
+	}
+	if m.boardProject.RepoPath != "" {
+		return m.boardProject.RepoPath
+	}
+	return m.runSess.Repo
 }
 
 func dirExists(p string) bool {

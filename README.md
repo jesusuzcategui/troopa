@@ -77,9 +77,13 @@ output = 15
 cache = 0.3
 ```
 
-Moving a task to **ready** with an agent other than `me` creates a git worktree on `<type>/<slug>` and writes `TASK.md`. **Yolo** runs the CLI non-interactively (live log, then checks and review). **Pair** also writes `PAIR.md` and opens the agent in a tmux split or `terminal`. **Finish pair** (`f`) runs checks. Closing the terminal without finishing leaves **pair-paused**. Approve with `commits=auto` commits, pushes and opens a PR — never merge, never push `main`. `commits=none` leaves the worktree dirty. Discard removes worktree and branch.
+Moving a task to **ready** with an agent other than `me` creates a git worktree on `<type>/<slug>` and writes `TASK.md`. **Yolo** runs the CLI non-interactively (live log, then checks and review). **Pair** also writes `PAIR.md` and opens the agent in a tmux split or `terminal`. **Finish pair** (`f`) runs checks. Closing the terminal without finishing leaves **pair-paused**. Approve with `commits=auto` commits, pushes and opens a PR — never merge, never push `main`. `commits=none` leaves the worktree dirty. Discard (`d`) removes worktree and branch.
 
-`o` opens the task's worktree in your editor (the project folder when the task has no worktree yet). The editor comes from `editor` in `config.toml`, then `$VISUAL`, then `$EDITOR`, then `nvim`/`vim`/`vi`. Terminal editors take over the screen until you quit them; GUI editors open in their own window.
+### After approving
+
+With a remote, Troopa already opened a PR: use `c` to remove the worktree and keep the branch. Without a remote, `g` merges the branch into the project base (squash or merge from `config.toml`) or `c` just cleans the worktree. `d` throws worktree and branch away.
+
+`o` opens the task's worktree in your editor (the project folder when the worktree is gone or the task has none yet). The editor comes from `editor` in `config.toml`, then `$VISUAL`, then `$EDITOR`, then `nvim`/`vim`/`vi`. Terminal editors take over the screen until you quit them; GUI editors open in their own window.
 
 ## Keys
 
@@ -89,11 +93,11 @@ Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · 
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 
-Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `o` editor · `esc` back
+Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `c` clean worktree · `o` editor · `esc` back
 
 On a narrow terminal the board scrolls sideways and follows the selected column (`◀ 2` / `▶ 3` show hidden statuses). From 120 columns the task panel sits beside the board; on smaller terminals `tab` opens it full screen. The view and the folded statuses are saved as `board_view` and `collapsed` in `config.toml`.
 
-Review: `y` approve · `d` discard · `n`/`p` file · `j`/`k` scroll · `o` editor
+Review: `y` approve · `g` merge · `c` clean worktree · `d` discard · `n`/`p` file · `j`/`k` scroll · `o` editor
 
 Pair: `f` finish · `r` reopen agent · `o` editor · `esc` board (session keeps running)
 

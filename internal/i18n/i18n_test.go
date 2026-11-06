@@ -50,6 +50,25 @@ func TestT(t *testing.T) {
 	}
 }
 
+func TestSpanishCoversCloseTaskKeys(t *testing.T) {
+	keys := []string{
+		"Merged %s into %s (%s) as %s",
+		"Worktree removed, branch %s kept",
+		"Discard? Approved commits on this local branch have not been merged and will be lost.",
+		"Merge instead",
+		"Clean the worktree and keep the branch?",
+		"Merge %s into %s (%s)?",
+		"g merge  c clean  d discard  n/p file  j/k scroll  o editor  esc board",
+		"No",
+		"Commits",
+	}
+	for _, k := range keys {
+		if _, ok := es[k]; !ok {
+			t.Errorf("missing Spanish for %q", k)
+		}
+	}
+}
+
 // Every Spanish entry must keep the same format verbs as its English key.
 func TestSpanishKeepsVerbs(t *testing.T) {
 	for en, tr := range es {

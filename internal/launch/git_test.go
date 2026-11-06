@@ -79,6 +79,65 @@ func TestPrepareWriteTASKAndDiscard(t *testing.T) {
 	}
 }
 
+func TestCleanWorktreeKeepsBranch(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git")
+	}
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Launch{Worktrees: filepath.Join(t.TempDir(), "wt")}
+	task := store.Task{ID: 4, Title: "Keep branch", Type: store.TypeFeature, Commits: store.CommitsAuto}
+	sess, err := Prepare(cfg, store.Project{RepoPath: repo, Slug: "demo"}, task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sess.Worktree, "ok.txt"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CommitAll(sess.Worktree, "troopa: keep"); err != nil {
+		t.Fatal(err)
+	}
+	if err := CleanWorktree(sess); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(sess.Worktree); !os.IsNotExist(err) {
+		t.Fatal("worktree still exists")
+	}
+	if !BranchExists(repo, sess.Branch) {
+		t.Fatal("branch was deleted")
+	}
+}
+
+func TestCleanWorktreeDirtyRefuses(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git")
+	}
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Launch{Worktrees: filepath.Join(t.TempDir(), "wt")}
+	task := store.Task{ID: 5, Title: "Dirty", Type: store.TypeFeature, Commits: store.CommitsNone}
+	sess, err := Prepare(cfg, store.Project{RepoPath: repo, Slug: "demo"}, task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sess.Worktree, "dirty.txt"), []byte("nope\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CleanWorktree(sess); err == nil {
+		t.Fatal("expected error for uncommitted changes")
+	}
+	if _, err := os.Stat(sess.Worktree); err != nil {
+		t.Fatal("worktree should still exist")
+	}
+	if !BranchExists(repo, sess.Branch) {
+		t.Fatal("branch should still exist")
+	}
+}
+
 func TestApproveNoneLeavesUncommitted(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git")

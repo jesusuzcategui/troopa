@@ -191,7 +191,7 @@ func listStatus() string {
 }
 
 func newInputs() []textinput.Model {
-	labels := []string{i18n.T("Name"), "Slug", i18n.T("Repo path"), "Stack", i18n.T("Description")}
+	labels := []string{i18n.T("Name"), i18n.T("Slug"), i18n.T("Repo path"), i18n.T("Stack"), i18n.T("Description")}
 	out := make([]textinput.Model, int(fieldDesc)+1)
 	for i := range out {
 		ti := textinput.New()
@@ -770,7 +770,7 @@ func (m Model) viewForm() string {
 	var b strings.Builder
 	b.WriteString(th.Title.Render(title))
 	b.WriteString("\n\n")
-	labels := []string{i18n.T("Name"), "Slug", i18n.T("Path"), "Stack", i18n.T("Description")}
+	labels := []string{i18n.T("Name"), i18n.T("Slug"), i18n.T("Path"), i18n.T("Stack"), i18n.T("Description")}
 	for i, lab := range labels {
 		marker := "  "
 		st := th.Label

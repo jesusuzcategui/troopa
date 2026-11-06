@@ -13,6 +13,8 @@ const (
 	RunReview     = "review"
 	RunBlocked    = "blocked"
 	RunApproved   = "approved"
+	RunMerged     = "merged"
+	RunCleaned    = "cleaned"
 	RunDiscarded  = "discarded"
 )
 

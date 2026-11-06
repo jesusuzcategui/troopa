@@ -42,6 +42,9 @@ args = ["-p", "{{prompt}}"]
 	if c.Launch.Terminal != "kitty -e" {
 		t.Fatalf("terminal %q", c.Launch.Terminal)
 	}
+	if c.Launch.Merge != "" {
+		t.Fatalf("merge default %q", c.Launch.Merge)
+	}
 	if c.Launch.Agents["claude"].Command != "claude" {
 		t.Fatal("claude missing")
 	}
@@ -84,6 +87,31 @@ func TestSaveThemeAndWelcome(t *testing.T) {
 	}
 	if ThemesDir(tomlPath) != filepath.Join(dir, "themes") {
 		t.Fatalf("themes dir %s", ThemesDir(tomlPath))
+	}
+}
+
+func TestLoadMergeStrategy(t *testing.T) {
+	dir := t.TempDir()
+	tomlPath := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(tomlPath, []byte("merge = \"merge\"\nterminal = \"kitty -e\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Launch.Merge != "merge" {
+		t.Fatalf("merge %q", c.Launch.Merge)
+	}
+	if err := Save(tomlPath, Config{Theme: "dark", WelcomeShown: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Launch.Merge != "merge" {
+		t.Fatalf("Save overwrote merge: %q", got.Launch.Merge)
 	}
 }
 

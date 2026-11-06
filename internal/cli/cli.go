@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -19,9 +21,10 @@ type Error struct {
 	Message string
 }
 
-func (e *Error) Error() string   { return e.Message }
-func input(message string) error { return &Error{Code: "invalid_argument", Message: message} }
-func notFound(kind string) error { return &Error{Code: "not_found", Message: kind + " not found"} }
+func (e *Error) Error() string          { return e.Message }
+func input(message string) error        { return &Error{Code: "invalid_argument", Message: message} }
+func notFound(kind string) error        { return &Error{Code: "not_found", Message: kind + " not found"} }
+func invalidState(message string) error { return &Error{Code: "invalid_state", Message: message} }
 
 // Execute performs a non-interactive command using the same store layer as the TUI.
 func Execute(s *store.Store, args []string) (any, error) {
@@ -433,9 +436,68 @@ func run(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		return getRun(s, n)
+	case "merge", "clean":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		return closeRun(s, n, cmd)
 	default:
 		return nil, input("unknown run command: " + cmd)
 	}
+}
+
+func closeRun(s *store.Store, id int64, action string) (any, error) {
+	r, e := getRun(s, id)
+	if e != nil {
+		return nil, e
+	}
+	if r.State != store.RunApproved {
+		return nil, invalidState("run is not approved")
+	}
+	t, e := getTask(s, r.TaskID)
+	if e != nil {
+		return nil, e
+	}
+	p, e := getProject(s, r.ProjectID)
+	if e != nil {
+		return nil, e
+	}
+	sess := launch.Session{Repo: p.RepoPath, Worktree: r.Worktree, Branch: r.Branch, Base: r.Base, LogPath: r.LogPath}
+	if root, err := launch.RepoRoot(p.RepoPath); err == nil {
+		sess.Repo = root
+	}
+	switch action {
+	case "merge":
+		if launch.HasRemote(sess.Repo) {
+			return nil, invalidState("only an approved run without remote can be merged")
+		}
+		strategy := ""
+		if _, cfgPath, _, err := config.Paths(); err == nil {
+			if cfg, err := config.Load(cfgPath); err == nil {
+				strategy = cfg.Launch.Merge
+			}
+		}
+		msg, err := launch.MergeLocal(sess, t, strategy)
+		if err != nil {
+			return nil, err
+		}
+		r.State = store.RunMerged
+		r.Note = msg
+	case "clean":
+		if err := launch.CleanWorktree(sess); err != nil {
+			return nil, err
+		}
+		r.State = store.RunCleaned
+		r.Note = launch.CleanedNote(sess.Branch)
+	}
+	if e = s.MoveTask(t.ID, store.StatusDone); e != nil {
+		return nil, e
+	}
+	if e = s.UpdateRun(r); e != nil {
+		return nil, e
+	}
+	return getRun(s, r.ID)
 }
 func normalize(err error, kind string) error {
 	if errors.Is(err, sql.ErrNoRows) || strings.Contains(err.Error(), "no encontrado") {

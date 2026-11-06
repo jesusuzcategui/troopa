@@ -89,3 +89,30 @@ func Approve(sess Session, task store.Task, summary string) (string, error) {
 func Discard(sess Session) error {
 	return RemoveWorktree(sess.Repo, sess.Worktree, sess.Branch)
 }
+
+// CleanWorktree removes the worktree folder and keeps the branch.
+// Uncommitted user files abort the removal.
+func CleanWorktree(sess Session) error {
+	if sess.Repo == "" {
+		return fmt.Errorf("project repo is missing")
+	}
+	if sess.Worktree == "" {
+		return fmt.Errorf("worktree is missing")
+	}
+	if _, err := os.Stat(sess.Worktree); err != nil {
+		return fmt.Errorf("worktree is missing")
+	}
+	if dirty := uncommittedExceptTroopa(sess.Worktree); dirty != "" {
+		return fmt.Errorf("worktree has uncommitted changes: %s", dirty)
+	}
+	if _, err := Git(sess.Repo, "worktree", "remove", sess.Worktree); err != nil {
+		return err
+	}
+	_ = os.RemoveAll(sess.Worktree)
+	_, _ = Git(sess.Repo, "worktree", "prune")
+	return nil
+}
+
+func CleanedNote(branch string) string {
+	return i18n.T("Worktree removed, branch %s kept", branch)
+}

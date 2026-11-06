@@ -260,7 +260,7 @@ func (m Model) viewTaskForm() string {
 		{i18n.T("Agent"), m.taskDraft.Agent + "  ←/→", tfAgent},
 		{i18n.T("Model"), m.taskModelIn.View(), tfModel},
 		{i18n.T("Mode"), m.taskDraft.Mode + "  ←/→", tfMode},
-		{"Commits", m.taskDraft.Commits + "  ←/→", tfCommits},
+		{i18n.T("Commits"), m.taskDraft.Commits + "  ←/→", tfCommits},
 		{i18n.T("Type"), m.taskDraft.Type + "  ←/→", tfType},
 		{i18n.T("Status"), m.taskDraft.Status + "  ←/→", tfStatus},
 	}

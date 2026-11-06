@@ -40,6 +40,8 @@ const HelpText = `Shortcuts — projects
   C                  client filter
   M                  metrics by agent and project
   o                  open the worktree (or the project) in your editor
+  g                  merge an approved local branch into the base
+  c                  clean worktree, keep the branch
   esc                back to projects
 
   Mouse
@@ -51,6 +53,8 @@ const HelpText = `Shortcuts — projects
 
   Yolo agent (ready, not me)
   y / a              approve (auto: commit+push+PR; none: keeps the worktree)
+  g                  merge an approved local branch into the base
+  c                  clean worktree, keep the branch
   d                  discard worktree and branch
   o                  open the worktree in your editor
 
@@ -112,6 +116,8 @@ const helpTextES = `Atajos — proyectos
   C                  filtro por cliente
   M                  métricas por agente y proyecto
   o                  abrir el worktree (o el proyecto) en tu editor
+  g                  mergear una rama local aprobada en la base
+  c                  limpiar worktree, conservar la rama
   esc                volver a proyectos
 
   Ratón
@@ -123,6 +129,8 @@ const helpTextES = `Atajos — proyectos
 
   Agente yolo (ready, no me)
   y / a              aprobar (auto: commit+push+PR; none: deja el worktree)
+  g                  mergear una rama local aprobada en la base
+  c                  limpiar worktree, conservar la rama
   d                  descartar worktree y rama
   o                  abrir el worktree en tu editor
 

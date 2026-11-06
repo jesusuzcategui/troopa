@@ -42,7 +42,11 @@ Van tres paletas (`dark`, `light`, `tropic`). `t` las cicla. La paleta de comand
 
 Ejemplo de `config.toml` en el README en inglés. Al pasar a **ready** con un agente distinto de `me` se crea un worktree y `TASK.md`. Yolo corre sin interacción; pair abre el CLI interactivo. Finish pair (`f`) corre checks.
 
-`o` abre el worktree de la tarea en tu editor (o la carpeta del proyecto si la tarea aún no tiene worktree). El editor sale de `editor` en `config.toml` (por ejemplo `editor = "nvim"` o `"code"`), luego `$VISUAL`, luego `$EDITOR`, luego `nvim`/`vim`/`vi`.
+### Después de aprobar
+
+Con remoto, Troopa ya abrió el PR: `c` quita el worktree y conserva la rama. Sin remoto, `g` mergea la rama en la base del proyecto (squash o merge según `config.toml`) o `c` solo limpia el worktree. `d` descarta worktree y rama.
+
+`o` abre el worktree de la tarea en tu editor (o la carpeta del proyecto si el worktree ya no existe o la tarea aún no tiene). El editor sale de `editor` en `config.toml` (por ejemplo `editor = "nvim"` o `"code"`), luego `$VISUAL`, luego `$EDITOR`, luego `nvim`/`vim`/`vi`.
 
 ## Atajos
 
@@ -52,11 +56,11 @@ Proyectos: `enter` tablero · `n` nuevo · `e` editar · `a` archivar · `c` cli
 
 Clientes: `n` / `e` / `a` · `enter` tablero · `esc` volver
 
-Tablero y lista: `v` cambia tablero/lista · `z` pliega el estado · `Z` pliega los vacíos · `m`/`P`/`A` popup para cambiar estado, prioridad o agente · `tab` panel de la tarea · `n` tarea rápida · `e` editar · `[` `]` mover · `/` buscar · `f`/`p`/`C` filtros · `o` editor · `esc` volver
+Tablero y lista: `v` cambia tablero/lista · `z` pliega el estado · `Z` pliega los vacíos · `m`/`P`/`A` popup para cambiar estado, prioridad o agente · `tab` panel de la tarea · `n` tarea rápida · `e` editar · `[` `]` mover · `/` buscar · `f`/`p`/`C` filtros · `g` merge · `c` limpiar worktree · `o` editor · `esc` volver
 
 En una terminal angosta el tablero se desplaza de lado siguiendo la columna seleccionada (`◀ 2` / `▶ 3` indican estados ocultos). Desde 120 columnas el panel de la tarea va al lado del tablero; en terminales más chicas `tab` lo abre a pantalla completa. La vista y los estados plegados se guardan como `board_view` y `collapsed` en `config.toml`.
 
-Revisión: `y` aprobar · `d` descartar · `o` editor
+Revisión: `y` aprobar · `g` mergear · `c` limpiar worktree · `d` descartar · `o` editor
 
 Pareja: `f` terminar · `r` reabrir agente · `o` editor
 

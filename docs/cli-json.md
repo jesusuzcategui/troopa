@@ -49,9 +49,13 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
 # Runs
  troopa run list --json [--state STATE]
  troopa run show --json --id ID
+ troopa run merge --json --id ID
+ troopa run clean --json --id ID
 ```
 
 `task launch` queues a task in `ready` by default (or moves it to an explicit status). The TUI and CLI observe the same SQLite-backed store. `approve` and `discard` update the latest run and task state through the shared store layer.
+
+`run merge` and `run clean` use the same launch logic as the TUI (`g` / `c`) and return the updated run. Metrics fields are numbers or `null`, never `database/sql` types. The run must be `approved`; otherwise the error code is `invalid_state`. `merge` also requires a project without a remote. `clean` removes the worktree and keeps the branch; uncommitted user files abort the removal.
 
 ## Example
 

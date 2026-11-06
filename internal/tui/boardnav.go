@@ -314,6 +314,10 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "o":
 		return m.openEditor(m.taskFolder())
+	case "g":
+		return m.requestMergeFromTask()
+	case "c":
+		return m.requestCleanFromTask()
 	case "m":
 		return m.openFieldPopup(propStatus)
 	case "P":

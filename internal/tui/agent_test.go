@@ -83,3 +83,281 @@ func TestLaunchOnReadyShowsLogAndReview(t *testing.T) {
 		t.Fatalf("fake CLI must stay n/d: %+v", saved)
 	}
 }
+
+func TestReviewGMergesApprovedRun(t *testing.T) {
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	m := newTestModel(t)
+	m.cfg.Launch.Worktrees = filepath.Join(t.TempDir(), "wt")
+	p, err := m.store.Create(store.Project{Name: "App", RepoPath: repo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := m.store.CreateTask(store.Task{
+		ProjectID: p.ID, Title: "Boton", Agent: store.AgentClaude, Mode: store.ModeYolo,
+		Status: store.StatusDone, Commits: store.CommitsAuto,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := launch.Prepare(m.cfg.Launch, p, task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sess.Worktree, "btn.txt"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := launch.CommitAll(sess.Worktree, "troopa: "+task.Title); err != nil {
+		t.Fatal(err)
+	}
+	run, err := m.store.CreateRun(store.Run{
+		TaskID: task.ID, ProjectID: p.ID, Worktree: sess.Worktree, Branch: sess.Branch,
+		Base: sess.Base, State: store.RunApproved, Agent: store.AgentClaude,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.boardProject = p
+	m.run = run
+	m.runTask = task
+	m.runSess = sess
+	m.screen = screenReview
+	m.width, m.height = 120, 30
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	got := next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmMerge {
+		t.Fatalf("popup=%+v", got.popup)
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+	got = next.(Model)
+	if got.err != "" {
+		t.Fatal(got.err)
+	}
+	saved, err := got.store.GetRun(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.State != store.RunMerged {
+		t.Fatalf("state=%s", saved.State)
+	}
+	if launch.BranchExists(repo, sess.Branch) {
+		t.Fatal("branch still exists")
+	}
+}
+
+func approvedBoard(t *testing.T) (Model, string, launch.Session, store.Run) {
+	t.Helper()
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	m := newTestModel(t)
+	m.cfg.Launch.Worktrees = filepath.Join(t.TempDir(), "wt")
+	p, err := m.store.Create(store.Project{Name: "App", RepoPath: repo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := m.store.CreateTask(store.Task{
+		ProjectID: p.ID, Title: "Boton", Agent: store.AgentClaude, Mode: store.ModeYolo,
+		Status: store.StatusDone, Commits: store.CommitsAuto,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := launch.Prepare(m.cfg.Launch, p, task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sess.Worktree, "btn.txt"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := launch.CommitAll(sess.Worktree, "troopa: "+task.Title); err != nil {
+		t.Fatal(err)
+	}
+	run, err := m.store.CreateRun(store.Run{
+		TaskID: task.ID, ProjectID: p.ID, Worktree: sess.Worktree, Branch: sess.Branch,
+		Base: sess.Base, State: store.RunApproved, Agent: store.AgentClaude,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.boardProject = p
+	m.reloadTasks()
+	m.selectTaskID(task.ID)
+	m.screen = screenBoard
+	m.width, m.height = 120, 40
+	return m, repo, sess, run
+}
+
+func confirmPopup(t *testing.T, m Model) Model {
+	t.Helper()
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+	got := next.(Model)
+	if got.err != "" {
+		t.Fatal(got.err)
+	}
+	return got
+}
+
+func TestReviewCCleansWorktree(t *testing.T) {
+	m, repo, sess, run := approvedBoard(t)
+	m.screen = screenReview
+	m.run = run
+	m.runTask, _ = m.selectedTask()
+	m.runSess = sess
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got := next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmClean {
+		t.Fatalf("popup=%+v", got.popup)
+	}
+	got = confirmPopup(t, got)
+	saved, err := got.store.GetRun(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.State != store.RunCleaned {
+		t.Fatalf("state=%s", saved.State)
+	}
+	if _, err := os.Stat(sess.Worktree); !os.IsNotExist(err) {
+		t.Fatal("worktree still exists")
+	}
+	if !launch.BranchExists(repo, sess.Branch) {
+		t.Fatal("branch was deleted")
+	}
+}
+
+func TestBoardGAndC(t *testing.T) {
+	m, repo, sess, run := approvedBoard(t)
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	got := next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmMerge {
+		t.Fatalf("g popup=%+v", got.popup)
+	}
+	got.popup = nil
+
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got = next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmClean {
+		t.Fatalf("c popup=%+v", got.popup)
+	}
+	got = confirmPopup(t, got)
+	saved, err := got.store.GetRun(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.State != store.RunCleaned {
+		t.Fatalf("state=%s", saved.State)
+	}
+	if !launch.BranchExists(repo, sess.Branch) {
+		t.Fatal("branch was deleted")
+	}
+}
+
+func TestListCCleans(t *testing.T) {
+	m, repo, sess, run := approvedBoard(t)
+	m.cfg.BoardView = viewList
+	if t0, ok := m.selectedTask(); ok {
+		m.selectTaskID(t0.ID)
+	}
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got := next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmClean {
+		t.Fatalf("popup=%+v", got.popup)
+	}
+	got = confirmPopup(t, got)
+	saved, err := got.store.GetRun(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.State != store.RunCleaned {
+		t.Fatalf("state=%s", saved.State)
+	}
+	if !launch.BranchExists(repo, sess.Branch) {
+		t.Fatal("branch was deleted")
+	}
+}
+
+func TestDrawerGAndC(t *testing.T) {
+	m, repo, sess, run := approvedBoard(t)
+	m.drawerFocus = true
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	got := next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmMerge {
+		t.Fatalf("g popup=%+v", got.popup)
+	}
+	got.popup = nil
+	got.drawerFocus = true
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got = next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmClean {
+		t.Fatalf("c popup=%+v", got.popup)
+	}
+	got = confirmPopup(t, got)
+	saved, err := got.store.GetRun(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.State != store.RunCleaned {
+		t.Fatalf("state=%s", saved.State)
+	}
+	if !launch.BranchExists(repo, sess.Branch) {
+		t.Fatal("branch was deleted")
+	}
+	if t0, ok := got.selectedTask(); ok {
+		got.selectTaskID(t0.ID)
+	}
+	view := got.viewDrawer(50, 40)
+	if !strings.Contains(view, store.RunCleaned) {
+		t.Fatalf("drawer missing cleaned: %s", view)
+	}
+	if !strings.Contains(view, sess.Branch) {
+		t.Fatalf("drawer missing branch: %s", view)
+	}
+}
+
+func TestBoardGWithoutApprovedExplains(t *testing.T) {
+	m := seedBoard(t)
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := next.(Model)
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	got = next.(Model)
+	if !strings.Contains(got.status, "no approved") {
+		t.Fatalf("status=%q", got.status)
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got = next.(Model)
+	if !strings.Contains(got.status, "no approved") {
+		t.Fatalf("clean status=%q", got.status)
+	}
+}
+
+func TestDiscardWarnsWhenApprovedCommitsAreUnmerged(t *testing.T) {
+	m, _, sess, run := approvedBoard(t)
+	m.screen = screenReview
+	m.run = run
+	m.runTask, _ = m.selectedTask()
+	m.runSess = sess
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	got := next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmDiscard {
+		t.Fatalf("popup=%+v", got.popup)
+	}
+	if !strings.Contains(got.popup.title, "will be lost") {
+		t.Fatalf("missing unmerged warning: %q", got.popup.title)
+	}
+	if len(got.popup.options) < 3 || got.popup.options[0] != "merge" {
+		t.Fatalf("want Merge instead first, got %+v", got.popup.options)
+	}
+}
+
+func TestRunFolderFallsBackToProject(t *testing.T) {
+	m := newTestModel(t)
+	m.boardProject.RepoPath = t.TempDir()
+	m.run.Worktree = filepath.Join(t.TempDir(), "gone")
+	if got := m.runFolder(); got != m.boardProject.RepoPath {
+		t.Fatalf("runFolder=%q", got)
+	}
+}

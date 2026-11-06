@@ -53,6 +53,8 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "pick-theme", Title: i18n.T("Pick theme"), Hint: i18n.T("list of TOML palettes")},
 		{ID: "new-theme", Title: i18n.T("Create custom theme"), Hint: i18n.T("copies the current palette to a TOML file")},
 		{ID: "approve", Title: i18n.T("Approve review"), Keys: "y"},
+		{ID: "merge", Title: i18n.T("Merge into base"), Keys: "g"},
+		{ID: "clean", Title: i18n.T("Clean worktree (keep branch)"), Keys: "c"},
 		{ID: "discard", Title: i18n.T("Discard worktree"), Keys: "d"},
 		{ID: "finish-pair", Title: i18n.T("Finish pair"), Keys: "f"},
 		{ID: "reopen-agent", Title: i18n.T("Reopen agent"), Keys: "r"},
@@ -329,6 +331,30 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		}
 		m.screen = screenReview
 		return m.approveRun()
+	case "merge":
+		if from == screenReview || m.screen == screenReview {
+			m.screen = screenReview
+			return m.requestMerge()
+		}
+		if from == screenBoard || m.boardProject.ID != 0 {
+			m.screen = screenBoard
+			return m.requestMergeFromTask()
+		}
+		m.screen = from
+		m.status = i18n.T("This task has no approved run to merge")
+		return m, nil
+	case "clean":
+		if from == screenReview || m.screen == screenReview {
+			m.screen = screenReview
+			return m.requestClean()
+		}
+		if from == screenBoard || m.boardProject.ID != 0 {
+			m.screen = screenBoard
+			return m.requestCleanFromTask()
+		}
+		m.screen = from
+		m.status = i18n.T("This task has no approved run to clean")
+		return m, nil
 	case "discard":
 		if from != screenReview && m.screen != screenReview {
 			m.status = i18n.T("No review open")

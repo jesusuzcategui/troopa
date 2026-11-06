@@ -263,7 +263,11 @@ func NormalizeRepoPath(p string) string {
 	}
 	if p == "~" || strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~"+string(filepath.Separator)) {
 		if home, err := os.UserHomeDir(); err == nil {
-			p = filepath.Join(home, p[1:])
+			if p == "~" {
+				p = home
+			} else {
+				p = filepath.Join(home, p[2:])
+			}
 		}
 	}
 	if abs, err := filepath.Abs(p); err == nil {

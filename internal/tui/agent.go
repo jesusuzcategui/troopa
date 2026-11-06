@@ -416,12 +416,7 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 		m.openTaskForm(t)
 		return m.withTaskFocus()
 	}
-	m.run = run
-	m.runTask = t
-	m.runSess = launch.Session{Worktree: run.Worktree, Branch: run.Branch, Base: run.Base, LogPath: run.LogPath, Repo: m.boardProject.RepoPath}
-	if r, err := launch.RepoFromWorktree(run.Worktree); err == nil {
-		m.runSess.Repo = r
-	}
+	m.bindRun(t, run)
 	switch run.State {
 	case store.RunPairPaused:
 		return m.startPair(t)
@@ -437,12 +432,12 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 		m.screen = screenLog
 		m.status = i18n.T("Agent running · ") + run.Branch
 		return m, tickLog()
-	case store.RunReview, store.RunBlocked:
+	case store.RunReview, store.RunBlocked, store.RunApproved:
 		m.diffFiles, _ = launch.WorktreeDiff(run.Worktree, run.Base)
 		m.diffIndex = 0
 		m.diffOffset = 0
 		m.screen = screenReview
-		m.status = i18n.T("y approve  d discard  n/p file  o editor  esc board")
+		m.status = reviewStatus(run.State)
 		return m, nil
 	default:
 		m.openTaskForm(t)
@@ -473,6 +468,122 @@ func (m Model) approveRun() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) bindRun(t store.Task, run store.Run) {
+	m.run = run
+	m.runTask = t
+	m.runSess = launch.Session{Worktree: run.Worktree, Branch: run.Branch, Base: run.Base, LogPath: run.LogPath, Repo: m.boardProject.RepoPath}
+	if root, err := launch.RepoRoot(m.boardProject.RepoPath); err == nil {
+		m.runSess.Repo = root
+	} else if r, err := launch.RepoFromWorktree(run.Worktree); err == nil {
+		m.runSess.Repo = r
+	}
+}
+
+func (m Model) requestMergeFromTask() (tea.Model, tea.Cmd) {
+	t, ok := m.selectedTask()
+	if !ok {
+		m.status = i18n.T("No task selected")
+		m.err = ""
+		return m, nil
+	}
+	run, err := m.store.LatestRun(t.ID)
+	if err != nil || run.State != store.RunApproved {
+		m.status = i18n.T("This task has no approved run to merge")
+		m.err = ""
+		return m, nil
+	}
+	m.bindRun(t, run)
+	return m.requestMerge()
+}
+
+func (m Model) requestCleanFromTask() (tea.Model, tea.Cmd) {
+	t, ok := m.selectedTask()
+	if !ok {
+		m.status = i18n.T("No task selected")
+		m.err = ""
+		return m, nil
+	}
+	run, err := m.store.LatestRun(t.ID)
+	if err != nil || run.State != store.RunApproved {
+		m.status = i18n.T("This task has no approved run to clean")
+		m.err = ""
+		return m, nil
+	}
+	m.bindRun(t, run)
+	return m.openCleanPopup()
+}
+
+func (m Model) requestClean() (tea.Model, tea.Cmd) {
+	if m.run.State != store.RunApproved {
+		m.status = i18n.T("This task has no approved run to clean")
+		m.err = ""
+		return m, nil
+	}
+	return m.openCleanPopup()
+}
+
+func (m Model) mergeBlockReason() string {
+	if m.run.State != store.RunApproved || m.runTask.Commits != store.CommitsAuto {
+		return i18n.T("Only an approved run without remote can be merged")
+	}
+	repo := m.runSess.Repo
+	if repo == "" {
+		repo = m.runSess.Worktree
+	}
+	if launch.HasRemote(repo) || (m.runSess.Worktree != "" && launch.HasRemote(m.runSess.Worktree)) {
+		return i18n.T("Only an approved run without remote can be merged")
+	}
+	return ""
+}
+
+func (m Model) requestMerge() (tea.Model, tea.Cmd) {
+	if reason := m.mergeBlockReason(); reason != "" {
+		m.status = reason
+		m.err = ""
+		return m, nil
+	}
+	return m.openMergePopup()
+}
+
+func (m Model) mergeRun() (tea.Model, tea.Cmd) {
+	if reason := m.mergeBlockReason(); reason != "" {
+		m.status = reason
+		m.err = ""
+		return m, nil
+	}
+	kind, err := launch.NormalizeMergeStrategy(m.cfg.Launch.Merge)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	msg, err := launch.MergeLocal(m.runSess, m.runTask, kind)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	m.run.State = store.RunMerged
+	m.run.Note = msg
+	_ = m.store.UpdateRun(m.run)
+	_ = m.store.MoveTask(m.run.TaskID, store.StatusDone)
+	m.screen = screenBoard
+	m.reloadTasks()
+	m.colIndex = indexOfStatus(store.StatusDone)
+	m.status = msg
+	m.err = ""
+	return m, nil
+}
+
+func (m Model) discardWouldLoseCommits() bool {
+	if m.run.State != store.RunApproved {
+		return false
+	}
+	if m.runSess.Repo == "" || m.runSess.Branch == "" || m.runSess.Base == "" {
+		return false
+	}
+	ahead, err := launch.BranchAheadOfBase(m.runSess.Repo, m.runSess.Base, m.runSess.Branch)
+	return err == nil && ahead
+}
+
 func (m Model) discardRun() (tea.Model, tea.Cmd) {
 	if err := launch.Discard(m.runSess); err != nil {
 		m.err = err.Error()
@@ -485,6 +596,28 @@ func (m Model) discardRun() (tea.Model, tea.Cmd) {
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusBacklog)
 	m.status = i18n.T("Discarded: worktree and branch removed")
+	m.err = ""
+	return m, nil
+}
+
+func (m Model) cleanRun() (tea.Model, tea.Cmd) {
+	if m.run.State != store.RunApproved {
+		m.status = i18n.T("This task has no approved run to clean")
+		m.err = ""
+		return m, nil
+	}
+	if err := launch.CleanWorktree(m.runSess); err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	m.run.State = store.RunCleaned
+	m.run.Note = launch.CleanedNote(m.runSess.Branch)
+	_ = m.store.UpdateRun(m.run)
+	_ = m.store.MoveTask(m.run.TaskID, store.StatusDone)
+	m.screen = screenBoard
+	m.reloadTasks()
+	m.colIndex = indexOfStatus(store.StatusDone)
+	m.status = m.run.Note
 	m.err = ""
 	return m, nil
 }
@@ -521,6 +654,10 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "y", "a":
 		return m.approveRun()
+	case "g":
+		return m.requestMerge()
+	case "c":
+		return m.requestClean()
 	case "d":
 		return m.openDiscardPopup()
 	case "o":
@@ -605,8 +742,15 @@ func (m Model) viewReview() string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(i18n.T("y approve  d discard  n/p file  j/k scroll  o editor  esc board")))
+	b.WriteString(th.Muted.Render(reviewStatus(m.run.State)))
 	return th.App.Render(b.String())
+}
+
+func reviewStatus(state string) string {
+	if state == store.RunApproved {
+		return i18n.T("g merge  c clean  d discard  n/p file  j/k scroll  o editor  esc board")
+	}
+	return i18n.T("y approve  d discard  n/p file  j/k scroll  o editor  esc board")
 }
 
 func decodeChecks(raw string) []launch.CheckResult {

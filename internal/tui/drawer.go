@@ -80,6 +80,9 @@ func (m Model) viewDrawer(w, h int) string {
 				info += " · " + (time.Duration(run.DurationMS.Int64) * time.Millisecond).Round(time.Second).String()
 			}
 			b.WriteString(th.Normal.Width(inner).Render(info) + "\n")
+			if extra := lastRunBranchLine(m.boardProject.RepoPath, run); extra != "" {
+				b.WriteString(th.Normal.Width(inner).Render(extra) + "\n")
+			}
 			if run.Note != "" {
 				b.WriteString(th.Muted.Width(inner).Render(run.Note) + "\n")
 			}
@@ -154,8 +157,36 @@ func (m Model) updateDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.withTaskFocus()
 	case "o":
 		return m.openEditor(m.taskFolder())
+	case "g":
+		return m.requestMergeFromTask()
+	case "c":
+		return m.requestCleanFromTask()
 	}
 	return m, nil
+}
+
+func lastRunBranchLine(repo string, run store.Run) string {
+	if run.Branch == "" {
+		return ""
+	}
+	if root, err := launch.RepoRoot(repo); err == nil {
+		repo = root
+	}
+	if repo == "" || !launch.BranchExists(repo, run.Branch) {
+		return ""
+	}
+	line := run.Branch
+	if run.Base == "" {
+		return line
+	}
+	ahead, err := launch.BranchAheadOfBase(repo, run.Base, run.Branch)
+	if err != nil {
+		return line
+	}
+	if ahead {
+		return line + " · " + i18n.T("not merged into %s", run.Base)
+	}
+	return line + " · " + i18n.T("merged into %s", run.Base)
 }
 
 func (m Model) updateDrawerMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jesusuzcategui/troopa/internal/i18n"
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -24,6 +25,8 @@ const (
 	propType
 	propCount
 	propConfirmDiscard // not a task field: yes/no before discarding a run
+	propConfirmMerge   // not a task field: yes/no before merging a local branch
+	propConfirmClean   // not a task field: yes/no before cleaning a worktree
 )
 
 func (p prop) label() string {
@@ -59,6 +62,10 @@ func (p prop) options() []string {
 	case propType:
 		return store.Types
 	case propConfirmDiscard:
+		return []string{"yes", "no"}
+	case propConfirmMerge:
+		return []string{"yes", "no"}
+	case propConfirmClean:
 		return []string{"yes", "no"}
 	}
 	return nil
@@ -109,11 +116,44 @@ func (m Model) openFieldPopup(p prop) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) openDiscardPopup() (tea.Model, tea.Cmd) {
+	title := i18n.T("Discard the worktree and branch?")
+	opts := []string{"yes", "no"}
+	labels := []string{i18n.T("Yes, discard"), i18n.T("No")}
+	cur := 1
+	if m.discardWouldLoseCommits() {
+		title = i18n.T("Discard? Approved commits on this local branch have not been merged and will be lost.")
+		opts = []string{"merge", "yes", "no"}
+		labels = []string{i18n.T("Merge instead"), i18n.T("Yes, discard"), i18n.T("No")}
+		cur = 2
+	}
 	m.popup = &popup{
 		kind:    propConfirmDiscard,
-		title:   i18n.T("Discard the worktree and branch?"),
-		options: propConfirmDiscard.options(),
-		labels:  []string{i18n.T("Yes, discard"), i18n.T("No")},
+		title:   title,
+		options: opts,
+		labels:  labels,
+		cursor:  cur,
+	}
+	return m, nil
+}
+
+func (m Model) openCleanPopup() (tea.Model, tea.Cmd) {
+	m.popup = &popup{
+		kind:    propConfirmClean,
+		title:   i18n.T("Clean the worktree and keep the branch?"),
+		options: []string{"yes", "no"},
+		labels:  []string{i18n.T("Yes, clean"), i18n.T("No")},
+		cursor:  1,
+	}
+	return m, nil
+}
+
+func (m Model) openMergePopup() (tea.Model, tea.Cmd) {
+	kind, _ := launch.NormalizeMergeStrategy(m.cfg.Launch.Merge)
+	m.popup = &popup{
+		kind:    propConfirmMerge,
+		title:   i18n.T("Merge %s into %s (%s)?", m.runSess.Branch, m.runSess.Base, kind),
+		options: []string{"yes", "no"},
+		labels:  []string{i18n.T("Yes, merge"), i18n.T("No")},
 		cursor:  1,
 	}
 	return m, nil
@@ -146,8 +186,23 @@ func (m Model) applyPopup(value string) (tea.Model, tea.Cmd) {
 	p := m.popup
 	m.popup = nil
 	if p.kind == propConfirmDiscard {
-		if value == "yes" {
+		switch value {
+		case "yes":
 			return m.discardRun()
+		case "merge":
+			return m.mergeRun()
+		}
+		return m, nil
+	}
+	if p.kind == propConfirmMerge {
+		if value == "yes" {
+			return m.mergeRun()
+		}
+		return m, nil
+	}
+	if p.kind == propConfirmClean {
+		if value == "yes" {
+			return m.cleanRun()
 		}
 		return m, nil
 	}
