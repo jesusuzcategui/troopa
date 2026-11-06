@@ -147,7 +147,7 @@ func (s *Store) Get(id int64) (Project, error) {
 func (s *Store) Create(p Project) (Project, error) {
 	p.Name = strings.TrimSpace(p.Name)
 	p.Slug = strings.TrimSpace(p.Slug)
-	p.RepoPath = strings.TrimSpace(p.RepoPath)
+	p.RepoPath = NormalizeRepoPath(p.RepoPath)
 	p.Stack = strings.TrimSpace(p.Stack)
 	p.Description = strings.TrimSpace(p.Description)
 	if p.Name == "" {
@@ -179,7 +179,7 @@ func (s *Store) Create(p Project) (Project, error) {
 func (s *Store) Update(p Project) error {
 	p.Name = strings.TrimSpace(p.Name)
 	p.Slug = strings.TrimSpace(p.Slug)
-	p.RepoPath = strings.TrimSpace(p.RepoPath)
+	p.RepoPath = NormalizeRepoPath(p.RepoPath)
 	p.Stack = strings.TrimSpace(p.Stack)
 	p.Description = strings.TrimSpace(p.Description)
 	if p.Name == "" {
@@ -246,11 +246,30 @@ func scanProject(row scanner) (Project, error) {
 	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.RepoPath, &p.Stack, &p.Description, &clientID, &archived, &created, &updated); err != nil {
 		return Project{}, err
 	}
+	p.RepoPath = NormalizeRepoPath(p.RepoPath)
 	p.ClientID = scanNullID(clientID)
 	p.Archived = archived != 0
 	p.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 	return p, nil
+}
+
+// NormalizeRepoPath expands a leading ~ to the home directory and makes the
+// path absolute, so "~/src/app" never becomes a folder literally named "~".
+func NormalizeRepoPath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return ""
+	}
+	if p == "~" || strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~"+string(filepath.Separator)) {
+		if home, err := os.UserHomeDir(); err == nil {
+			p = filepath.Join(home, p[1:])
+		}
+	}
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	return p
 }
 
 func Slugify(s string) string {

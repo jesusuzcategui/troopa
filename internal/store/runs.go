@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -40,6 +41,43 @@ type Run struct {
 	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
+// MarshalJSON writes the nullable metrics as plain numbers or null, so the CLI
+// contract never exposes database/sql types.
+func (r Run) MarshalJSON() ([]byte, error) {
+	type plain Run
+	return json.Marshal(struct {
+		plain
+		DurationMS    *int64   `json:"duration_ms"`
+		TokensIn      *int64   `json:"tokens_in"`
+		TokensOut     *int64   `json:"tokens_out"`
+		TokensCache   *int64   `json:"tokens_cache"`
+		TokensContext *int64   `json:"tokens_context"`
+		CostUSD       *float64 `json:"cost_usd"`
+	}{
+		plain:         plain(r),
+		DurationMS:    jsonInt(r.DurationMS),
+		TokensIn:      jsonInt(r.TokensIn),
+		TokensOut:     jsonInt(r.TokensOut),
+		TokensCache:   jsonInt(r.TokensCache),
+		TokensContext: jsonInt(r.TokensContext),
+		CostUSD:       jsonFloat(r.CostUSD),
+	})
+}
+
+func jsonInt(v sql.NullInt64) *int64 {
+	if !v.Valid {
+		return nil
+	}
+	return &v.Int64
+}
+
+func jsonFloat(v sql.NullFloat64) *float64 {
+	if !v.Valid {
+		return nil
+	}
+	return &v.Float64
+}
+
 type MetricRow struct {
 	Key           string
 	Runs          int
@@ -65,7 +103,7 @@ func (s *Store) CreateRun(r Run) (Run, error) {
 		duration_ms, tokens_in, tokens_out, tokens_cache, tokens_context, cost_usd, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.TaskID, r.ProjectID, r.Worktree, r.Branch, r.Base, r.LogPath, r.Summary, r.Checks, r.State, r.Note, r.Agent,
-		nullInt(r.DurationMS), nullInt(r.TokensIn), nullInt(r.TokensOut), nullInt(r.TokensCache), nullInt(r.TokensContext),
+		jsonInt(r.DurationMS), jsonInt(r.TokensIn), jsonInt(r.TokensOut), jsonInt(r.TokensCache), jsonInt(r.TokensContext),
 		nullFloat(r.CostUSD), now, now)
 	if err != nil {
 		return Run{}, err
@@ -122,7 +160,7 @@ func (s *Store) UpdateRun(r Run) error {
 		duration_ms = ?, tokens_in = ?, tokens_out = ?, tokens_cache = ?, tokens_context = ?, cost_usd = ?, updated_at = ?
 		WHERE id = ?`,
 		r.Worktree, r.Branch, r.Base, r.LogPath, r.Summary, r.Checks, r.State, r.Note, r.Agent,
-		nullInt(r.DurationMS), nullInt(r.TokensIn), nullInt(r.TokensOut), nullInt(r.TokensCache), nullInt(r.TokensContext),
+		jsonInt(r.DurationMS), jsonInt(r.TokensIn), jsonInt(r.TokensOut), jsonInt(r.TokensCache), jsonInt(r.TokensContext),
 		nullFloat(r.CostUSD), now, r.ID)
 	if err != nil {
 		return err

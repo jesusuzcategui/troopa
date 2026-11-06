@@ -2,7 +2,9 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -103,5 +105,17 @@ func TestRunMetricsAndAggregation(t *testing.T) {
 	}
 	if len(byProj) != 2 {
 		t.Fatalf("projects=%d %+v", len(byProj), byProj)
+	}
+}
+
+func TestRunJSONHasPlainMetrics(t *testing.T) {
+	r := Run{ID: 1, DurationMS: sql.NullInt64{Int64: 42, Valid: true}}
+	b, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, `"duration_ms":42`) || !strings.Contains(s, `"tokens_in":null`) || strings.Contains(s, "Valid") {
+		t.Fatalf("unexpected JSON: %s", s)
 	}
 }

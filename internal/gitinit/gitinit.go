@@ -13,7 +13,7 @@ func InitRepo(path, name string) error {
 		return fmt.Errorf("empty path")
 	}
 	if err := os.MkdirAll(path, 0o755); err != nil {
-		return fmt.Errorf("crear carpeta: %w", err)
+		return fmt.Errorf("create folder: %w", err)
 	}
 	readme := filepath.Join(path, "README.md")
 	if _, err := os.Stat(readme); os.IsNotExist(err) {
@@ -23,7 +23,7 @@ func InitRepo(path, name string) error {
 		}
 		body := "# " + title + "\n"
 		if err := os.WriteFile(readme, []byte(body), 0o644); err != nil {
-			return fmt.Errorf("escribir README: %w", err)
+			return fmt.Errorf("write README: %w", err)
 		}
 	}
 	if err := runGit(path, "init", "-b", "main"); err != nil {

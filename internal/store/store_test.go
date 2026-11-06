@@ -1,6 +1,7 @@
 package store
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -122,5 +123,24 @@ func TestSlugify(t *testing.T) {
 				t.Fatalf("got %q want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestNormalizeRepoPath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip(err)
+	}
+	if got := NormalizeRepoPath("~/src/app"); got != filepath.Join(home, "src", "app") {
+		t.Fatalf("tilde: %s", got)
+	}
+	if got := NormalizeRepoPath("  ~  "); got != home {
+		t.Fatalf("bare tilde: %s", got)
+	}
+	if got := NormalizeRepoPath("rel/dir"); !filepath.IsAbs(got) {
+		t.Fatalf("relative path not made absolute: %s", got)
+	}
+	if got := NormalizeRepoPath(""); got != "" {
+		t.Fatalf("empty: %q", got)
 	}
 }

@@ -462,7 +462,7 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		ID:          m.editingID,
 		Name:        strings.TrimSpace(m.inputs[fieldName].Value()),
 		Slug:        strings.TrimSpace(m.inputs[fieldSlug].Value()),
-		RepoPath:    strings.TrimSpace(m.inputs[fieldPath].Value()),
+		RepoPath:    store.NormalizeRepoPath(m.inputs[fieldPath].Value()),
 		Stack:       strings.TrimSpace(m.inputs[fieldStack].Value()),
 		Description: strings.TrimSpace(m.inputs[fieldDesc].Value()),
 		ClientID:    m.pending.ClientID,
