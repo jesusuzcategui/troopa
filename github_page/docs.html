@@ -39,6 +39,7 @@
       <a href="#brain" data-i18n="docs.brain">Second brain</a>
       <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
       <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
+      <a href="#daemon" data-i18n="docs.daemon">Daemon</a>
       <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
       <a href="#config" data-i18n="docs.config">Configuration</a>
     </nav>
@@ -165,6 +166,16 @@ approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</p
 # ~/.local/bin/troopa-standup: tasks in review, as a list
 "$TROOPA_BIN" task list --json --status review | jq -r '.data[] | "- " + .title'</pre>
           <p><code>troopa extensions</code> lists the ones it finds. Built-in commands cannot be replaced.</p>
+        </section>
+
+        <section id="daemon">
+          <h2>Daemon</h2>
+          <p><code>troopa daemon</code> is a long-running process without the TUI. Every few seconds it looks at running agents, finishes a run when the agent has exited, and starts the next step of a plan that has auto-advance. Logs go to <code>$XDG_DATA_HOME/troopa/daemon.log</code>. A pid file keeps a second daemon from starting. The TUI keeps working with or without it.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa daemon
+troopa daemon status
+troopa daemon install
+troopa daemon uninstall</pre>
+          <p><code>install</code> writes a systemd user unit on Linux (<code>~/.config/systemd/user/troopa.service</code>) and a launchd agent on macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), then enables it. <code>uninstall</code> removes that file. Windows is not supported yet. <code>status</code> prints whether it is running and the runs it watches.</p>
         </section>
 
         <section id="cli">
@@ -341,6 +352,16 @@ approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</p
 # ~/.local/bin/troopa-standup: tareas en revisión, como lista
 "$TROOPA_BIN" task list --json --status review | jq -r '.data[] | "- " + .title'</pre>
           <p><code>troopa extensions</code> lista las que encuentra. Los comandos propios de Troopa no se pueden reemplazar.</p>
+        </section>
+
+        <section id="daemon-es">
+          <h2>Daemon</h2>
+          <p><code>troopa daemon</code> es un proceso largo sin TUI. Cada pocos segundos mira los agentes en curso, termina una ejecución cuando el agente ha salido y arranca el siguiente paso de un plan con avance automático. El registro va a <code>$XDG_DATA_HOME/troopa/daemon.log</code>. Un archivo de pid evita que arranque un segundo daemon. La TUI sigue funcionando con o sin él.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa daemon
+troopa daemon status
+troopa daemon install
+troopa daemon uninstall</pre>
+          <p><code>install</code> escribe una unidad de systemd de usuario en Linux (<code>~/.config/systemd/user/troopa.service</code>) y un agente launchd en macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), y lo activa. <code>uninstall</code> quita ese archivo. Windows aún no está soportado. <code>status</code> dice si está en marcha y qué ejecuciones vigila.</p>
         </section>
 
         <section id="cli-es">

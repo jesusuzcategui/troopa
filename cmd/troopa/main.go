@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime/debug"
+	"syscall"
 
 	"github.com/jesusuzcategui/troopa/internal/cli"
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/daemon"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -39,6 +43,10 @@ Usage:
   troopa login <account> <agent>      sign an agent in to an account
   troopa extensions                   list troopa-* extensions on the PATH
   troopa <extension> [args]           run troopa-<extension>
+  troopa daemon                       run in the background (no TUI)
+  troopa daemon status                show whether it runs and which runs it watches
+  troopa daemon install               install a user service (Linux/macOS)
+  troopa daemon uninstall             remove the user service
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
@@ -87,6 +95,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "login":
 		return runLogin(args[1:], stdout, stderr)
+	case "daemon":
+		return runDaemon(args[1:], stdout, stderr)
 	case "extensions":
 		exts := cli.ListExtensions()
 		if len(exts) == 0 {
@@ -131,6 +141,57 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	return 1
 }
+func applyConfigLang() {
+	_, configPath, _, err := config.Paths()
+	if err != nil {
+		return
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return
+	}
+	i18n.Apply(cfg.Language)
+}
+
+func runDaemon(args []string, stdout, stderr io.Writer) int {
+	applyConfigLang()
+	if len(args) == 0 {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		if err := daemon.Run(ctx); err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	switch args[0] {
+	case "install":
+		if err := daemon.Install(stdout, true); err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		return 0
+	case "uninstall":
+		if err := daemon.Uninstall(stdout, true); err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		return 0
+	case "status":
+		if err := daemon.Status(stdout); err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		return 0
+	case "help", "-h", "--help":
+		fmt.Fprintln(stdout, i18n.T("usage: troopa daemon [install | uninstall | status]"))
+		return 0
+	default:
+		fmt.Fprintln(stderr, i18n.T("usage: troopa daemon [install | uninstall | status]"))
+		return 2
+	}
+}
+
 func runTUI(forceSetup bool) error {
 	_, configPath, dbPath, err := config.Paths()
 	if err != nil {

@@ -87,6 +87,19 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
 
 `brain sync` recreates INDEX.md, project frontmatter and task files from SQLite (idempotent). History lines and merge guides are added without duplicating existing markers. If `brain_git` is on and the folder is a git repo, Troopa makes a local commit (`troopa: sync`) and never pushes.
 
+## Daemon
+
+`troopa daemon` is a long-running process without the TUI. It does not use `--json`. Every few seconds it reconciles running agents (`engine.Reconcile`), finishes runs whose agent has exited, and advances running plans that have auto-advance. Logs go to `$XDG_DATA_HOME/troopa/daemon.log`. A pid file keeps a second `troopa daemon` from starting; it exits with a clear message. The TUI keeps working with or without the daemon.
+
+```sh
+troopa daemon
+troopa daemon status
+troopa daemon install
+troopa daemon uninstall
+```
+
+`install` writes a systemd user unit on Linux (`~/.config/systemd/user/troopa.service`) and a launchd agent on macOS (`~/Library/LaunchAgents/dev.troopa.plist`), then enables it. `uninstall` removes that file. Windows prints that it is not supported yet. `status` prints whether the daemon is running and the runs it watches.
+
 `run rounds` lists the agent rounds of a run (`launch` then each `x` request). Each item uses numbers or `null` for metrics, `log_from`/`log_to` and `id` (legacy runs without stored rounds appear as a single synthetic round with `"id": null`). `kind` is `launch` or `changes`; `state` is `running`, `review` or `blocked`.
 
 ## Example

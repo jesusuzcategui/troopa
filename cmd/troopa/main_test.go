@@ -270,7 +270,7 @@ func TestHelpAndVersion(t *testing.T) {
 		if got := run([]string{arg}, &out, &errOut); got != 0 {
 			t.Fatalf("%s: exit code = %d, want 0", arg, got)
 		}
-		if !strings.Contains(out.String(), "Usage:") {
+		if !strings.Contains(out.String(), "Usage:") || !strings.Contains(out.String(), "daemon") {
 			t.Fatalf("%s: missing usage, got %q", arg, out.String())
 		}
 	}
@@ -282,5 +282,42 @@ func TestHelpAndVersion(t *testing.T) {
 		if !strings.HasPrefix(out.String(), "troopa ") {
 			t.Fatalf("%s: got %q", arg, out.String())
 		}
+	}
+}
+
+func TestDaemonStatusAndSecondInstance(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, "data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	var out, errOut bytes.Buffer
+	if got := run([]string{"daemon", "status"}, &out, &errOut); got != 0 {
+		t.Fatalf("status: %d %s %s", got, out.String(), errOut.String())
+	}
+	if !strings.Contains(out.String(), "not running") {
+		t.Fatalf("status: %q", out.String())
+	}
+	data, _, _, err := config.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(data, "daemon.pid"), []byte(strconv.Itoa(os.Getpid())+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	errOut.Reset()
+	if got := run([]string{"daemon"}, &out, &errOut); got != 1 {
+		t.Fatalf("second daemon exit %d out=%q err=%q", got, out.String(), errOut.String())
+	}
+	if !strings.Contains(errOut.String(), "already running") {
+		t.Fatalf("second daemon message: %q", errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if got := run([]string{"daemon", "nope"}, &out, &errOut); got != 2 {
+		t.Fatalf("unknown: %d %q", got, errOut.String())
 	}
 }
