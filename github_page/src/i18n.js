@@ -1,6 +1,10 @@
 // Page text in English (default) and Spanish.
 export const strings = {
   "en": {
+    "demo.client": "Client",
+    "demo.project": "Project",
+    "demo.task": "Task",
+    "demo.run": "Agent run",
     "nav.features": "Features",
     "nav.flow": "How it works",
     "nav.install": "Install",
@@ -62,6 +66,10 @@ export const strings = {
     "copied": "Copied"
   },
   "es": {
+    "demo.client": "Cliente",
+    "demo.project": "Proyecto",
+    "demo.task": "Tarea",
+    "demo.run": "Agente",
     "nav.features": "Funciones",
     "nav.flow": "Cómo funciona",
     "nav.install": "Instalar",

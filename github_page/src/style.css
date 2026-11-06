@@ -58,8 +58,8 @@ section { padding-block: 88px; }
 
 .top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
 .top-row { display: flex; align-items: center; gap: 24px; height: 60px; }
-.brand { font: 600 18px var(--font-mono); color: var(--strong); text-decoration: none; }
-.brand-mark { color: var(--accent); }
+.brand { display: block; height: 34px; color: var(--strong); text-decoration: none; }
+.brand .logo-svg { height: 100%; width: auto; display: block; }
 .top-nav { display: flex; gap: 22px; margin-left: auto; font-size: 15px; }
 .top-nav a { color: var(--muted); text-decoration: none; }
 .top-nav a:hover { color: var(--strong); }
@@ -81,14 +81,47 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 
-.term { margin: 0; border-radius: 12px; overflow: hidden; background: var(--term-bg); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); min-width: 0; }
-.term-bar { display: flex; align-items: center; gap: 7px; padding: 10px 14px; background: #181825; }
-.term-bar span { width: 11px; height: 11px; border-radius: 50%; background: #45475a; }
-.term-bar em { margin-left: 10px; font: 12px var(--font-mono); color: #9399b2; font-style: normal; }
-.term-body { margin: 0; padding: 18px 20px 22px; color: #cdd6f4; font-size: 13px; line-height: 1.45; overflow-x: auto; }
-.term-body .a { color: #cba6f7; font-weight: 600; }
-.term-body .m { color: #7f849c; }
-.term-body .sel { background: #313244; color: #ffffff; }
+/* Logo colors: the SVG follows the theme like the terminal does. */
+.logo-svg text { font-family: var(--font-mono); font-size: 19px; text-anchor: middle; }
+.logo-svg .lg-tag { text-anchor: start; font-size: 15px; }
+.lg-accent { fill: var(--accent); font-weight: 600; }
+.lg-body { fill: var(--strong); }
+.lg-dim { fill: var(--muted); }
+
+.term { position: relative; margin: 0; border-radius: 12px; overflow: hidden; background: var(--term-bg); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); min-width: 0; }
+.term-bar { display: flex; align-items: center; gap: 7px; padding: 8px 12px; background: #181825; }
+.term-bar > span { width: 11px; height: 11px; border-radius: 50%; background: #45475a; flex: none; }
+.term-tabs { display: flex; gap: 2px; margin-left: 12px; overflow-x: auto; }
+.term-tabs button {
+  font: 600 12px var(--font-mono); color: #9399b2; background: none; border: 0; border-radius: 6px;
+  padding: 4px 9px; cursor: pointer; white-space: nowrap;
+}
+.term-tabs button[aria-selected="true"] { color: #1e1e2e; background: #cba6f7; }
+.term-screen {
+  --cell: 13px;
+  font: var(--cell)/1.45 var(--font-mono); color: #cdd6f4; padding: 14px 18px 18px;
+  height: calc(var(--cell) * 1.45 * 16 + 32px + 76px); overflow: hidden; white-space: pre;
+  overflow-x: auto;
+}
+.t-row { min-height: 1.45em; }
+.t-logo { height: 66px; margin: 0 0 10px; }
+.t-logo .logo-svg { height: 100%; width: auto; display: block; }
+.term-screen .logo-svg .lg-accent { fill: #cba6f7; }
+.term-screen .logo-svg .lg-body { fill: #ffffff; }
+.term-screen .logo-svg .lg-dim { fill: #7f849c; }
+.t-a { color: #cba6f7; font-weight: 600; }
+.t-m { color: #7f849c; }
+.t-s { background: #313244; color: #ffffff; }
+.t-g { color: #a6e3a1; }
+.t-r { color: #f38ba8; }
+.t-y { color: #89b4fa; }
+.term-key {
+  position: absolute; right: 14px; bottom: 12px; font: 600 12px var(--font-mono);
+  color: #1e1e2e; background: #f9e2af; border-radius: 6px; padding: 3px 9px; opacity: 0;
+}
+.term-key.on { animation: keypress 0.9s ease-out; }
+@keyframes keypress { 0% { opacity: 0; transform: translateY(4px); } 15% { opacity: 1; transform: none; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .term-key.on { animation: none; } }
 
 .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px 36px; }
 .features p { margin: 0; color: var(--muted); font-size: 16px; }
@@ -130,6 +163,8 @@ pre.cmd {
   .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 36px; }
   .flow { grid-template-columns: minmax(0, 1fr); }
   .top-nav { display: none; }
+  .term-screen { --cell: 11px; padding: 12px; }
+  .t-logo { height: 44px; }
   .top-tools { margin-left: auto; }
   section { padding-block: 64px; }
 }

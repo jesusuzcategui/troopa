@@ -15,9 +15,7 @@
 <body>
   <header class="top">
     <div class="wrap top-row">
-      <a class="brand" href="#" aria-label="Troopa">
-        <span class="brand-mark" aria-hidden="true">[◉_◉]</span> troopa
-      </a>
+      <a class="brand" href="#" aria-label="Troopa" id="brand"></a>
       <nav class="top-nav" aria-label="Sections">
         <a href="#features" data-i18n="nav.features">Features</a>
         <a href="#flow" data-i18n="nav.flow">How it works</a>
@@ -44,20 +42,18 @@
             <a class="btn" href="https://github.com/jesusuzcategui/troopa" data-i18n="hero.code">View the code</a>
           </div>
         </div>
-        <figure class="term" aria-label="Troopa board in a terminal">
-          <div class="term-bar"><span></span><span></span><span></span><em>troopa</em></div>
-<pre class="term-body"><span class="a">   ▲      ▲      ▲</span>       <span class="a">▀█▀ █▀█ █▀█ █▀█ █▀█ ▄▀█</span>
- [◉_◉]  <span class="a">[◉_◉]</span>  [◉_◉]        <span class="a">█  █▀▄ █▄█ █▄█ █▀▀ █▀█</span>
- <span class="m">/|█|\</span>  <span class="a">/|█|\</span>  <span class="m">/|█|\</span>
-  <span class="m">/ \</span>    <span class="a">/ \</span>    <span class="m">/ \</span>       <span class="m">your AI agent troop</span>
-
-<span class="a">▾ inbox 2</span>      <span class="m">▾ ready 1</span>      <span class="m">▾ review 1</span>   <span class="m">▸</span>
-<span class="sel"> Login page  </span>   API tokens     Fix scroll    <span class="m">d</span>
- high · Claude  med · Codex   low · OpenCode <span class="m">o</span>
-                                             <span class="m">n</span>
- Docs page                                   <span class="m">e</span>
- low · me
-<span class="m">v list  z fold  m status  tab panel  x changes</span></pre>
+        <figure class="term" aria-label="Troopa demo">
+          <div class="term-bar">
+            <span></span><span></span><span></span>
+            <div class="term-tabs" role="tablist" aria-label="Demo">
+              <button type="button" role="tab" data-scene="client" data-i18n="demo.client">Client</button>
+              <button type="button" role="tab" data-scene="project" data-i18n="demo.project">Project</button>
+              <button type="button" role="tab" data-scene="task" data-i18n="demo.task">Task</button>
+              <button type="button" role="tab" data-scene="run" data-i18n="demo.run">Agent run</button>
+            </div>
+          </div>
+          <div class="term-screen" id="term-screen" aria-live="off"></div>
+          <div class="term-key" id="term-key" aria-hidden="true"></div>
         </figure>
       </div>
     </section>

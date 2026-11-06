@@ -1,5 +1,7 @@
 import "./style.css";
 import { strings } from "./i18n.js";
+import { logoSVG } from "./logo.js";
+import { createPlayer } from "./terminal.js";
 
 const root = document.documentElement;
 
@@ -40,8 +42,22 @@ document.getElementById("theme").addEventListener("click", () => {
   store.set("troopa-theme", root.dataset.theme);
 });
 
+// Logo in the header, drawn like the terminal draws it.
+document.getElementById("brand").innerHTML = logoSVG();
+
+// Hero terminal: replays client, project, task and agent run; tabs jump to a scene.
+const sceneTabs = document.querySelectorAll(".term-tabs [data-scene]");
+const player = createPlayer({
+  screenEl: document.getElementById("term-screen"),
+  keyEl: document.getElementById("term-key"),
+  onSceneChange: (name) =>
+    sceneTabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.scene === name))),
+});
+sceneTabs.forEach((t) => t.addEventListener("click", () => player.play(t.dataset.scene)));
+player.play("client");
+
 // Install tabs.
-const tabs = document.querySelectorAll('[role="tab"]');
+const tabs = document.querySelectorAll('.tabs [role="tab"]');
 tabs.forEach((tab) =>
   tab.addEventListener("click", () => {
     tabs.forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
