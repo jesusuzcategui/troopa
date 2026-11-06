@@ -146,7 +146,7 @@ func (m *Model) focusPlanField() tea.Cmd {
 }
 
 func planAgents() []string {
-	return []string{store.AgentClaude, store.AgentCodex, store.AgentOpenCode, store.AgentPi}
+	return []string{store.AgentClaude, store.AgentCodex, store.AgentOpenCode, store.AgentCursor, store.AgentPi}
 }
 
 func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

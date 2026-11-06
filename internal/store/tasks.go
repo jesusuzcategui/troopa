@@ -24,6 +24,7 @@ const (
 	AgentCodex    = "codex"
 	AgentOpenCode = "opencode"
 	AgentPi       = "pi"
+	AgentCursor   = "cursor"
 	AgentMe       = "me"
 
 	ModeYolo = "yolo"
@@ -42,7 +43,7 @@ var Statuses = []string{
 }
 
 var Priorities = []string{PriorityLow, PriorityMedium, PriorityHigh}
-var Agents = []string{AgentClaude, AgentCodex, AgentOpenCode, AgentPi, AgentMe}
+var Agents = []string{AgentClaude, AgentCodex, AgentOpenCode, AgentCursor, AgentPi, AgentMe}
 var Modes = []string{ModeYolo, ModePair}
 var CommitModes = []string{CommitsAuto, CommitsNone}
 var Types = []string{TypeFeature, TypeBugfix, TypeChore}

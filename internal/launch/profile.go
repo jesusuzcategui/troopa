@@ -80,6 +80,8 @@ func LoginCommand(cfg config.Launch, configPath, account, agent string) (*exec.C
 		args = []string{"login"}
 	case "opencode":
 		args = []string{"auth", "login"}
+	case "cursor":
+		args = []string{"login"}
 	}
 	cmd := exec.Command(bin, args...)
 	cmd.Env = os.Environ()

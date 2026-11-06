@@ -166,6 +166,10 @@ func DefaultLaunch(dataDir string) Launch {
 				Args:    []string{"run", "--auto", "{{prompt}}"},
 				Env:     map[string]string{"OPENCODE_PERMISSION": `{"edit":"allow","bash":"allow","webfetch":"allow"}`},
 			},
+			"cursor": {
+				Command: "cursor-agent",
+				Args:    []string{"-p", "--force", "--trust", "--output-format", "stream-json", "{{prompt}}"},
+			},
 			"pi": {
 				Command: "pi",
 				Args:    []string{"-p", "{{prompt}}"},

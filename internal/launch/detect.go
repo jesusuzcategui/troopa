@@ -25,6 +25,7 @@ var agentNames = map[string]string{
 	"claude":   "Claude Code",
 	"codex":    "Codex",
 	"opencode": "OpenCode",
+	"cursor":   "Cursor",
 	"pi":       "Pi",
 	"me":       "me",
 }

@@ -144,6 +144,12 @@ func InteractiveArgs(agent, model, prompt string) ([]string, error) {
 			args = append(args, "--model", model)
 		}
 		return append(args, "--prompt", prompt), nil
+	case "cursor":
+		args := []string{"--force"}
+		if model != "" {
+			args = append(args, "--model", model)
+		}
+		return append(args, prompt), nil
 	case "pi":
 		var args []string
 		if model != "" {
