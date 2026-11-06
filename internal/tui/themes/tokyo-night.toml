@@ -1,0 +1,13 @@
+name = "tokyo-night"
+
+[colors]
+fg = "#C0CAF5"
+bg = "#1A1B26"
+accent = "#7AA2F7"
+muted = "#8189AF"
+selected = "#292E42"
+status = "#16161E"
+error = "#F7768E"
+diff_add = "#9ECE6A"
+diff_del = "#F7768E"
+diff_hunk = "#7DCFFF"

@@ -1,0 +1,13 @@
+name = "cafe"
+
+[colors]
+fg = "#EADBC8"
+bg = "#1E1712"
+accent = "#D4A373"
+muted = "#A8937E"
+selected = "#3A2D23"
+status = "#2A2019"
+error = "#E07A5F"
+diff_add = "#8AB17D"
+diff_del = "#E07A5F"
+diff_hunk = "#81A4CD"

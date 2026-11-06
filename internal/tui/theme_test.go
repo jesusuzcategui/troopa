@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,7 +18,9 @@ func TestBundledThemes(t *testing.T) {
 	for _, th := range ts {
 		got[th.Name] = true
 	}
-	for _, name := range []string{"dark", "light", "tropic"} {
+	for _, name := range []string{"dark", "light", "tropic", "nord", "dracula", "gruvbox", "gruvbox-light",
+		"catppuccin-mocha", "catppuccin-latte", "tokyo-night", "rose-pine", "solarized-light",
+		"cafe", "midnight", "high-contrast"} {
 		if !got[name] {
 			t.Fatalf("missing bundled theme %s", name)
 		}
@@ -104,5 +107,14 @@ func TestCtrlKPaletteRunsHelp(t *testing.T) {
 	got = next.(Model)
 	if got.screen != screenHelp {
 		t.Fatalf("screen %v want help", got.screen)
+	}
+}
+
+func TestThemeIsLight(t *testing.T) {
+	for _, th := range loadThemes("") {
+		want := th.Name == "light" || strings.HasSuffix(th.Name, "-light") || th.Name == "catppuccin-latte"
+		if th.IsLight() != want {
+			t.Errorf("%s: IsLight = %v, want %v", th.Name, th.IsLight(), want)
+		}
 	}
 }

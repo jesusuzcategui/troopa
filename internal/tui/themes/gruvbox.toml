@@ -1,0 +1,13 @@
+name = "gruvbox"
+
+[colors]
+fg = "#EBDBB2"
+bg = "#282828"
+accent = "#FABD2F"
+muted = "#A89984"
+selected = "#3C3836"
+status = "#32302F"
+error = "#FB4934"
+diff_add = "#B8BB26"
+diff_del = "#FB4934"
+diff_hunk = "#83A598"

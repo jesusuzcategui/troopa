@@ -1,0 +1,13 @@
+name = "nord"
+
+[colors]
+fg = "#ECEFF4"
+bg = "#2E3440"
+accent = "#88C0D0"
+muted = "#9AA5B8"
+selected = "#434C5E"
+status = "#3B4252"
+error = "#BF616A"
+diff_add = "#A3BE8C"
+diff_del = "#BF616A"
+diff_hunk = "#81A1C1"

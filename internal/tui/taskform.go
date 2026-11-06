@@ -290,7 +290,7 @@ func (m Model) renderMarkdownW(src string, wrap int) string {
 		return m.theme.Muted.Render(i18n.T("  (empty)"))
 	}
 	style := "dark"
-	if m.theme.Name == "light" {
+	if m.theme.IsLight() {
 		style = "light"
 	}
 	r, err := glamour.NewTermRenderer(

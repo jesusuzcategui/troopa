@@ -36,7 +36,7 @@ La interfaz está en inglés o español según `LANG` (`es_*` es español). Para
 
 ## Temas
 
-Van tres paletas (`dark`, `light`, `tropic`). `t` las cicla. La paleta de comandos (Ctrl+K) permite elegir uno de la lista o crear una copia del actual en `$XDG_CONFIG_HOME/troopa/themes/`.
+Vienen quince paletas. Oscuras: `dark`, `tropic`, `nord`, `dracula`, `gruvbox`, `catppuccin-mocha`, `tokyo-night`, `rose-pine`, `cafe`, `midnight`, `high-contrast`. Claras: `light`, `gruvbox-light`, `catppuccin-latte`, `solarized-light`. `t` las cicla. Nord, Dracula, Gruvbox, Catppuccin, Tokyo Night, Rosé Pine y Solarized son adaptaciones de esas paletas de la comunidad (todas con licencia MIT), con algunos colores ajustados para mejorar el contraste. La paleta de comandos (Ctrl+K) permite elegir uno de la lista o crear una copia del actual en `$XDG_CONFIG_HOME/troopa/themes/`.
 
 ## Agentes
 

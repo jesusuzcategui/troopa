@@ -1,0 +1,13 @@
+name = "catppuccin-latte"
+
+[colors]
+fg = "#4C4F69"
+bg = "#EFF1F5"
+accent = "#8839EF"
+muted = "#5C5F77"
+selected = "#DCE0E8"
+status = "#E6E9EF"
+error = "#D20F39"
+diff_add = "#2F7D20"
+diff_del = "#D20F39"
+diff_hunk = "#1E66F5"

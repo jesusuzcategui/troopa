@@ -1,0 +1,13 @@
+name = "midnight"
+
+[colors]
+fg = "#DDE6F5"
+bg = "#0B1220"
+accent = "#38BDF8"
+muted = "#8494B0"
+selected = "#1A2740"
+status = "#111A2E"
+error = "#F87171"
+diff_add = "#4ADE80"
+diff_del = "#F87171"
+diff_hunk = "#A78BFA"

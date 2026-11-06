@@ -1,0 +1,13 @@
+name = "gruvbox-light"
+
+[colors]
+fg = "#3C3836"
+bg = "#FBF1C7"
+accent = "#AF3A03"
+muted = "#665C54"
+selected = "#EBDBB2"
+status = "#F2E5BC"
+error = "#9D0006"
+diff_add = "#79740E"
+diff_del = "#9D0006"
+diff_hunk = "#076678"

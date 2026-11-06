@@ -36,7 +36,7 @@ The interface is in English or Spanish, picked from `LANG` (`es_*` means Spanish
 
 ## Themes
 
-Three palettes ship with the binary (`dark`, `light`, `tropic`). `t` cycles them. The command palette (Ctrl+K) can pick one from a list or write a copy of the current one under `$XDG_CONFIG_HOME/troopa/themes/`.
+Fifteen palettes ship with the binary. Dark: `dark`, `tropic`, `nord`, `dracula`, `gruvbox`, `catppuccin-mocha`, `tokyo-night`, `rose-pine`, `cafe`, `midnight`, `high-contrast`. Light: `light`, `gruvbox-light`, `catppuccin-latte`, `solarized-light`. `t` cycles them. Nord, Dracula, Gruvbox, Catppuccin, Tokyo Night, Rosé Pine and Solarized are adaptations of those community palettes (all MIT licensed), with a few colors adjusted for contrast. The command palette (Ctrl+K) can pick one from a list or write a copy of the current one under `$XDG_CONFIG_HOME/troopa/themes/`.
 
 Drop your own TOML there:
 

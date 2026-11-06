@@ -1,0 +1,13 @@
+name = "solarized-light"
+
+[colors]
+fg = "#073642"
+bg = "#FDF6E3"
+accent = "#B5400F"
+muted = "#586E75"
+selected = "#EEE8D5"
+status = "#EEE8D5"
+error = "#C62C29"
+diff_add = "#677700"
+diff_del = "#C62C29"
+diff_hunk = "#1F6FA8"

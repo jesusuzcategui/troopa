@@ -272,3 +272,17 @@ func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
+
+// IsLight reports whether the theme has a light background, so Markdown is
+// rendered with dark text.
+func (t Theme) IsLight() bool {
+	h := strings.TrimPrefix(t.palette.Colors.BG, "#")
+	if len(h) != 6 {
+		return t.Name == "light"
+	}
+	var r, g, b int
+	if _, err := fmt.Sscanf(h, "%02x%02x%02x", &r, &g, &b); err != nil {
+		return t.Name == "light"
+	}
+	return 0.299*float64(r)+0.587*float64(g)+0.114*float64(b) > 140
+}

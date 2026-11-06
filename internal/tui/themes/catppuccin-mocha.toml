@@ -1,0 +1,13 @@
+name = "catppuccin-mocha"
+
+[colors]
+fg = "#CDD6F4"
+bg = "#1E1E2E"
+accent = "#CBA6F7"
+muted = "#9399B2"
+selected = "#313244"
+status = "#181825"
+error = "#F38BA8"
+diff_add = "#A6E3A1"
+diff_del = "#F38BA8"
+diff_hunk = "#89B4FA"

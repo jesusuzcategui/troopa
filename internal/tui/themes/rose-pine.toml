@@ -1,0 +1,13 @@
+name = "rose-pine"
+
+[colors]
+fg = "#E0DEF4"
+bg = "#191724"
+accent = "#EBBCBA"
+muted = "#908CAA"
+selected = "#26233A"
+status = "#1F1D2E"
+error = "#EB6F92"
+diff_add = "#9CCFD8"
+diff_del = "#EB6F92"
+diff_hunk = "#C4A7E7"

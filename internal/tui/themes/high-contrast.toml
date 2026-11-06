@@ -1,0 +1,13 @@
+name = "high-contrast"
+
+[colors]
+fg = "#FFFFFF"
+bg = "#000000"
+accent = "#FFD60A"
+muted = "#C8C8C8"
+selected = "#333333"
+status = "#1A1A1A"
+error = "#FF6B6B"
+diff_add = "#4ADE80"
+diff_del = "#FF6B6B"
+diff_hunk = "#60A5FA"
