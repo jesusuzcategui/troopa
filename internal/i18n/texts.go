@@ -36,6 +36,7 @@ const HelpText = `Shortcuts — projects
   f / p              status / priority filter
   C                  client filter
   M                  metrics by agent and project
+  o                  open the worktree (or the project) in your editor
   esc                back to projects
 
   Mouse
@@ -47,10 +48,12 @@ const HelpText = `Shortcuts — projects
   Yolo agent (ready, not me)
   y / a              approve (auto: commit+push+PR; none: keeps the worktree)
   d                  discard worktree and branch
+  o                  open the worktree in your editor
 
   Pair (pair mode)
   f                  finish pair (checks and review)
   r                  reopen the interactive agent
+  o                  open the worktree in your editor
   esc                back to the board (the session keeps going)
   close terminal     pair-paused; enter to resume
 
@@ -101,6 +104,7 @@ const helpTextES = `Atajos — proyectos
   f / p              filtro estado / prioridad
   C                  filtro por cliente
   M                  métricas por agente y proyecto
+  o                  abrir el worktree (o el proyecto) en tu editor
   esc                volver a proyectos
 
   Ratón
@@ -112,10 +116,12 @@ const helpTextES = `Atajos — proyectos
   Agente yolo (ready, no me)
   y / a              aprobar (auto: commit+push+PR; none: deja el worktree)
   d                  descartar worktree y rama
+  o                  abrir el worktree en tu editor
 
   Pareja (modo pair)
   f                  terminar la pareja (checks y revisión)
   r                  reabrir el agente interactivo
+  o                  abrir el worktree en tu editor
   esc                volver al tablero (la sesión sigue)
   cerrar terminal    pair-paused; enter para retomar
 

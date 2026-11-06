@@ -250,6 +250,8 @@ func (m Model) updatePairKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.finishPair()
 	case "r":
 		return m.startPair(m.runTask)
+	case "o":
+		return m.openEditor(m.runFolder())
 	}
 	return m, nil
 }
@@ -267,7 +269,7 @@ func (m Model) viewPair() string {
 	b.WriteString("\n")
 	b.WriteString(th.Muted.Render(i18n.T("Read TASK.md and PAIR.md (TDD: red, green, refactor only when asked).")))
 	b.WriteString("\n\n")
-	b.WriteString(th.Muted.Render(i18n.T("f finish pair  r reopen agent  esc board")))
+	b.WriteString(th.Muted.Render(i18n.T("f finish pair  r reopen agent  o editor  esc board")))
 	return th.App.Render(b.String())
 }
 
@@ -429,7 +431,7 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 				return m.pausePair()
 			}
 			m.screen = screenPair
-			m.status = i18n.T("f finish pair  r reopen  esc board")
+			m.status = i18n.T("f finish pair  r reopen  o editor  esc board")
 			return m, nil
 		}
 		m.screen = screenLog
@@ -440,7 +442,7 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 		m.diffIndex = 0
 		m.diffOffset = 0
 		m.screen = screenReview
-		m.status = i18n.T("y approve  d discard  n/p file  esc board")
+		m.status = i18n.T("y approve  d discard  n/p file  o editor  esc board")
 		return m, nil
 	default:
 		m.openTaskForm(t)
@@ -495,6 +497,8 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.screen = screenBoard
 		m.status = i18n.T("Agent is still running")
 		return m, nil
+	case "o":
+		return m.openEditor(m.runFolder())
 	case "j", "down":
 		m.logOffset++
 	case "k", "up":
@@ -516,6 +520,8 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.approveRun()
 	case "d":
 		return m.discardRun()
+	case "o":
+		return m.openEditor(m.runFolder())
 	case "n", "l", "right":
 		if m.diffIndex < len(m.diffFiles)-1 {
 			m.diffIndex++
@@ -548,7 +554,7 @@ func (m Model) viewLog() string {
 	end := min(len(lines), off+h)
 	body := strings.Join(lines[off:end], "\n")
 	title := th.Title.Render(i18n.T("Agent")) + th.Muted.Render("  ·  "+m.run.Branch+"  ·  "+m.run.State)
-	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(i18n.T("j/k scroll  esc board")))
+	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(i18n.T("j/k scroll  o editor  esc board")))
 }
 
 func (m Model) viewReview() string {
@@ -596,7 +602,7 @@ func (m Model) viewReview() string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(i18n.T("y approve  d discard  n/p file  j/k scroll  esc board")))
+	b.WriteString(th.Muted.Render(i18n.T("y approve  d discard  n/p file  j/k scroll  o editor  esc board")))
 	return th.App.Render(b.String())
 }
 

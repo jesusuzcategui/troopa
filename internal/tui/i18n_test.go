@@ -45,3 +45,23 @@ func TestEnglishInterface(t *testing.T) {
 		t.Fatalf("status bar not in English: %s", listStatus())
 	}
 }
+
+func TestOpenEditor(t *testing.T) {
+	m := newTestModel(t)
+	m.cfg.Launch.Editor = "true"
+	dir := t.TempDir()
+	next, cmd := m.openEditor(dir)
+	got := next.(Model)
+	if cmd == nil || got.err != "" {
+		t.Fatalf("expected editor command, err=%q", got.err)
+	}
+	_, cmd = m.openEditor("")
+	if cmd != nil {
+		t.Fatal("empty folder should not open the editor")
+	}
+	m.cfg.Launch.Editor = "definitely-not-an-editor-xyz"
+	next, cmd = m.openEditor(dir)
+	if cmd != nil || next.(Model).err == "" {
+		t.Fatal("missing editor should report an error")
+	}
+}

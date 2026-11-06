@@ -42,6 +42,8 @@ Van tres paletas (`dark`, `light`, `tropic`). `t` las cicla. La paleta de comand
 
 Ejemplo de `config.toml` en el README en inglés. Al pasar a **ready** con un agente distinto de `me` se crea un worktree y `TASK.md`. Yolo corre sin interacción; pair abre el CLI interactivo. Finish pair (`f`) corre checks.
 
+`o` abre el worktree de la tarea en tu editor (o la carpeta del proyecto si la tarea aún no tiene worktree). El editor sale de `editor` en `config.toml` (por ejemplo `editor = "nvim"` o `"code"`), luego `$VISUAL`, luego `$EDITOR`, luego `nvim`/`vim`/`vi`.
+
 ## Atajos
 
 `Ctrl+K` paleta de comandos (cualquier acción). La primera vez hay una pantalla de bienvenida.
@@ -50,11 +52,11 @@ Proyectos: `enter` tablero · `n` nuevo · `e` editar · `a` archivar · `c` cli
 
 Clientes: `n` / `e` / `a` · `enter` tablero · `esc` volver
 
-Tablero: `n` tarea rápida · `e` editar · `[` `]` mover · `m` menú · `/` buscar · `f`/`p`/`C` filtros · `esc` volver
+Tablero: `n` tarea rápida · `e` editar · `[` `]` mover · `m` menú · `/` buscar · `f`/`p`/`C` filtros · `o` editor · `esc` volver
 
-Revisión: `y` aprobar · `d` descartar
+Revisión: `y` aprobar · `d` descartar · `o` editor
 
-Pareja: `f` terminar · `r` reabrir agente
+Pareja: `f` terminar · `r` reabrir agente · `o` editor
 
 ## Licencia
 

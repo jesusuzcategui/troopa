@@ -65,6 +65,7 @@ branch_prefix = ""
 worktrees = "~/.local/share/troopa/worktrees"
 notify = true
 terminal = "kitty -e"
+editor = "nvim"            # or "code", "zed", "code --new-window"…
 
 [agents.claude]
 command = "claude"
@@ -78,6 +79,8 @@ cache = 0.3
 
 Moving a task to **ready** with an agent other than `me` creates a git worktree on `<type>/<slug>` and writes `TASK.md`. **Yolo** runs the CLI non-interactively (live log, then checks and review). **Pair** also writes `PAIR.md` and opens the agent in a tmux split or `terminal`. **Finish pair** (`f`) runs checks. Closing the terminal without finishing leaves **pair-paused**. Approve with `commits=auto` commits, pushes and opens a PR — never merge, never push `main`. `commits=none` leaves the worktree dirty. Discard removes worktree and branch.
 
+`o` opens the task's worktree in your editor (the project folder when the task has no worktree yet). The editor comes from `editor` in `config.toml`, then `$VISUAL`, then `$EDITOR`, then `nvim`/`vim`/`vi`. Terminal editors take over the screen until you quit them; GUI editors open in their own window.
+
 ## Keys
 
 `Ctrl+K` command palette (every action). First launch shows a welcome screen.
@@ -86,11 +89,11 @@ Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · 
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 
-Board: `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `m` status menu · `/` search · `f`/`p`/`C` filters · `M` metrics · `esc` back
+Board: `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `m` status menu · `/` search · `f`/`p`/`C` filters · `M` metrics · `o` editor · `esc` back
 
-Review: `y` approve · `d` discard · `n`/`p` file · `j`/`k` scroll
+Review: `y` approve · `d` discard · `n`/`p` file · `j`/`k` scroll · `o` editor
 
-Pair: `f` finish · `r` reopen agent · `esc` board (session keeps running)
+Pair: `f` finish · `r` reopen agent · `o` editor · `esc` board (session keeps running)
 
 Mouse: click to select, drag a card to another column, wheel to scroll.
 

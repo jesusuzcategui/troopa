@@ -31,7 +31,7 @@ func (m Model) updateMetricsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "b", "M":
 		if m.helpFrom == screenBoard {
 			m.screen = screenBoard
-			m.status = i18n.T("n new  e edit  [ ] move  m menu  / search  f/p filter  M metrics  esc projects")
+			m.status = i18n.T("n new  e edit  [ ] move  m menu  / search  f/p filter  M metrics  o editor  esc projects")
 		} else {
 			m.screen = screenList
 			m.status = listStatus()

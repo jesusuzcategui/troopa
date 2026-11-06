@@ -250,6 +250,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.finishAgent(msg)
 	case pairClosedMsg:
 		return m.handlePairClosed(msg)
+	case editorClosedMsg:
+		return m.handleEditorClosed(msg)
 	}
 	if m.screen == screenForm {
 		return m.updateInputs(msg)

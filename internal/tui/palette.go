@@ -50,6 +50,7 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "discard", Title: i18n.T("Discard worktree"), Keys: "d"},
 		{ID: "finish-pair", Title: i18n.T("Finish pair"), Keys: "f"},
 		{ID: "reopen-agent", Title: i18n.T("Reopen agent"), Keys: "r"},
+		{ID: "open-editor", Title: i18n.T("Open in editor"), Hint: i18n.T("worktree or project folder"), Keys: "o"},
 	}
 }
 
@@ -309,6 +310,21 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		}
 		m.screen = screenPair
 		return m.finishPair()
+	case "open-editor":
+		switch {
+		case from == screenPair || from == screenReview || from == screenLog:
+			m.screen = from
+			return m.openEditor(m.runFolder())
+		case from == screenBoard:
+			m.screen = screenBoard
+			return m.openEditor(m.taskFolder())
+		default:
+			if p, ok := m.selected(); ok {
+				return m.openEditor(p.RepoPath)
+			}
+			m.status = i18n.T("No project selected")
+			return m, nil
+		}
 	case "reopen-agent":
 		if from != screenPair && m.screen != screenPair {
 			m.status = i18n.T("No pair session")

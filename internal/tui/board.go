@@ -25,7 +25,7 @@ func (m *Model) openBoard(p store.Project) {
 	m.dragID = 0
 	m.err = ""
 	m.reloadTasks()
-	m.status = i18n.T("n new  e edit  [ ] move  m menu  / search  f/p filter  M metrics  esc projects")
+	m.status = i18n.T("n new  e edit  [ ] move  m menu  / search  f/p filter  M metrics  o editor  esc projects")
 }
 
 func (m *Model) reloadTasks() {
@@ -192,6 +192,8 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if t, ok := m.selectedTask(); ok {
 			return m.openRunView(t)
 		}
+	case "o":
+		return m.openEditor(m.taskFolder())
 	case "m":
 		if _, ok := m.selectedTask(); ok {
 			m.moveMenuIndex = m.colIndex
@@ -499,7 +501,7 @@ func (m Model) viewBoard() string {
 		}
 		preview = extra.String()
 	}
-	hints := th.Muted.Render(i18n.T("n new  e edit  [ ] or drag  m menu  / search  f status  p priority  C client  M metrics  esc back"))
+	hints := th.Muted.Render(i18n.T("n new  e edit  [ ] or drag  m menu  / search  f status  p priority  C client  M metrics  o editor  esc back"))
 	return th.App.Render(title + "\n\n" + board + preview + "\n" + hints)
 }
 

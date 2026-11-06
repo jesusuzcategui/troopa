@@ -29,6 +29,7 @@ type Launch struct {
 	Worktrees    string                `toml:"worktrees"`
 	Notify       bool                  `toml:"notify"`
 	Terminal     string                `toml:"terminal"`
+	Editor       string                `toml:"editor"`
 	Agents       map[string]AgentSpec  `toml:"agents"`
 	Prices       map[string]TokenPrice `toml:"prices"`
 }
@@ -48,6 +49,7 @@ type tomlConfig struct {
 	Worktrees    string                `toml:"worktrees"`
 	Notify       *bool                 `toml:"notify"`
 	Terminal     string                `toml:"terminal"`
+	Editor       string                `toml:"editor"`
 	Agents       map[string]AgentSpec  `toml:"agents"`
 	Prices       map[string]TokenPrice `toml:"prices"`
 }
@@ -147,6 +149,9 @@ func Load(path string) (Config, error) {
 	}
 	if strings.TrimSpace(t.Terminal) != "" {
 		c.Launch.Terminal = strings.TrimSpace(t.Terminal)
+	}
+	if strings.TrimSpace(t.Editor) != "" {
+		c.Launch.Editor = strings.TrimSpace(t.Editor)
 	}
 	for name, spec := range t.Agents {
 		if spec.Command == "" {

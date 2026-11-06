@@ -15,6 +15,7 @@ branch_prefix = "acme/"
 notify = false
 worktrees = "/tmp/wt"
 terminal = "kitty -e"
+editor = "code --new-window"
 
 [agents.claude]
 command = "claude"
@@ -34,6 +35,9 @@ args = ["-p", "{{prompt}}"]
 	}
 	if c.Launch.Worktrees != "/tmp/wt" {
 		t.Fatalf("wt %q", c.Launch.Worktrees)
+	}
+	if c.Launch.Editor != "code --new-window" {
+		t.Fatalf("editor %q", c.Launch.Editor)
 	}
 	if c.Launch.Terminal != "kitty -e" {
 		t.Fatalf("terminal %q", c.Launch.Terminal)
