@@ -32,6 +32,8 @@ var settingRows = []settingRow{
 	{"theme", settingChoice},
 	{"default_agent", settingChoice},
 	{"default_model", settingText},
+	{"default_account", settingChoice},
+	{"profiles", settingAction},
 	{"editor", settingChoice},
 	{"terminal", settingChoice},
 	{"merge", settingChoice},
@@ -72,6 +74,10 @@ func (m Model) settingLabel(key string) string {
 		return i18n.T("Default agent")
 	case "default_model":
 		return i18n.T("Default model")
+	case "default_account":
+		return i18n.T("Default account")
+	case "profiles":
+		return i18n.T("Profiles")
 	case "editor":
 		return i18n.T("Editor")
 	case "terminal":
@@ -110,6 +116,12 @@ func (m Model) settingChoices(key string) []choice {
 		return m.terminalChoices()
 	case "merge":
 		return mergeChoices()
+	case "default_account":
+		out := []choice{{value: "", label: i18n.T("default login")}}
+		for _, n := range m.cfg.Launch.AccountNames() {
+			out = append(out, choice{value: n, label: n})
+		}
+		return out
 	}
 	return nil
 }
@@ -124,6 +136,8 @@ func (m Model) settingValue(key string) string {
 		return orDefault(m.cfg.DefaultAgent, "me")
 	case "default_model":
 		return m.cfg.DefaultModel
+	case "default_account":
+		return m.cfg.DefaultAccount
 	case "editor":
 		return m.cfg.Launch.Editor
 	case "terminal":
@@ -152,6 +166,9 @@ func (m Model) settingDisplay(row settingRow) string {
 		}
 		return i18n.T("off")
 	case settingAction:
+		if row.key == "profiles" {
+			return m.profileLabel(0) + "  →"
+		}
 		return "→"
 	case settingText:
 		v := m.settingValue(row.key)
@@ -192,6 +209,11 @@ func (m *Model) setSetting(key, value string) {
 		m.cfg.DefaultAgent = value
 	case "default_model":
 		m.cfg.DefaultModel = value
+	case "default_account":
+		m.cfg.DefaultAccount = value
+		if value == "" {
+			_ = config.Unset(m.configPath, "default_account")
+		}
 	case "editor":
 		m.cfg.Launch.Editor = value
 	case "terminal":
@@ -297,6 +319,11 @@ func (m Model) updateSettingsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if row.key == "about" {
 				return m.openAbout()
 			}
+			if row.key == "profiles" {
+				m.settings = nil
+				m.openProfiles(screenSettings)
+				return m, nil
+			}
 			m.settings = nil
 			m.startSetup(screenSettings)
 			return m, nil
@@ -370,6 +397,6 @@ func (m Model) viewSettings() string {
 		b.WriteString(style.Render(truncate(fmt.Sprintf("  %s %-12s %-10s %s", mark, a.Name, a.Command, detail), max(10, m.width-4))) + "\n")
 	}
 	b.WriteString(lipgloss.NewStyle().Foreground(th.Muted.GetForeground()).Render(
-		"\n" + i18n.T("Agent commands and prices live in config.toml under [agents.*] and [prices.*].")))
+		"\n" + i18n.T("Agent commands, prices, accounts and hooks live in config.toml under [agents.*], [prices.*], [accounts.*] and [hooks].")))
 	return th.App.Render(b.String())
 }

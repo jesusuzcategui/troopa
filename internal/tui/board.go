@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jesusuzcategui/troopa/internal/i18n"
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -84,6 +85,7 @@ func (m Model) updateQuickKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.rememberTask(created)
+		m.fireTaskHook(launch.HookTaskCreated, created)
 		m.screen = screenBoard
 		m.err = ""
 		m.status = i18n.T("Created: ") + created.Title

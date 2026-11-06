@@ -274,6 +274,13 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "S":
 		m.openSettings(screenBoard)
 		return m, nil
+	case "w":
+		if m.boardProject.ID == 0 {
+			m.status = i18n.T("Open a project board to see its plans")
+			return m, nil
+		}
+		m.openPlans()
+		return m, nil
 	case "x":
 		return m.requestChangesFromTask()
 	case "i":

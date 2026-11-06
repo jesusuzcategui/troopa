@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Troopa docs</title>
+  <meta name="description" content="How to use Troopa: tasks, agents, review, plans, profiles, accounts, the second brain, hooks, extensions and the JSON CLI.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e1e2e'/%3E%3Cpath d='M16 5l3 5h-6z' fill='%23cba6f7'/%3E%3Crect x='8' y='11' width='16' height='9' rx='2' fill='%23cba6f7'/%3E%3Ccircle cx='12.5' cy='15.5' r='2' fill='%231e1e2e'/%3E%3Ccircle cx='19.5' cy='15.5' r='2' fill='%231e1e2e'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1.5' fill='%23cdd6f4'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+</head>
+<body class="docs-page">
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="./" aria-label="Troopa" id="brand"></a>
+      <nav class="top-nav" aria-label="Site">
+        <a href="./" data-i18n="nav.home">Home</a>
+        <a href="./#install" data-i18n="nav.install">Install</a>
+        <a href="https://github.com/jesusuzcategui/troopa">GitHub</a>
+      </nav>
+      <div class="top-tools">
+        <button class="lang" id="lang" type="button" aria-label="Español / English">ES</button>
+        <button class="lang" id="theme" type="button" aria-label="Light / dark">◐</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap docs">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title" data-i18n="docs.contents">Contents</p>
+      <a href="#start" data-i18n="docs.start">Getting started</a>
+      <a href="#board" data-i18n="docs.board">Projects and board</a>
+      <a href="#agents" data-i18n="docs.agents">Agents and runs</a>
+      <a href="#review" data-i18n="docs.review">Review and changes</a>
+      <a href="#plans" data-i18n="docs.plans">Plans</a>
+      <a href="#profiles" data-i18n="docs.profiles">Profiles</a>
+      <a href="#accounts" data-i18n="docs.accounts">Accounts</a>
+      <a href="#brain" data-i18n="docs.brain">Second brain</a>
+      <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
+      <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
+      <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
+      <a href="#config" data-i18n="docs.config">Configuration</a>
+    </nav>
+
+    <article class="doc">
+      <!-- English -->
+      <div data-only="en">
+        <h1>Troopa documentation</h1>
+        <p class="lede">Troopa is a terminal app to plan work, hand each task to an AI coding agent in its own git worktree, review the result and merge it. Everything lives in one SQLite file and one <code>config.toml</code>.</p>
+
+        <section id="start">
+          <h2>Getting started</h2>
+          <ol>
+            <li>Install Troopa (<a href="./#install">install options</a>) and at least one agent CLI: Claude Code, Codex, OpenCode or Pi.</li>
+            <li>Run <code>troopa</code>. The first run asks for language, theme, default agent, editor, terminal, merge strategy and the second brain folder. Run it again with <code>troopa setup</code>, or change anything later with <kbd>S</kbd>.</li>
+            <li>Press <kbd>n</kbd> to create a project and point it to a git repository. If the folder does not exist, Troopa creates it with <code>git init</code>.</li>
+            <li>Press <kbd>enter</kbd> to open its board, <kbd>n</kbd> to add a task, and move it to <em>ready</em> to launch its agent.</li>
+          </ol>
+          <p>Press <kbd>?</kbd> anywhere for the shortcuts of that screen and <kbd>Ctrl+K</kbd> for the command palette.</p>
+        </section>
+
+        <section id="board">
+          <h2>Projects and board</h2>
+          <p>A project is a git repository. Its tasks move through <code>inbox → backlog → ready → in-progress → review → done</code> (plus <code>blocked</code> and <code>pair-paused</code>). Switch between board and list with <kbd>v</kbd>, fold statuses with <kbd>z</kbd>, open the task panel with <kbd>tab</kbd>.</p>
+          <p>Each task has a title, a description in Markdown, acceptance criteria (one per line), priority, agent, model, mode (<em>yolo</em> or <em>pair</em>), commit mode and type. Attach files with <kbd>a</kbd> and reference repo files with <code>@path</code>.</p>
+          <p>Clients (<kbd>c</kbd> on the project list) group projects; metrics (<kbd>M</kbd>) compare time, tokens and cost per agent and project.</p>
+        </section>
+
+        <section id="agents">
+          <h2>Agents and runs</h2>
+          <p>Moving a task to <em>ready</em> asks for confirmation and then:</p>
+          <ul>
+            <li>creates a branch and a worktree under <code>~/.local/share/troopa/worktrees/&lt;project&gt;/</code>,</li>
+            <li>writes <code>TASK.md</code> with the task, your profile, the project context and the rules,</li>
+            <li>starts the agent in the background. It keeps working if you close Troopa; Troopa picks it up when it opens again.</li>
+          </ul>
+          <p><strong>Yolo</strong> runs the agent alone and shows its live log. <strong>Pair</strong> opens the agent in a terminal next to you (TDD: red, green, refactor). When the agent ends, Troopa runs the project checks and moves the task to <em>review</em> or <em>blocked</em>.</p>
+          <p>If an agent stops before finishing (the computer turned off, for example), the run is marked <em>blocked</em> with a note; press <kbd>x</kbd> to send it back and continue.</p>
+        </section>
+
+        <section id="review">
+          <h2>Review and changes</h2>
+          <p>The review screen shows the summary (it starts with “How to run”), the checks and the diff. Move through the diff with <kbd>j</kbd>/<kbd>k</kbd>, comment a line with <kbd>enter</kbd>, and press <kbd>x</kbd> to send your feedback and comments back to the same agent in the same worktree. Each launch and each request is a round; older rounds fold away.</p>
+          <ul>
+            <li><kbd>y</kbd> approve: with <code>commits = auto</code> it commits, pushes and opens a PR when there is a remote.</li>
+            <li><kbd>g</kbd> merge an approved local branch into the base (squash or merge commit).</li>
+            <li><kbd>c</kbd> clean the worktree and keep the branch · <kbd>d</kbd> discard both.</li>
+          </ul>
+        </section>
+
+        <section id="plans">
+          <h2>Plans</h2>
+          <p>A plan is an ordered list of tasks of a project that run one after the other. Press <kbd>w</kbd> on a board to see its plans.</p>
+          <ol>
+            <li><kbd>n</kbd> creates a plan: title, goal, default agent and model, and <em>auto-advance</em>.</li>
+            <li>Add the steps in order with <kbd>a</kbd> (<kbd>enter</kbd> adds, <kbd>esc</kbd> ends). Reorder with <kbd>K</kbd>/<kbd>J</kbd>; <kbd>enter</kbd> edits a step like any task.</li>
+            <li><kbd>s</kbd> starts the plan: the first step that is not done launches.</li>
+            <li>Each step goes through the normal review. Approving a step commits it on its branch, and the next step starts <strong>from that branch</strong>, so it builds on the work before it. With auto-advance on, it starts by itself; otherwise press <kbd>s</kbd>.</li>
+            <li>When every step is done, open the plan and press <kbd>g</kbd>: the last branch (the whole plan) is merged into the branch the plan started from, or pushed with a PR when the repo has a remote. The step worktrees are removed.</li>
+          </ol>
+          <p><kbd>p</kbd> pauses (the running step finishes, the next one waits), <kbd>t</kbd> toggles auto-advance. A step that is blocked stops the plan until you fix it with <kbd>x</kbd>. Steps never merge on their own.</p>
+        </section>
+
+        <section id="profiles">
+          <h2>Profiles</h2>
+          <p>A profile tells the agents who they work for. It is not only for developers: create one per profession you have (developer, chef, designer, accountant, writer, HR…). Each profile has a name, a profession, an “about” text and standing instructions.</p>
+          <p>Open them from Settings (<kbd>S</kbd> → Profiles) or the palette. <kbd>*</kbd> marks the default profile; a project can pick another one in its form (<kbd>←</kbd>/<kbd>→</kbd> on <em>Profile</em>). The profile is written into every <code>TASK.md</code> under “Who you work for”:</p>
+          <pre class="cmd">## Who you work for
+
+You are working for Ana (Chef). Use the words, standards and tools of that profession.
+
+Runs a bakery with two stores.
+
+Their standing instructions:
+
+Metric units. Recipes for 12 portions.</pre>
+        </section>
+
+        <section id="accounts">
+          <h2>Accounts</h2>
+          <p>Accounts let agents run with a different login per project, for example a company subscription for a client and your personal one for everything else. Each account keeps its own login folder for every agent, so signing in to one never touches the other.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button># ~/.config/troopa/config.toml
+default_account = ""          # "" = the agents' normal login
+
+[accounts.acme]
+# dir = "~/.troopa-accounts/acme"   # optional; default ~/.config/troopa/accounts/acme
+# env = { ANTHROPIC_API_KEY = "…" }  # optional extra variables</pre>
+          <p>Sign each agent in once, then pick the account in the project form (<em>Account</em>):</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa login acme claude
+troopa login acme codex</pre>
+          <p>Troopa sets <code>CLAUDE_CONFIG_DIR</code> (Claude Code), <code>CODEX_HOME</code> (Codex), <code>XDG_DATA_HOME</code> (OpenCode) and <code>PI_CODING_AGENT_DIR</code> (Pi) to the account folder. If your agent reads another variable, set it in <code>env</code>.</p>
+        </section>
+
+        <section id="brain">
+          <h2>Second brain</h2>
+          <p>A Markdown folder (Obsidian-friendly) that Troopa keeps up to date: <code>inbox.md</code>, <code>today.md</code>, <code>projects/INDEX.md</code> and, per project, <code>project.md</code>, <code>tasks/</code> and <code>guides/</code> (how to run what was merged). The agent gets the project note as context. Browse it with <kbd>B</kbd>, search with <kbd>/</kbd>, add to the inbox with <kbd>i</kbd>. Set <code>brain_git = true</code> for local commits.</p>
+        </section>
+
+        <section id="hooks">
+          <h2>Hooks</h2>
+          <p>Hooks are shell commands that run on events: <code>task_created</code>, <code>launch</code>, <code>review</code>, <code>blocked</code>, <code>approve</code>, <code>merge</code>, <code>discard</code>, <code>plan_start</code>, <code>plan_done</code>. Put them in <code>config.toml</code> (every project) or in the project's <code>troopa.toml</code>. An event takes one command or a list.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>[hooks]
+review = "notify-send 'Troopa' \"$TROOPA_TASK is ready for review\""
+approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</pre>
+          <p>Each hook gets the event as JSON on stdin and in variables: <code>TROOPA_EVENT</code>, <code>TROOPA_PROJECT</code>, <code>TROOPA_REPO</code>, <code>TROOPA_TASK_ID</code>, <code>TROOPA_TASK</code>, <code>TROOPA_STATUS</code>, <code>TROOPA_AGENT</code>, <code>TROOPA_RUN_ID</code>, <code>TROOPA_BRANCH</code>, <code>TROOPA_WORKTREE</code>, <code>TROOPA_PLAN_ID</code>, <code>TROOPA_PLAN</code>. Hooks run in the background (2-minute limit) inside the worktree or the repo, and their output goes to <code>~/.local/share/troopa/hooks.log</code>.</p>
+        </section>
+
+        <section id="extensions">
+          <h2>Extensions</h2>
+          <p>Any program named <code>troopa-&lt;name&gt;</code> on your PATH becomes <code>troopa &lt;name&gt;</code>, like git subcommands. Write it in any language. It receives the arguments and <code>TROOPA_BIN</code>, <code>TROOPA_CONFIG</code>, <code>TROOPA_DATA</code>, <code>TROOPA_DB</code> and <code>TROOPA_VERSION</code>, and can read or change Troopa's data through the JSON CLI.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>#!/bin/sh
+# ~/.local/bin/troopa-standup: tasks in review, as a list
+"$TROOPA_BIN" task list --json --status review | jq -r '.data[] | "- " + .title'</pre>
+          <p><code>troopa extensions</code> lists the ones it finds. Built-in commands cannot be replaced.</p>
+        </section>
+
+        <section id="cli">
+          <h2>JSON CLI</h2>
+          <p>Every resource has a versioned JSON command (<code>schema_version</code> 1) that uses the same store as the TUI:</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa project list --json
+troopa task create --json --project 1 --title "Add search" --agent codex
+troopa plan create --json --project 1 --title "Checkout" --agent claude
+troopa plan add-step --json --id 1 --title "Cart page"
+troopa profile create --json --name Ana --profession Chef
+troopa run rounds --json --id 3
+troopa brain sync --json</pre>
+          <p>Resources: <code>project</code>, <code>client</code>, <code>task</code>, <code>run</code>, <code>plan</code>, <code>profile</code>, <code>brain</code>. The full reference is in <a href="https://github.com/jesusuzcategui/troopa/blob/main/docs/cli-json.md">docs/cli-json.md</a>.</p>
+        </section>
+
+        <section id="config">
+          <h2>Configuration</h2>
+          <p><code>~/.config/troopa/config.toml</code> (the Settings screen edits the common keys and keeps your comments):</p>
+          <pre class="cmd">language = "en"            # en, es or auto
+theme = "catppuccin-mocha"
+default_agent = "claude"
+default_model = ""
+default_account = ""
+default_profile = 1
+editor = "nvim"
+terminal = ""              # auto
+merge = "squash"           # squash or merge
+branch_prefix = ""
+worktrees = ""             # default ~/.local/share/troopa/worktrees
+brain = "~/brain"
+brain_git = false
+
+[agents.claude]
+command = "claude"
+args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json"]
+
+[prices.claude]            # USD per million tokens
+input = 3
+output = 15
+
+[accounts.acme]
+
+[hooks]
+review = "notify-send Troopa \"$TROOPA_TASK\""</pre>
+          <p>Each repo can have a <code>troopa.toml</code> with project rules:</p>
+          <pre class="cmd">checks = ["go test ./...", "go vet ./..."]
+instructions = """
+Use the existing components. Write tests for every handler.
+"""
+
+[hooks]
+merge = "./scripts/deploy-staging.sh"</pre>
+        </section>
+      </div>
+
+      <!-- Español -->
+      <div data-only="es">
+        <h1>Documentación de Troopa</h1>
+        <p class="lede">Troopa es una app de terminal para planear el trabajo, darle cada tarea a un agente de IA en su propio worktree de git, revisar el resultado y hacer merge. Todo vive en un archivo SQLite y un <code>config.toml</code>.</p>
+
+        <section id="start-es">
+          <h2>Primeros pasos</h2>
+          <ol>
+            <li>Instala Troopa (<a href="./#install">opciones de instalación</a>) y al menos un agente: Claude Code, Codex, OpenCode o Pi.</li>
+            <li>Ejecuta <code>troopa</code>. El primer arranque pregunta idioma, tema, agente por defecto, editor, terminal, estrategia de merge y la carpeta del segundo cerebro. Repítelo con <code>troopa setup</code> o cambia todo después con <kbd>S</kbd>.</li>
+            <li>Pulsa <kbd>n</kbd> para crear un proyecto y apúntalo a un repositorio git. Si la carpeta no existe, Troopa la crea con <code>git init</code>.</li>
+            <li>Pulsa <kbd>enter</kbd> para abrir su tablero, <kbd>n</kbd> para agregar una tarea y muévela a <em>ready</em> para lanzar su agente.</li>
+          </ol>
+          <p>Pulsa <kbd>?</kbd> en cualquier pantalla para ver sus atajos y <kbd>Ctrl+K</kbd> para la paleta de comandos.</p>
+        </section>
+
+        <section id="board-es">
+          <h2>Proyectos y tablero</h2>
+          <p>Un proyecto es un repositorio git. Sus tareas pasan por <code>inbox → backlog → ready → in-progress → review → done</code> (más <code>blocked</code> y <code>pair-paused</code>). Cambia entre tablero y lista con <kbd>v</kbd>, pliega estados con <kbd>z</kbd> y abre el panel de la tarea con <kbd>tab</kbd>.</p>
+          <p>Cada tarea tiene título, descripción en Markdown, criterios de aceptación (uno por línea), prioridad, agente, modelo, modo (<em>yolo</em> o <em>pair</em>), modo de commits y tipo. Adjunta archivos con <kbd>a</kbd> y referencia archivos del repo con <code>@ruta</code>.</p>
+          <p>Los clientes (<kbd>c</kbd> en la lista de proyectos) agrupan proyectos; las métricas (<kbd>M</kbd>) comparan tiempo, tokens y costo por agente y por proyecto.</p>
+        </section>
+
+        <section id="agents-es">
+          <h2>Agentes y ejecuciones</h2>
+          <p>Al mover una tarea a <em>ready</em>, Troopa pide confirmación y luego:</p>
+          <ul>
+            <li>crea una rama y un worktree en <code>~/.local/share/troopa/worktrees/&lt;proyecto&gt;/</code>,</li>
+            <li>escribe <code>TASK.md</code> con la tarea, tu perfil, el contexto del proyecto y las reglas,</li>
+            <li>arranca el agente en segundo plano. Sigue trabajando aunque cierres Troopa; Troopa lo retoma al abrirse.</li>
+          </ul>
+          <p><strong>Yolo</strong> ejecuta el agente solo y muestra su log en vivo. <strong>Pair</strong> abre el agente en una terminal a tu lado (TDD: rojo, verde, refactor). Cuando el agente termina, Troopa corre los checks del proyecto y mueve la tarea a <em>review</em> o <em>blocked</em>.</p>
+          <p>Si un agente se detiene antes de terminar (por ejemplo, se apagó el equipo), la ejecución queda en <em>blocked</em> con una nota; pulsa <kbd>x</kbd> para devolvérsela y continuar.</p>
+        </section>
+
+        <section id="review-es">
+          <h2>Revisión y cambios</h2>
+          <p>La pantalla de revisión muestra el resumen (empieza con “How to run”), los checks y el diff. Recorre el diff con <kbd>j</kbd>/<kbd>k</kbd>, comenta una línea con <kbd>enter</kbd> y pulsa <kbd>x</kbd> para mandar tus comentarios al mismo agente en el mismo worktree. Cada lanzamiento y cada pedido de cambios es una ronda; las anteriores se pliegan.</p>
+          <ul>
+            <li><kbd>y</kbd> aprobar: con <code>commits = auto</code> hace commit, push y abre un PR si hay remoto.</li>
+            <li><kbd>g</kbd> merge de una rama local aprobada en la base (squash o merge commit).</li>
+            <li><kbd>c</kbd> limpiar el worktree y conservar la rama · <kbd>d</kbd> descartar ambos.</li>
+          </ul>
+        </section>
+
+        <section id="plans-es">
+          <h2>Planes</h2>
+          <p>Un plan es una lista ordenada de tareas de un proyecto que se ejecutan una tras otra. Pulsa <kbd>w</kbd> en un tablero para ver sus planes.</p>
+          <ol>
+            <li><kbd>n</kbd> crea un plan: título, objetivo, agente y modelo por defecto, y <em>avance automático</em>.</li>
+            <li>Agrega los pasos en orden con <kbd>a</kbd> (<kbd>enter</kbd> agrega, <kbd>esc</kbd> termina). Reordena con <kbd>K</kbd>/<kbd>J</kbd>; <kbd>enter</kbd> edita un paso como cualquier tarea.</li>
+            <li><kbd>s</kbd> inicia el plan: se lanza el primer paso que no esté terminado.</li>
+            <li>Cada paso pasa por la revisión normal. Al aprobar un paso se hace commit en su rama y el siguiente arranca <strong>desde esa rama</strong>, así construye sobre el trabajo anterior. Con avance automático arranca solo; si no, pulsa <kbd>s</kbd>.</li>
+            <li>Cuando todos los pasos están listos, abre el plan y pulsa <kbd>g</kbd>: la última rama (el plan completo) se mergea en la rama desde la que empezó el plan, o se hace push con PR si el repo tiene remoto. Los worktrees de los pasos se eliminan.</li>
+          </ol>
+          <p><kbd>p</kbd> pausa (el paso en curso termina y el siguiente espera), <kbd>t</kbd> activa o desactiva el avance automático. Un paso bloqueado detiene el plan hasta que lo arregles con <kbd>x</kbd>. Los pasos nunca hacen merge por separado.</p>
+        </section>
+
+        <section id="profiles-es">
+          <h2>Perfiles</h2>
+          <p>Un perfil le dice a los agentes para quién trabajan. No es solo para programadores: crea uno por cada profesión que tengas (programador, chef, diseñador, contador, escritor, recursos humanos…). Cada perfil tiene nombre, profesión, un texto “sobre ti” e instrucciones fijas.</p>
+          <p>Ábrelos desde Configuración (<kbd>S</kbd> → Perfiles) o la paleta. <kbd>*</kbd> marca el perfil por defecto; un proyecto puede elegir otro en su formulario (<kbd>←</kbd>/<kbd>→</kbd> en <em>Perfil</em>). El perfil se escribe en cada <code>TASK.md</code> bajo “Who you work for”:</p>
+          <pre class="cmd">## Who you work for
+
+You are working for Ana (Chef). Use the words, standards and tools of that profession.
+
+Runs a bakery with two stores.
+
+Their standing instructions:
+
+Metric units. Recipes for 12 portions.</pre>
+        </section>
+
+        <section id="accounts-es">
+          <h2>Cuentas</h2>
+          <p>Las cuentas permiten que los agentes usen un login distinto por proyecto, por ejemplo la suscripción de una empresa para un cliente y la tuya personal para lo demás. Cada cuenta guarda su propia carpeta de login por agente, así iniciar sesión en una nunca toca la otra.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button># ~/.config/troopa/config.toml
+default_account = ""          # "" = el login normal de los agentes
+
+[accounts.acme]
+# dir = "~/.troopa-accounts/acme"   # opcional; por defecto ~/.config/troopa/accounts/acme
+# env = { ANTHROPIC_API_KEY = "…" }  # variables extra opcionales</pre>
+          <p>Inicia sesión una vez con cada agente y elige la cuenta en el formulario del proyecto (<em>Cuenta</em>):</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa login acme claude
+troopa login acme codex</pre>
+          <p>Troopa apunta <code>CLAUDE_CONFIG_DIR</code> (Claude Code), <code>CODEX_HOME</code> (Codex), <code>XDG_DATA_HOME</code> (OpenCode) y <code>PI_CODING_AGENT_DIR</code> (Pi) a la carpeta de la cuenta. Si tu agente usa otra variable, ponla en <code>env</code>.</p>
+        </section>
+
+        <section id="brain-es">
+          <h2>Segundo cerebro</h2>
+          <p>Una carpeta Markdown (compatible con Obsidian) que Troopa mantiene al día: <code>inbox.md</code>, <code>today.md</code>, <code>projects/INDEX.md</code> y, por proyecto, <code>project.md</code>, <code>tasks/</code> y <code>guides/</code> (cómo correr lo que se mergeó). El agente recibe la nota del proyecto como contexto. Recórrelo con <kbd>B</kbd>, busca con <kbd>/</kbd> y agrega al inbox con <kbd>i</kbd>. Con <code>brain_git = true</code> hace commits locales.</p>
+        </section>
+
+        <section id="hooks-es">
+          <h2>Hooks</h2>
+          <p>Los hooks son comandos de shell que corren en eventos: <code>task_created</code>, <code>launch</code>, <code>review</code>, <code>blocked</code>, <code>approve</code>, <code>merge</code>, <code>discard</code>, <code>plan_start</code>, <code>plan_done</code>. Ponlos en <code>config.toml</code> (todos los proyectos) o en el <code>troopa.toml</code> del proyecto. Un evento acepta un comando o una lista.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>[hooks]
+review = "notify-send 'Troopa' \"$TROOPA_TASK está lista para revisar\""
+approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</pre>
+          <p>Cada hook recibe el evento como JSON por stdin y en variables: <code>TROOPA_EVENT</code>, <code>TROOPA_PROJECT</code>, <code>TROOPA_REPO</code>, <code>TROOPA_TASK_ID</code>, <code>TROOPA_TASK</code>, <code>TROOPA_STATUS</code>, <code>TROOPA_AGENT</code>, <code>TROOPA_RUN_ID</code>, <code>TROOPA_BRANCH</code>, <code>TROOPA_WORKTREE</code>, <code>TROOPA_PLAN_ID</code>, <code>TROOPA_PLAN</code>. Corren en segundo plano (límite de 2 minutos) dentro del worktree o del repo, y su salida va a <code>~/.local/share/troopa/hooks.log</code>.</p>
+        </section>
+
+        <section id="extensions-es">
+          <h2>Extensiones</h2>
+          <p>Cualquier programa llamado <code>troopa-&lt;nombre&gt;</code> en tu PATH se vuelve <code>troopa &lt;nombre&gt;</code>, como los subcomandos de git. Escríbelo en el lenguaje que quieras. Recibe los argumentos y <code>TROOPA_BIN</code>, <code>TROOPA_CONFIG</code>, <code>TROOPA_DATA</code>, <code>TROOPA_DB</code> y <code>TROOPA_VERSION</code>, y puede leer o cambiar los datos de Troopa con la CLI JSON.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>#!/bin/sh
+# ~/.local/bin/troopa-standup: tareas en revisión, como lista
+"$TROOPA_BIN" task list --json --status review | jq -r '.data[] | "- " + .title'</pre>
+          <p><code>troopa extensions</code> lista las que encuentra. Los comandos propios de Troopa no se pueden reemplazar.</p>
+        </section>
+
+        <section id="cli-es">
+          <h2>CLI JSON</h2>
+          <p>Cada recurso tiene un comando JSON versionado (<code>schema_version</code> 1) que usa el mismo almacenamiento que la TUI:</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa project list --json
+troopa task create --json --project 1 --title "Agregar búsqueda" --agent codex
+troopa plan create --json --project 1 --title "Checkout" --agent claude
+troopa plan add-step --json --id 1 --title "Página del carrito"
+troopa profile create --json --name Ana --profession Chef
+troopa run rounds --json --id 3
+troopa brain sync --json</pre>
+          <p>Recursos: <code>project</code>, <code>client</code>, <code>task</code>, <code>run</code>, <code>plan</code>, <code>profile</code>, <code>brain</code>. La referencia completa está en <a href="https://github.com/jesusuzcategui/troopa/blob/main/docs/cli-json.md">docs/cli-json.md</a>.</p>
+        </section>
+
+        <section id="config-es">
+          <h2>Configuración</h2>
+          <p><code>~/.config/troopa/config.toml</code> (la pantalla de Configuración edita las claves comunes y conserva tus comentarios):</p>
+          <pre class="cmd">language = "es"            # en, es o auto
+theme = "catppuccin-mocha"
+default_agent = "claude"
+default_model = ""
+default_account = ""
+default_profile = 1
+editor = "nvim"
+terminal = ""              # auto
+merge = "squash"           # squash o merge
+branch_prefix = ""
+worktrees = ""             # por defecto ~/.local/share/troopa/worktrees
+brain = "~/brain"
+brain_git = false
+
+[agents.claude]
+command = "claude"
+args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json"]
+
+[prices.claude]            # USD por millón de tokens
+input = 3
+output = 15
+
+[accounts.acme]
+
+[hooks]
+review = "notify-send Troopa \"$TROOPA_TASK\""</pre>
+          <p>Cada repo puede tener un <code>troopa.toml</code> con reglas del proyecto:</p>
+          <pre class="cmd">checks = ["go test ./...", "go vet ./..."]
+instructions = """
+Usa los componentes existentes. Escribe tests para cada handler.
+"""
+
+[hooks]
+merge = "./scripts/deploy-staging.sh"</pre>
+        </section>
+      </div>
+    </article>
+  </div>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p><span data-i18n="foot.made">Made by</span> <a href="https://jesusuzcategui.com">Jesús Uzcátegui</a> · <span data-i18n="foot.license">MIT license</span></p>
+      <p><a href="https://github.com/jesusuzcategui/troopa">github.com/jesusuzcategui/troopa</a></p>
+    </div>
+  </footer>
+  <script type="module" src="/src/docs.js"></script>
+</body>
+</html>

@@ -130,7 +130,12 @@ func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
 		m.status = note
 		return m.startPair(t)
 	}
-	cmd, err := launch.AgentCommandPrompt(m.cfg.Launch, t.Agent, t.Model, wt, launch.ChangesPrompt(wt, round))
+	lc, err := m.launchCfg(m.taskProject(t))
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	cmd, err := launch.AgentCommandPrompt(lc, t.Agent, t.Model, wt, launch.ChangesPrompt(wt, round))
 	if err != nil {
 		m.err = err.Error()
 		return m, nil

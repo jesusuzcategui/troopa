@@ -116,8 +116,13 @@ func TestSettingsChangeAndAbout(t *testing.T) {
 	if got.screen != screenSettings {
 		t.Fatalf("S should open settings, screen %v", got.screen)
 	}
-	// merge strategy is the 7th row
-	for i := 0; i < 6; i++ {
+	mergeRow := 0
+	for i, r := range settingRows {
+		if r.key == "merge" {
+			mergeRow = i
+		}
+	}
+	for i := 0; i < mergeRow; i++ {
 		next, _ = got.Update(tea.KeyMsg{Type: tea.KeyDown})
 		got = next.(Model)
 	}

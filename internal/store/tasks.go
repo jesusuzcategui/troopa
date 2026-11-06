@@ -61,6 +61,8 @@ type Task struct {
 	Commits            string    `json:"commits"`
 	Type               string    `json:"type"`
 	Position           int       `json:"position"`
+	PlanID             int64     `json:"plan_id,omitempty"`   // 0 = not part of a plan
+	PlanStep           int       `json:"plan_step,omitempty"` // 1-based order inside the plan
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 }
@@ -74,7 +76,7 @@ type TaskFilter struct {
 
 func (s *Store) ListTasks(projectID int64, f TaskFilter) ([]Task, error) {
 	q := `SELECT id, project_id, title, description, acceptance_criteria, status, priority,
-		agent, model, mode, commits, type, position, created_at, updated_at
+		agent, model, mode, commits, type, position, plan_id, plan_step, created_at, updated_at
 		FROM tasks WHERE 1=1`
 	args := []any{}
 	if projectID != 0 {
@@ -126,7 +128,7 @@ func (s *Store) ListTasks(projectID int64, f TaskFilter) ([]Task, error) {
 
 func (s *Store) GetTask(id int64) (Task, error) {
 	row := s.db.QueryRow(`SELECT id, project_id, title, description, acceptance_criteria, status, priority,
-		agent, model, mode, commits, type, position, created_at, updated_at
+		agent, model, mode, commits, type, position, plan_id, plan_step, created_at, updated_at
 		FROM tasks WHERE id = ?`, id)
 	return scanTask(row)
 }
@@ -149,10 +151,10 @@ func (s *Store) CreateTask(t Task) (Task, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	res, err := s.db.Exec(`INSERT INTO tasks (
 		project_id, title, description, acceptance_criteria, status, priority,
-		agent, model, mode, commits, type, position, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		agent, model, mode, commits, type, position, plan_id, plan_step, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.ProjectID, t.Title, t.Description, t.AcceptanceCriteria, t.Status, t.Priority,
-		t.Agent, t.Model, t.Mode, t.Commits, t.Type, pos, now, now)
+		t.Agent, t.Model, t.Mode, t.Commits, t.Type, pos, t.PlanID, t.PlanStep, now, now)
 	if err != nil {
 		return Task{}, err
 	}
@@ -292,7 +294,7 @@ func scanTask(row scanner) (Task, error) {
 	if err := row.Scan(
 		&t.ID, &t.ProjectID, &t.Title, &t.Description, &t.AcceptanceCriteria,
 		&t.Status, &t.Priority, &t.Agent, &t.Model, &t.Mode, &t.Commits, &t.Type,
-		&t.Position, &created, &updated,
+		&t.Position, &t.PlanID, &t.PlanStep, &created, &updated,
 	); err != nil {
 		return Task{}, err
 	}

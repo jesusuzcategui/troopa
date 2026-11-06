@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -18,8 +19,22 @@ type CheckResult struct {
 }
 
 type projectTOML struct {
-	Checks       []string `toml:"checks"`
-	Instructions string   `toml:"instructions"`
+	Checks       []string       `toml:"checks"`
+	Instructions string         `toml:"instructions"`
+	Hooks        map[string]any `toml:"hooks"`
+}
+
+// LoadProjectHooks returns the [hooks] of troopa.toml in the repo.
+func LoadProjectHooks(repo string) map[string][]string {
+	raw, err := os.ReadFile(filepath.Join(repo, "troopa.toml"))
+	if err != nil {
+		return nil
+	}
+	var t projectTOML
+	if err := toml.Unmarshal(raw, &t); err != nil {
+		return nil
+	}
+	return config.HookCommands(t.Hooks)
 }
 
 // LoadProjectInstructions returns the instructions from troopa.toml, added to

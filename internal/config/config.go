@@ -24,7 +24,17 @@ type TokenPrice struct {
 	Cache  float64 `toml:"cache"`
 }
 
+// Account is a separate login for the agent CLIs, for example a company
+// subscription next to a personal one. Each agent keeps its login in its
+// own folder under Dir; Env adds or overrides variables.
+type Account struct {
+	Dir string            `toml:"dir"`
+	Env map[string]string `toml:"env"`
+}
+
 type Launch struct {
+	Accounts     map[string]Account    `toml:"-"`
+	Hooks        map[string][]string   `toml:"-"`
 	BranchPrefix string                `toml:"branch_prefix"`
 	Worktrees    string                `toml:"worktrees"`
 	Notify       bool                  `toml:"notify"`
@@ -45,7 +55,12 @@ type Config struct {
 	Language     string // "en", "es" or "auto" (system); empty means English
 	DefaultAgent string // agent for new tasks; empty means "me"
 	DefaultModel string
-	HideLogo     bool // skip the logo screen at start
+	// DefaultAccount is the account for projects that do not pick one; empty
+	// means the agents' normal login.
+	DefaultAccount string
+	// DefaultProfile is the id of the profile used when a project has none.
+	DefaultProfile int64
+	HideLogo       bool // skip the logo screen at start
 	// WorktreesRaw is worktrees exactly as written in config.toml ("" = default).
 	WorktreesRaw    string
 	BrainRaw        string // brain folder as written in config.toml ("" = default)
@@ -77,6 +92,10 @@ type tomlConfig struct {
 	BrainGit        *bool                 `toml:"brain_git"`
 	Agents          map[string]AgentSpec  `toml:"agents"`
 	Prices          map[string]TokenPrice `toml:"prices"`
+	DefaultAccount  string                `toml:"default_account"`
+	DefaultProfile  int64                 `toml:"default_profile"`
+	Accounts        map[string]Account    `toml:"accounts"`
+	Hooks           map[string]any        `toml:"hooks"`
 }
 
 const DefaultMaxAttachmentMB = 50
@@ -229,6 +248,15 @@ func Load(path string) (Config, error) {
 		}
 		c.Launch.Agents[name] = spec
 	}
+	c.DefaultAccount = strings.TrimSpace(t.DefaultAccount)
+	c.DefaultProfile = t.DefaultProfile
+	for name, acc := range t.Accounts {
+		if c.Launch.Accounts == nil {
+			c.Launch.Accounts = map[string]Account{}
+		}
+		c.Launch.Accounts[name] = acc
+	}
+	c.Launch.Hooks = HookCommands(t.Hooks)
 	for name, price := range t.Prices {
 		if c.Launch.Prices == nil {
 			c.Launch.Prices = map[string]TokenPrice{}
@@ -276,6 +304,10 @@ func Save(path string, c Config) error {
 	text = setString(text, "language", c.Language)
 	text = setString(text, "default_agent", c.DefaultAgent)
 	text = setString(text, "default_model", c.DefaultModel)
+	text = setString(text, "default_account", c.DefaultAccount)
+	if c.DefaultProfile > 0 {
+		text = setRootKey(text, "default_profile", strconv.FormatInt(c.DefaultProfile, 10))
+	}
 	text = setString(text, "editor", c.Launch.Editor)
 	text = setString(text, "terminal", c.Launch.Terminal)
 	text = setString(text, "merge", c.Launch.Merge)

@@ -82,11 +82,17 @@ func (m Model) startPair(t store.Task) (tea.Model, tea.Cmd) {
 			prev.Repo = r
 		}
 	}
-	sess, err := launch.PreparePair(m.cfg.Launch, m.boardProject, t, prev)
+	lc, err := m.launchCfg(m.boardProject)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
+	sess, err := launch.PreparePair(lc, m.boardProject, t, prev)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	_ = launch.WriteProfile(sess.Worktree, m.projectProfile(m.boardProject))
 	if err := m.stageTask(sess.Worktree, t); err != nil {
 		if prev.Worktree == "" {
 			_ = launch.Discard(sess)
@@ -94,7 +100,7 @@ func (m Model) startPair(t store.Task) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
-	if err := launch.SetupPairAgent(m.cfg.Launch, t.Agent, t.Model, sess.Worktree); err != nil {
+	if err := launch.SetupPairAgent(lc, t.Agent, t.Model, sess.Worktree); err != nil {
 		if prev.Worktree == "" {
 			_ = launch.Discard(sess)
 		}
@@ -302,7 +308,18 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 		m.err = i18n.T("No agents in config.toml")
 		return m, nil
 	}
-	sess, err := launch.Prepare(m.cfg.Launch, m.boardProject, t)
+	project := m.taskProject(t)
+	lc, err := m.launchCfg(project)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	base, err := m.planStepBase(t)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	sess, err := launch.PrepareWith(lc, project, t, launch.PrepareOpts{Base: base, Profile: m.projectProfile(project)})
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
@@ -312,7 +329,7 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
-	cmd, err := launch.AgentCommand(m.cfg.Launch, t.Agent, t.Model, sess.Worktree)
+	cmd, err := launch.AgentCommand(lc, t.Agent, t.Model, sess.Worktree)
 	if err != nil {
 		_ = launch.Discard(sess)
 		m.err = err.Error()
@@ -354,6 +371,7 @@ func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
 	if err != nil {
 		return m.finishAgent(agentDoneMsg{runID: run.ID, err: err})
 	}
+	m.fireRunHook(launch.HookLaunch, t, run, "")
 	return m, tea.Batch(watch, tickLog())
 }
 
@@ -422,6 +440,11 @@ func (m Model) finishAgent(msg agentDoneMsg) (tea.Model, tea.Cmd) {
 	m.colIndex = indexOfStatus(dest)
 	m.screen = screenReview
 	m.status = dest
+	if dest == store.StatusReview {
+		m.fireRunHook(launch.HookReview, m.runTask, run, summary)
+	} else {
+		m.fireRunHook(launch.HookBlocked, m.runTask, run, run.Note)
+	}
 	if m.cfg.Launch.Notify {
 		title := "Troopa: " + dest
 		launch.Notify(title, m.runTask.Title)
@@ -479,7 +502,16 @@ func (m Model) approveRun() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	sess := m.runSess
-	msg, err := launch.Approve(sess, m.runTask, m.run.Summary)
+	var msg string
+	var err error
+	if m.runTask.PlanID != 0 {
+		// A plan step is committed on its branch so the next step builds on
+		// it; the plan is pushed or merged once, at the end.
+		err = launch.CommitAll(sess.Worktree, "troopa: "+m.runTask.Title)
+		msg = i18n.T("Step approved and committed on %s", sess.Branch)
+	} else {
+		msg, err = launch.Approve(sess, m.runTask, m.run.Summary)
+	}
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
@@ -489,11 +521,22 @@ func (m Model) approveRun() (tea.Model, tea.Cmd) {
 	_ = m.store.UpdateRun(m.run)
 	_ = m.moveTask(m.run.TaskID, store.StatusDone)
 	m.rememberApprove(m.boardProject, m.runTask, m.run)
+	m.fireRunHook(launch.HookApprove, m.runTask, m.run, msg)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusDone)
 	m.status = msg
 	m.err = ""
+	if m.runTask.PlanID != 0 {
+		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && plan.Auto {
+			return m.advancePlan(plan.ID)
+		} else if err == nil && plan.State == store.PlanRunning {
+			if _, more, _ := m.store.NextPlanStep(plan.ID); !more {
+				return m.advancePlan(plan.ID)
+			}
+			m.status = msg + " · " + i18n.T("open the plan with w and press s for the next step")
+		}
+	}
 	return m, nil
 }
 
@@ -552,6 +595,9 @@ func (m Model) requestClean() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) mergeBlockReason() string {
+	if m.runTask.PlanID != 0 {
+		return i18n.T("This task is a plan step: merge the whole plan from its plan (w, then g)")
+	}
 	if m.run.State != store.RunApproved || m.runTask.Commits != store.CommitsAuto {
 		return i18n.T("Only an approved run without remote can be merged")
 	}
@@ -595,6 +641,7 @@ func (m Model) mergeRun() (tea.Model, tea.Cmd) {
 	_ = m.store.UpdateRun(m.run)
 	_ = m.moveTask(m.run.TaskID, store.StatusDone)
 	m.rememberMerge(m.boardProject, m.runTask, m.run)
+	m.fireRunHook(launch.HookMerge, m.runTask, m.run, msg)
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusDone)
@@ -621,6 +668,7 @@ func (m Model) discardRun() (tea.Model, tea.Cmd) {
 	}
 	m.run.State = store.RunDiscarded
 	_ = m.store.UpdateRun(m.run)
+	m.fireRunHook(launch.HookDiscard, m.runTask, m.run, "")
 	_ = m.moveTask(m.run.TaskID, store.StatusBacklog)
 	m.screen = screenBoard
 	m.reloadTasks()

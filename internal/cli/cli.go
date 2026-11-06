@@ -45,6 +45,10 @@ func Execute(s *store.Store, args []string) (any, error) {
 		return run(s, command, rest)
 	case "brain":
 		return brainCmd(s, command, rest)
+	case "plan":
+		return planCmd(s, command, rest)
+	case "profile":
+		return profileCmd(s, command, rest)
 	default:
 		return nil, input("unknown resource: " + resource)
 	}
@@ -169,6 +173,8 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 	repo := f.String("repo", "", "")
 	stack := f.String("stack", "", "")
 	desc := f.String("description", "", "")
+	account := f.String("account", "", "")
+	_ = f.String("profile", "", "")
 	if e := f.Parse(args); e != nil {
 		return nil, input(e.Error())
 	}
@@ -194,7 +200,11 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		p, err := s.Create(store.Project{Name: *name, Slug: *slug, RepoPath: *repo, Stack: *stack, Description: *desc, ClientID: cid})
+		prof, e := optionalID(f, "profile")
+		if e != nil {
+			return nil, e
+		}
+		p, err := s.Create(store.Project{Name: *name, Slug: *slug, RepoPath: *repo, Stack: *stack, Description: *desc, ClientID: cid, Account: *account, ProfileID: prof})
 		if err == nil {
 			rememberProject(s, p)
 		}
@@ -248,6 +258,12 @@ func patchProject(p *store.Project, f *flag.FlagSet) {
 	}
 	if seen(f, "client") {
 		p.ClientID, _ = optionalID(f, "client")
+	}
+	if seen(f, "account") {
+		p.Account = f.Lookup("account").Value.String()
+	}
+	if seen(f, "profile") {
+		p.ProfileID, _ = optionalID(f, "profile")
 	}
 }
 func seen(f *flag.FlagSet, name string) bool {

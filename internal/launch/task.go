@@ -54,6 +54,10 @@ func writeTASK(dir string, t store.Task, atts []store.Attachment, projectCtx str
 			fmt.Fprintf(&b, "- %s\n", line)
 		}
 	}
+	if prof := readProfile(dir); prof != "" {
+		b.WriteString("\n")
+		b.WriteString(prof)
+	}
 	writeAttachmentsSection(&b, dir, atts)
 	writeReferencedSection(&b, dir, t)
 	if strings.TrimSpace(projectCtx) != "" {

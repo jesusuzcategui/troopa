@@ -49,7 +49,21 @@ const HelpText = `Shortcuts — projects
   c                  clean worktree, keep the branch
   x                  request changes: send the task back to its agent
   B                  open this project's project.md
+  w                  plans of this project
   esc                back to projects
+
+  Plans (w on the board)
+  n / enter / d      new, open, delete a plan
+  a                  add steps (enter adds, esc ends)
+  K / J              move the step up / down
+  s / p              start or resume / pause the plan
+  t                  auto-advance: approve a step and the next one starts
+  g                  merge the finished plan (or push and open a PR)
+
+  Profiles and accounts
+  S → Profiles       who the agents work for (name, profession, instructions)
+  project form       ←/→ picks the account and the profile of the project
+  troopa login <account> <agent>   sign an agent in to an account
 
   Mouse
   click              select (list or card)
@@ -97,6 +111,8 @@ const HelpText = `Shortcuts — projects
   to create the folder with git init -b main, a README and an initial commit.
   Moving a task to ready asks before its agent starts.
   Agents keep working if you close Troopa; it picks them up when it opens.
+  Hooks ([hooks] in config.toml or troopa.toml) run on launch, review,
+  approve, merge… and troopa-<name> programs on the PATH run as troopa <name>.
   The second brain folder is chosen in the first-run setup and in Settings.
   troopa setup runs the first-run setup again.`
 
@@ -157,7 +173,21 @@ const helpTextES = `Atajos — proyectos
   c                  limpiar worktree, conservar la rama
   x                  pedir cambios: devolver la tarea a su agente
   B                  abrir el project.md de este proyecto
+  w                  planes de este proyecto
   esc                volver a proyectos
+
+  Planes (w en el tablero)
+  n / enter / d      nuevo, abrir, eliminar un plan
+  a                  agregar pasos (enter agrega, esc termina)
+  K / J              subir / bajar el paso
+  s / p              iniciar o retomar / pausar el plan
+  t                  avance automático: apruebas un paso y arranca el siguiente
+  g                  merge del plan terminado (o push y PR)
+
+  Perfiles y cuentas
+  S → Perfiles       para quién trabajan los agentes (nombre, profesión, instrucciones)
+  formulario         ←/→ elige la cuenta y el perfil del proyecto
+  troopa login <cuenta> <agente>   iniciar sesión de un agente en una cuenta
 
   Ratón
   clic               seleccionar (lista o tarjeta)
@@ -205,6 +235,8 @@ const helpTextES = `Atajos — proyectos
   crear la carpeta con git init -b main, README y commit inicial.
   Mover una tarea a ready pregunta antes de lanzar su agente.
   Los agentes siguen trabajando si cierras Troopa; los retoma al abrirlo.
+  Los hooks ([hooks] en config.toml o troopa.toml) corren al lanzar, revisar,
+  aprobar, mergear… y los programas troopa-<nombre> del PATH corren como troopa <nombre>.
   La carpeta del segundo cerebro se elige en el primer arranque y en Configuración.
   troopa setup repite la configuración inicial.`
 

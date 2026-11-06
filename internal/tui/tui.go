@@ -49,6 +49,8 @@ const (
 	screenCommentList
 	screenFilePicker
 	screenBrain
+	screenProfiles
+	screenPlans
 )
 
 type field int
@@ -60,6 +62,8 @@ const (
 	fieldStack
 	fieldDesc
 	fieldClient
+	fieldAccount
+	fieldProfile
 	fieldCount
 )
 
@@ -165,6 +169,8 @@ type Model struct {
 
 	setup    *setupState
 	settings *settingsState
+	profiles *profilesState
+	plans    *plansState
 	about    bool
 	version  string
 
@@ -422,6 +428,12 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.screen == screenFilePicker {
 		return m.updateFilePicker(msg)
 	}
+	if m.screen == screenProfiles && m.profiles != nil {
+		return m.updateProfilesKey(msg)
+	}
+	if m.screen == screenPlans && m.plans != nil {
+		return m.updatePlansKey(msg)
+	}
 	if m.screen == screenSettings && m.settings != nil && m.settings.editing {
 		return m.updateSettingsKey(msg)
 	}
@@ -599,19 +611,21 @@ func (m Model) updateFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.screen = screenHelp
 		return m, nil
 	case "enter":
-		if m.focus == fieldClient {
-			m.cycleFormClient(1)
+		if m.focus >= fieldClient {
+			m.cycleFormChoice(1)
 			return m, nil
 		}
 		return m.submitForm()
+	case "ctrl+s":
+		return m.submitForm()
 	case "left":
-		if m.focus == fieldClient {
-			m.cycleFormClient(-1)
+		if m.focus >= fieldClient {
+			m.cycleFormChoice(-1)
 			return m, nil
 		}
 	case "right":
-		if m.focus == fieldClient {
-			m.cycleFormClient(1)
+		if m.focus >= fieldClient {
+			m.cycleFormChoice(1)
 			return m, nil
 		}
 	case "tab", "down":
@@ -621,7 +635,7 @@ func (m Model) updateFormKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.focus = (m.focus - 1 + fieldCount) % fieldCount
 		return m, m.focusInput()
 	}
-	if m.focus == fieldClient {
+	if m.focus >= fieldClient {
 		return m, nil
 	}
 	return m.updateInputs(msg)
@@ -636,6 +650,8 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		Stack:       strings.TrimSpace(m.inputs[fieldStack].Value()),
 		Description: strings.TrimSpace(m.inputs[fieldDesc].Value()),
 		ClientID:    m.pending.ClientID,
+		Account:     m.pending.Account,
+		ProfileID:   m.pending.ProfileID,
 	}
 	if p.Name == "" {
 		m.err = i18n.T("Name is required")
@@ -705,7 +721,7 @@ func (m Model) focusInput() tea.Cmd {
 			m.inputs[i].Blur()
 		}
 	}
-	if m.focus == fieldClient {
+	if m.focus >= fieldClient {
 		return nil
 	}
 	return textinput.Blink
@@ -899,6 +915,10 @@ func (m Model) View() string {
 		body = m.viewFilePicker()
 	case screenBrain:
 		body = m.viewBrain()
+	case screenProfiles:
+		body = m.viewProfiles()
+	case screenPlans:
+		body = m.viewPlans()
 	default:
 		body = m.viewList()
 	}
@@ -1019,8 +1039,22 @@ func (m Model) viewForm() string {
 		marker = th.Border.Render("> ")
 	}
 	b.WriteString(marker + th.Label.Render(i18n.T("Client")) + " " + m.clientName(m.pending.ClientID) + "  ←/→\n")
+	for _, row := range []struct {
+		f     field
+		label string
+		value string
+	}{
+		{fieldAccount, i18n.T("Account"), m.accountLabel(m.pending.Account)},
+		{fieldProfile, i18n.T("Profile"), m.profileLabel(m.pending.ProfileID)},
+	} {
+		marker = "  "
+		if m.focus == row.f {
+			marker = th.Border.Render("> ")
+		}
+		b.WriteString(marker + th.Label.Render(row.label) + " " + row.value + "  ←/→\n")
+	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(i18n.T("enter save  tab field  ←/→ client  esc cancel  ? help")))
+	b.WriteString(th.Muted.Render(i18n.T("enter save  tab field  ←/→ client, account, profile  esc cancel  ? help")))
 	return th.App.Render(b.String())
 }
 

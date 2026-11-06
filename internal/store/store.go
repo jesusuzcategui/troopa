@@ -25,6 +25,8 @@ type Project struct {
 	Stack       string    `json:"stack"`
 	Description string    `json:"description"`
 	ClientID    int64     `json:"client_id"`
+	Account     string    `json:"account"`    // agent login (config [accounts.*]); "" = default
+	ProfileID   int64     `json:"profile_id"` // who the agents work for; 0 = default profile
 	Archived    bool      `json:"archived"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -111,7 +113,7 @@ func (s *Store) List(includeArchived bool) ([]Project, error) {
 }
 
 func (s *Store) ListFiltered(f ProjectFilter) ([]Project, error) {
-	q := `SELECT id, name, slug, repo_path, stack, description, client_id, archived, created_at, updated_at
+	q := `SELECT id, name, slug, repo_path, stack, description, client_id, account, profile_id, archived, created_at, updated_at
 		FROM projects WHERE 1=1`
 	args := []any{}
 	if !f.IncludeArchived {
@@ -139,7 +141,7 @@ func (s *Store) ListFiltered(f ProjectFilter) ([]Project, error) {
 }
 
 func (s *Store) Get(id int64) (Project, error) {
-	row := s.db.QueryRow(`SELECT id, name, slug, repo_path, stack, description, client_id, archived, created_at, updated_at
+	row := s.db.QueryRow(`SELECT id, name, slug, repo_path, stack, description, client_id, account, profile_id, archived, created_at, updated_at
 		FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
@@ -150,6 +152,7 @@ func (s *Store) Create(p Project) (Project, error) {
 	p.RepoPath = NormalizeRepoPath(p.RepoPath)
 	p.Stack = strings.TrimSpace(p.Stack)
 	p.Description = strings.TrimSpace(p.Description)
+	p.Account = strings.TrimSpace(p.Account)
 	if p.Name == "" {
 		return Project{}, fmt.Errorf("name is required")
 	}
@@ -163,9 +166,9 @@ func (s *Store) Create(p Project) (Project, error) {
 		return Project{}, fmt.Errorf("repo path is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	res, err := s.db.Exec(`INSERT INTO projects (name, slug, repo_path, stack, description, client_id, archived, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-		p.Name, p.Slug, p.RepoPath, p.Stack, p.Description, nullID(p.ClientID), now, now)
+	res, err := s.db.Exec(`INSERT INTO projects (name, slug, repo_path, stack, description, client_id, account, profile_id, archived, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+		p.Name, p.Slug, p.RepoPath, p.Stack, p.Description, nullID(p.ClientID), p.Account, p.ProfileID, now, now)
 	if err != nil {
 		return Project{}, wrapUnique(err)
 	}
@@ -192,9 +195,9 @@ func (s *Store) Update(p Project) error {
 		return fmt.Errorf("repo path is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	res, err := s.db.Exec(`UPDATE projects SET name = ?, slug = ?, repo_path = ?, stack = ?, description = ?, client_id = ?, updated_at = ?
+	res, err := s.db.Exec(`UPDATE projects SET name = ?, slug = ?, repo_path = ?, stack = ?, description = ?, client_id = ?, account = ?, profile_id = ?, updated_at = ?
 		WHERE id = ?`,
-		p.Name, p.Slug, p.RepoPath, p.Stack, p.Description, nullID(p.ClientID), now, p.ID)
+		p.Name, p.Slug, p.RepoPath, p.Stack, p.Description, nullID(p.ClientID), strings.TrimSpace(p.Account), p.ProfileID, now, p.ID)
 	if err != nil {
 		return wrapUnique(err)
 	}
@@ -243,7 +246,7 @@ func scanProject(row scanner) (Project, error) {
 	var archived int
 	var clientID sql.NullInt64
 	var created, updated string
-	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.RepoPath, &p.Stack, &p.Description, &clientID, &archived, &created, &updated); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.RepoPath, &p.Stack, &p.Description, &clientID, &p.Account, &p.ProfileID, &archived, &created, &updated); err != nil {
 		return Project{}, err
 	}
 	p.RepoPath = NormalizeRepoPath(p.RepoPath)

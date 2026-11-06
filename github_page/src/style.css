@@ -168,3 +168,33 @@ pre.cmd {
   .top-tools { margin-left: auto; }
   section { padding-block: 64px; }
 }
+
+/* Docs: sticky table of contents beside a single reading column. Both
+   languages are in the page; data-lang on <html> shows one. */
+:root[data-lang="en"] [data-only="es"],
+:root[data-lang="es"] [data-only="en"] { display: none; }
+.docs { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding-block: 48px 88px; }
+.toc { position: sticky; top: 84px; align-self: start; display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
+.toc-title { font: 600 12px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--peach); margin: 0 0 10px; }
+.toc a { color: var(--muted); text-decoration: none; padding: 4px 10px; border-left: 2px solid var(--line); }
+.toc a:hover { color: var(--strong); }
+.toc a.on { color: var(--strong); border-left-color: var(--accent); }
+.doc { max-width: 72ch; min-width: 0; }
+.doc h1 { font-size: clamp(32px, 4.4vw, 48px); margin-bottom: 14px; }
+.doc .lede { margin: 0 0 8px; color: var(--muted); }
+.doc section { padding-block: 36px 8px; scroll-margin-top: 72px; border-top: 1px solid var(--line); margin-top: 36px; }
+.doc section:first-of-type { border-top: 0; margin-top: 0; }
+.doc h2 { font-size: clamp(24px, 3vw, 30px); margin-bottom: 14px; }
+.doc p, .doc li { color: var(--fg); }
+.doc ol, .doc ul { padding-left: 22px; }
+.doc li { margin: 6px 0; }
+.doc pre.cmd { white-space: pre; }
+@media (max-width: 900px) {
+  .docs { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 28px 64px; }
+  .toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .toc-title { width: 100%; }
+  .toc a { border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; font-size: 14px; }
+  .toc a.on { border-color: var(--accent); }
+}
+.more { margin: 32px 0 0; }
+.doc p code, .doc li code { overflow-wrap: anywhere; }

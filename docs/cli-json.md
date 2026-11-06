@@ -26,8 +26,8 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
 # Projects
  troopa project list --json [--archived] [--client ID]
  troopa project show --json --id ID
- troopa project create --json --name NAME --repo PATH [--slug SLUG --stack STACK --description TEXT --client ID]
- troopa project update --json --id ID [--name NAME --repo PATH --slug SLUG --stack STACK --description TEXT --client ID]
+ troopa project create --json --name NAME --repo PATH [--slug SLUG --stack STACK --description TEXT --client ID --account NAME --profile ID]
+ troopa project update --json --id ID [--name NAME --repo PATH --slug SLUG --stack STACK --description TEXT --client ID --account NAME --profile ID]
  troopa project archive --json --id ID
 
 # Clients
@@ -56,9 +56,27 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
  troopa run merge --json --id ID
  troopa run clean --json --id ID
 
+# Plans
+ troopa plan list --json [--project ID]
+ troopa plan show --json --id ID
+ troopa plan create --json --project ID --title TITLE [--goal TEXT --agent AGENT --model MODEL --manual]
+ troopa plan add-step --json --id ID --title TITLE [--description TEXT --criteria TEXT --agent AGENT --model MODEL]
+ troopa plan delete --json --id ID
+
+# Profiles
+ troopa profile list --json
+ troopa profile show --json --id ID
+ troopa profile create --json [--name NAME --profession TEXT --about TEXT --instructions TEXT]
+ troopa profile update --json --id ID [same flags]
+ troopa profile delete --json --id ID
+
 # Second brain
  troopa brain sync --json
 ```
+
+`plan create` makes a draft; steps are tasks with `plan_id` and `plan_step`. Plans are started, reviewed step by step and merged from the TUI (`w` on the board). `--manual` turns off auto-advance. `plan delete` keeps the steps as ordinary tasks.
+
+`profile` stores who the agents work for; the project's profile (or `default_profile` in config.toml) is written into every TASK.md. `--account` on a project picks an `[accounts.NAME]` login from config.toml.
 
 `task launch` queues a task in `ready` by default (or moves it to an explicit status). The TUI and CLI observe the same SQLite-backed store. `approve` and `discard` update the latest run and task state through the shared store layer.
 

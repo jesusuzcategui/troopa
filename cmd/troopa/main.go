@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"runtime/debug"
 
 	"github.com/jesusuzcategui/troopa/internal/cli"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 	"github.com/jesusuzcategui/troopa/internal/tui"
 )
@@ -34,11 +36,14 @@ const usage = `Troopa: your AI agent troop in the terminal.
 Usage:
   troopa                              open the interactive TUI
   troopa setup                        run the first-run setup again
+  troopa login <account> <agent>      sign an agent in to an account
+  troopa extensions                   list troopa-* extensions on the PATH
+  troopa <extension> [args]           run troopa-<extension>
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
 
-Resources: project, client, task, run, brain.
+Resources: project, client, task, run, plan, profile, brain.
 Examples:
   troopa project list --json
   troopa task list --json --project 1
@@ -78,6 +83,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "troopa %s\n", buildVersion())
 			return 0
 		}
+	}
+	switch args[0] {
+	case "login":
+		return runLogin(args[1:], stdout, stderr)
+	case "extensions":
+		exts := cli.ListExtensions()
+		if len(exts) == 0 {
+			fmt.Fprintln(stdout, "No extensions. Put a program named troopa-<name> on your PATH.")
+		}
+		for _, e := range exts {
+			fmt.Fprintln(stdout, e)
+		}
+		return 0
+	}
+	if path, ok := cli.FindExtension(args[0]); ok {
+		return runExtension(path, args[1:], stderr)
 	}
 	if err := cli.ValidateJSON(args); err != nil {
 		writeError(stdout, "invalid_argument", err.Error())
@@ -127,6 +148,64 @@ func runTUI(forceSetup bool) error {
 	i18n.Apply(cfg.Language)
 	return tui.Run(s, cfg, configPath, tui.Options{Version: buildVersion(), ForceSetup: forceSetup})
 }
+
+// runLogin opens an agent CLI with the logins of an account
+// ([accounts.<name>] in config.toml) so the person signs in once.
+func runLogin(args []string, stdout, stderr io.Writer) int {
+	if len(args) != 2 {
+		fmt.Fprintln(stderr, "usage: troopa login <account> <agent>")
+		return 2
+	}
+	_, configPath, _, err := config.Paths()
+	if err != nil {
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	cmd, err := launch.LoginCommand(cfg.Launch, configPath, args[0], args[1])
+	if err != nil {
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "Opening %s with the %q account. Sign in, then exit the agent.\n", args[1], args[0])
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return ee.ExitCode()
+		}
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// runExtension runs troopa-<name> with the paths Troopa uses.
+func runExtension(path string, args []string, stderr io.Writer) int {
+	dataDir, configPath, dbPath, _ := config.Paths()
+	self, _ := os.Executable()
+	cmd := exec.Command(path, args...)
+	cmd.Env = append(os.Environ(),
+		"TROOPA_BIN="+self,
+		"TROOPA_VERSION="+buildVersion(),
+		"TROOPA_CONFIG="+configPath,
+		"TROOPA_DATA="+dataDir,
+		"TROOPA_DB="+dbPath,
+	)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return ee.ExitCode()
+		}
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func writeJSON(w io.Writer, v any) { _ = json.NewEncoder(w).Encode(v) }
 func writeError(w io.Writer, code, message string) {
 	var r jsonFailure

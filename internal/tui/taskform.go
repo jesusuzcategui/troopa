@@ -242,6 +242,7 @@ func (m Model) saveTaskForm() (tea.Model, tea.Cmd) {
 		if err == nil {
 			t = created
 			m.rememberTask(t)
+			m.fireTaskHook(launch.HookTaskCreated, t)
 			m.status = i18n.T("Created: ") + created.Title
 		}
 	} else {

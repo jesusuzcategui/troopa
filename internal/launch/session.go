@@ -20,14 +20,29 @@ type Session struct {
 	LogPath  string
 }
 
+// PrepareOpts tunes a launch: Base is the branch to start from (a plan step
+// starts from the step before it; "" means the checked-out branch) and
+// Profile is who the agent works for.
+type PrepareOpts struct {
+	Base    string
+	Profile *store.Profile
+}
+
 func Prepare(cfg config.Launch, project store.Project, task store.Task) (Session, error) {
+	return PrepareWith(cfg, project, task, PrepareOpts{})
+}
+
+func PrepareWith(cfg config.Launch, project store.Project, task store.Task, opts PrepareOpts) (Session, error) {
 	repo, err := RepoRoot(project.RepoPath)
 	if err != nil {
 		return Session{}, err
 	}
-	base, err := HeadBranch(repo)
-	if err != nil {
-		return Session{}, err
+	base := strings.TrimSpace(opts.Base)
+	if base == "" {
+		base, err = HeadBranch(repo)
+		if err != nil {
+			return Session{}, err
+		}
 	}
 	branch := UniqueBranch(repo, BranchName(cfg.BranchPrefix, task.Type, task.Title))
 	if IsProtected(branch) {
@@ -41,6 +56,10 @@ func Prepare(cfg config.Launch, project store.Project, task store.Task) (Session
 		return Session{}, err
 	}
 	if err := ExcludeWorkFiles(dest); err != nil {
+		_ = RemoveWorktree(repo, dest, branch)
+		return Session{}, err
+	}
+	if err := WriteProfile(dest, opts.Profile); err != nil {
 		_ = RemoveWorktree(repo, dest, branch)
 		return Session{}, err
 	}

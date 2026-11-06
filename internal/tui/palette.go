@@ -30,6 +30,8 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "edit-project", Title: i18n.T("Edit project"), Keys: "e"},
 		{ID: "archive-project", Title: i18n.T("Archive project"), Keys: "a"},
 		{ID: "open-board", Title: i18n.T("Open board"), Keys: "enter"},
+		{ID: "plans", Title: i18n.T("Plans"), Hint: i18n.T("steps that run one after the other"), Keys: "w"},
+		{ID: "profiles", Title: i18n.T("Profiles"), Hint: i18n.T("who the agents work for")},
 		{ID: "brain", Title: i18n.T("Open second brain"), Hint: i18n.T("notes tree and markdown"), Keys: "B"},
 		{ID: "brain-project", Title: i18n.T("Open project.md"), Hint: i18n.T("this project's note")},
 		{ID: "toggle-archived", Title: i18n.T("Show or hide archived"), Keys: "tab"},
@@ -153,6 +155,17 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "settings":
 		m.openSettings(from)
+		return m, nil
+	case "plans":
+		if m.boardProject.ID == 0 {
+			m.screen = from
+			m.status = i18n.T("Open a project board to see its plans")
+			return m, nil
+		}
+		m.openPlans()
+		return m, nil
+	case "profiles":
+		m.openProfiles(from)
 		return m, nil
 	case "request-changes":
 		if from == screenReview {

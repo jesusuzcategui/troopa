@@ -1,0 +1,30 @@
+CREATE TABLE profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    profession TEXT NOT NULL DEFAULT '',
+    about TEXT NOT NULL DEFAULT '',
+    instructions TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+ALTER TABLE projects ADD COLUMN account TEXT NOT NULL DEFAULT '';
+ALTER TABLE projects ADD COLUMN profile_id INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    goal TEXT NOT NULL DEFAULT '',
+    agent TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'draft',
+    auto INTEGER NOT NULL DEFAULT 1,
+    base TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+ALTER TABLE tasks ADD COLUMN plan_id INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE tasks ADD COLUMN plan_step INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX idx_tasks_plan ON tasks(plan_id, plan_step);
