@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -409,137 +410,33 @@ func (m Model) savePlan() (tea.Model, tea.Cmd) {
 // startPlan starts (or resumes) a plan: it launches the first step that is
 // not done.
 func (m Model) startPlan(id int64) (tea.Model, tea.Cmd) {
-	plan, err := m.store.GetPlan(id)
+	res, err := m.eng().StartPlan(id)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	switch plan.State {
-	case store.PlanDone, store.PlanMerged, store.PlanCancelled:
-		m.status = i18n.T("This plan is finished")
-		return m, nil
-	}
-	project := m.taskProjectByID(plan.ProjectID)
-	if plan.Base == "" {
-		repo, err := launch.RepoRoot(project.RepoPath)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		base, err := launch.HeadBranch(repo)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		plan.Base = base
-	}
-	wasDraft := plan.State == store.PlanDraft
-	plan.State = store.PlanRunning
-	if err := m.store.UpdatePlan(plan); err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	if wasDraft {
-		m.fireHook(launch.HookEvent{Event: launch.HookPlanStart, PlanID: plan.ID, Plan: plan.Title}, project)
-	}
-	return m.advancePlan(plan.ID)
+	return m.applyEnginePlan(res)
 }
 
-// markPlanStarted turns a draft plan into a running one when one of its
-// steps is launched from the board, so approving it moves the plan on.
-func (m Model) markPlanStarted(t store.Task, base string, project store.Project) {
-	if t.PlanID == 0 {
-		return
-	}
-	plan, err := m.store.GetPlan(t.PlanID)
-	if err != nil || plan.State != store.PlanDraft {
-		return
-	}
-	if plan.Base == "" {
-		plan.Base = base
-	}
-	plan.State = store.PlanRunning
-	if m.store.UpdatePlan(plan) == nil {
-		m.fireHook(launch.HookEvent{Event: launch.HookPlanStart, PlanID: plan.ID, Plan: plan.Title}, project)
-	}
-}
-
-// advancePlan launches the next step of a running plan, or marks it done.
 func (m Model) advancePlan(id int64) (tea.Model, tea.Cmd) {
-	plan, err := m.store.GetPlan(id)
-	if err != nil || plan.State != store.PlanRunning {
-		return m, nil
-	}
-	next, ok, err := m.store.NextPlanStep(id)
+	res, err := m.eng().AdvancePlan(id)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	project := m.taskProjectByID(plan.ProjectID)
-	if !ok {
-		plan.State = store.PlanDone
-		_ = m.store.UpdatePlan(plan)
-		m.fireHook(launch.HookEvent{Event: launch.HookPlanDone, PlanID: plan.ID, Plan: plan.Title}, project)
-		m.status = i18n.T("Plan %s is done. Open it with w and press g to merge it.", plan.Title)
-		if m.cfg.Launch.Notify {
-			launch.Notify("Troopa: "+i18n.T("plan done"), plan.Title)
-		}
-		if m.plans != nil {
-			m.loadPlan(plan.ID)
-		}
-		return m, nil
-	}
-	switch next.Status {
-	case store.StatusInProgress, store.StatusReview, store.StatusBlocked, store.StatusPairPaused:
-		m.status = i18n.T("Step %d (%s) is %s: finish it to continue the plan", next.PlanStep, next.Title, next.Status)
-		return m, nil
-	}
-	if next.Agent == "" || next.Agent == store.AgentMe {
-		m.status = i18n.T("Step %d (%s) has no agent: give it one with A, or do it yourself and move it to done", next.PlanStep, next.Title)
-		return m, nil
-	}
-	if next.Mode != store.ModeYolo {
-		next.Mode = store.ModeYolo
-		_ = m.store.UpdateTask(next)
-	}
-	if m.boardProject.ID != project.ID {
-		m.openBoard(project)
-	}
-	m.plans = nil
-	return m.launchAgent(next)
+	return m.applyEnginePlan(res)
 }
 
-// planStepBase is the branch a plan step starts from: the approved branch of
-// the step before it, or the branch the plan started from.
-func (m Model) planStepBase(t store.Task) (string, error) {
-	if t.PlanID == 0 {
-		return "", nil
+func (m Model) applyEnginePlan(res engine.Result) (tea.Model, tea.Cmd) {
+	if res.Watch {
+		return m.applyEngineLaunch(res)
 	}
-	plan, err := m.store.GetPlan(t.PlanID)
-	if err != nil {
-		return "", nil
+	m.status = res.Message
+	m.err = ""
+	if m.plans != nil && res.Plan.ID != 0 {
+		m.loadPlan(res.Plan.ID)
 	}
-	steps, err := m.store.PlanSteps(t.PlanID)
-	if err != nil {
-		return "", err
-	}
-	base := plan.Base
-	for _, s := range steps {
-		if s.ID == t.ID {
-			break
-		}
-		run, err := m.store.LatestRun(s.ID)
-		if err != nil || (run.State != store.RunApproved && run.State != store.RunMerged) {
-			if s.Status == store.StatusDone {
-				continue // done by hand, nothing to build on
-			}
-			return "", fmt.Errorf("%s", i18n.T("Step %d (%s) is not approved yet", s.PlanStep, s.Title))
-		}
-		if run.Branch != "" {
-			base = run.Branch
-		}
-	}
-	return base, nil
+	return m, nil
 }
 
 // planLastBranch is the branch that holds the whole plan, and its run.

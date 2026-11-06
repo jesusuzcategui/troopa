@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -300,80 +301,71 @@ func (m Model) viewPair() string {
 }
 
 func (m Model) launchAgent(t store.Task) (tea.Model, tea.Cmd) {
-	if _, err := m.store.ActiveRun(); err == nil {
-		m.err = i18n.T("An agent is already running")
-		return m, nil
-	}
-	if m.cfg.Launch.Agents == nil {
-		m.err = i18n.T("No agents in config.toml")
-		return m, nil
-	}
-	project := m.taskProject(t)
-	lc, err := m.launchCfg(project)
+	res, err := m.eng().Launch(t)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	base, err := m.planStepBase(t)
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
+	if res.Watch {
+		return m.applyEngineLaunch(res)
 	}
-	sess, err := launch.PrepareWith(lc, project, t, launch.PrepareOpts{Base: base, Profile: m.projectProfile(project)})
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
+	return m.applyEngineFinish(res, true)
+}
+
+func (m Model) applyEngineLaunch(res engine.Result) (tea.Model, tea.Cmd) {
+	if res.Task.ProjectID != 0 && m.boardProject.ID != res.Task.ProjectID {
+		if p, err := m.store.Get(res.Task.ProjectID); err == nil {
+			m.openBoard(p)
+		}
 	}
-	m.markPlanStarted(t, sess.Base, project)
-	if err := m.stageTask(sess.Worktree, t); err != nil {
-		_ = launch.Discard(sess)
-		m.err = err.Error()
-		return m, nil
-	}
-	cmd, err := launch.AgentCommand(lc, t.Agent, t.Model, sess.Worktree)
-	if err != nil {
-		_ = launch.Discard(sess)
-		m.err = err.Error()
-		return m, nil
-	}
-	run, err := m.store.CreateRun(store.Run{
-		TaskID:    t.ID,
-		ProjectID: t.ProjectID,
-		Worktree:  sess.Worktree,
-		Branch:    sess.Branch,
-		Base:      sess.Base,
-		LogPath:   sess.LogPath,
-		State:     store.RunRunning,
-		Agent:     t.Agent,
-	})
-	if err != nil {
-		_ = launch.Discard(sess)
-		m.err = err.Error()
-		return m, nil
-	}
-	m.run = run
-	if err := m.beginRound(store.RoundLaunch, ""); err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	if err := m.moveTask(t.ID, store.StatusInProgress); err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	m.runSess = sess
-	m.runTask = t
+	m.plans = nil
+	m.run = res.Run
+	m.runTask = res.Task
+	m.runSess = res.Session
 	m.logOffset = 0
 	m.screen = screenLog
-	m.status = i18n.T("Agent ") + t.Agent + " · " + sess.Branch
+	m.status = res.Message
 	m.err = ""
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusInProgress)
-	watch, err := startAgent(cmd, run)
-	if err != nil {
-		return m.finishAgent(agentDoneMsg{runID: run.ID, err: err})
+	return m, tea.Batch(watchAgent(res.Run.ID, res.Run.Worktree), tickLog())
+}
+
+func (m Model) applyEngineFinish(res engine.Result, foreground bool) (tea.Model, tea.Cmd) {
+	if res.Watch {
+		if foreground {
+			return m.applyEngineLaunch(res)
+		}
+		m.status = res.Message
+		m.err = ""
+		if m.screen == screenBoard {
+			m.reloadTasks()
+		}
+		return m, tea.Batch(watchAgent(res.Run.ID, res.Run.Worktree), tickLog())
 	}
-	m.fireRunHook(launch.HookLaunch, t, run, "")
-	return m, tea.Batch(watch, tickLog())
+	if !foreground {
+		if m.screen == screenBoard {
+			m.reloadTasks()
+		}
+		m.err = ""
+		m.status = fmt.Sprintf("%s · %s", res.Task.Title, res.Run.State)
+		return m, nil
+	}
+	m.run = res.Run
+	m.runTask = res.Task
+	m.runSess = res.Session
+	m.loadRounds()
+	m.diffFiles, _ = launch.WorktreeDiff(res.Session.Worktree, res.Run.Base)
+	m.diffIndex = 0
+	m.diffOffset = 0
+	m.diffCursor = 0
+	m.loadComments()
+	m.reloadTasks()
+	m.colIndex = indexOfStatus(res.Run.State)
+	m.screen = screenReview
+	m.status = res.Message
+	m.err = ""
+	return m, nil
 }
 
 func tickLog() tea.Cmd {
@@ -384,79 +376,15 @@ func (m Model) finishAgent(msg agentDoneMsg) (tea.Model, tea.Cmd) {
 	if m.run.ID != msg.runID {
 		return m.finishBackgroundRun(msg)
 	}
-	// Finalize once: a run already out of "running" was handled before.
-	if fresh, err := m.store.GetRun(msg.runID); err != nil || fresh.State != store.RunRunning {
+	res, err := m.eng().Finish(msg.runID, msg.err)
+	if err != nil {
+		m.err = err.Error()
 		return m, nil
 	}
-	run := m.run
-	sess := m.runSess
-	if sess.Worktree == "" {
-		repo := m.boardProject.RepoPath
-		if r, err := launch.RepoRoot(run.Worktree); err == nil {
-			repo = r
-		}
-		sess = launch.Session{Worktree: run.Worktree, Branch: run.Branch, Base: run.Base, LogPath: run.LogPath, Repo: repo}
-		m.runSess = sess
+	if !res.Won {
+		return m, nil
 	}
-	summary := launch.ReadSummary(sess.Worktree)
-	if summary == "" {
-		if raw, err := os.ReadFile(run.LogPath); err == nil {
-			summary = strings.TrimSpace(string(raw))
-			if len(summary) > 2000 {
-				summary = summary[len(summary)-2000:]
-			}
-		}
-	}
-	repo := sess.Repo
-	if repo == "" {
-		repo = m.boardProject.RepoPath
-	}
-	checks := launch.RunChecks(sess.Worktree, launch.LoadProjectChecks(repo))
-	raw, _ := json.Marshal(checks)
-	run.Summary = summary
-	run.Checks = string(raw)
-	ok := msg.err == nil && launch.ChecksOK(checks)
-	dest := store.StatusReview
-	run.State = store.RunReview
-	if !ok {
-		dest = store.StatusBlocked
-		run.State = store.RunBlocked
-		if msg.err != nil {
-			run.Note = msg.err.Error()
-		}
-	}
-	price := m.cfg.Launch.PriceFor(m.runTask.Agent)
-	applyRunMetrics(&run, run.LogPath, m.runTask.Agent, price)
-	m.run = run
-	m.closeOpenRound(run.State, summary, string(raw), run.LogPath, price)
-	_ = m.store.UpdateRun(run)
-	_ = m.moveTask(run.TaskID, dest)
-	m.loadRounds()
-	m.diffFiles, _ = launch.WorktreeDiff(sess.Worktree, run.Base)
-	m.diffIndex = 0
-	m.diffOffset = 0
-	m.diffCursor = 0
-	m.loadComments()
-	m.reloadTasks()
-	m.colIndex = indexOfStatus(dest)
-	m.screen = screenReview
-	m.status = dest
-	if dest == store.StatusReview {
-		m.fireRunHook(launch.HookReview, m.runTask, run, summary)
-	} else {
-		m.fireRunHook(launch.HookBlocked, m.runTask, run, run.Note)
-	}
-	if dest == store.StatusReview && m.runTask.PlanID != 0 {
-		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && plan.AutoApprove {
-			// The agent finished and every check passed: approve and go on.
-			return m.approveRun()
-		}
-	}
-	if m.cfg.Launch.Notify {
-		title := "Troopa: " + dest
-		launch.Notify(title, m.runTask.Title)
-	}
-	return m, nil
+	return m.applyEngineFinish(res, true)
 }
 
 func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
@@ -504,45 +432,33 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) approveRun() (tea.Model, tea.Cmd) {
-	if m.run.State != store.RunReview {
-		m.err = i18n.T("Only a run in review can be approved")
-		return m, nil
-	}
-	sess := m.runSess
-	var msg string
-	var err error
-	if m.runTask.PlanID != 0 {
-		// A plan step is committed on its branch so the next step builds on
-		// it; the plan is pushed or merged once, at the end.
-		err = launch.CommitAll(sess.Worktree, "troopa: "+m.runTask.Title)
-		msg = i18n.T("Step approved and committed on %s", sess.Branch)
-	} else {
-		msg, err = launch.Approve(sess, m.runTask, m.run.Summary)
-	}
+	res, err := m.eng().Approve(m.run.ID)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	m.run.State = store.RunApproved
-	m.run.Note = msg
-	_ = m.store.UpdateRun(m.run)
-	_ = m.moveTask(m.run.TaskID, store.StatusDone)
-	m.rememberApprove(m.boardProject, m.runTask, m.run)
-	m.fireRunHook(launch.HookApprove, m.runTask, m.run, msg)
+	if !res.Won {
+		return m, nil
+	}
+	return m.applyEngineApprove(res)
+}
+
+func (m Model) applyEngineApprove(res engine.Result) (tea.Model, tea.Cmd) {
+	if res.Watch {
+		return m.applyEngineLaunch(res)
+	}
+	m.run = res.Run
+	m.runTask = res.Task
+	m.runSess = res.Session
 	m.screen = screenBoard
 	m.reloadTasks()
-	m.colIndex = indexOfStatus(store.StatusDone)
-	m.status = msg
+	if res.Run.State == store.RunApproved || res.Run.ID == 0 {
+		m.colIndex = indexOfStatus(store.StatusDone)
+	}
+	m.status = res.Message
 	m.err = ""
-	if m.runTask.PlanID != 0 {
-		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && (plan.Auto || plan.AutoApprove) {
-			return m.advancePlan(plan.ID)
-		} else if err == nil && plan.State == store.PlanRunning {
-			if _, more, _ := m.store.NextPlanStep(plan.ID); !more {
-				return m.advancePlan(plan.ID)
-			}
-			m.status = msg + " · " + i18n.T("open the plan with w and press s for the next step")
-		}
+	if m.plans != nil && res.Plan.ID != 0 {
+		m.loadPlan(res.Plan.ID)
 	}
 	return m, nil
 }
@@ -669,18 +585,21 @@ func (m Model) discardWouldLoseCommits() bool {
 }
 
 func (m Model) discardRun() (tea.Model, tea.Cmd) {
-	if err := launch.Discard(m.runSess); err != nil {
+	res, err := m.eng().Discard(m.run.ID)
+	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	m.run.State = store.RunDiscarded
-	_ = m.store.UpdateRun(m.run)
-	m.fireRunHook(launch.HookDiscard, m.runTask, m.run, "")
-	_ = m.moveTask(m.run.TaskID, store.StatusBacklog)
+	if !res.Won {
+		return m, nil
+	}
+	m.run = res.Run
+	m.runTask = res.Task
+	m.runSess = res.Session
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusBacklog)
-	m.status = i18n.T("Discarded: worktree and branch removed")
+	m.status = res.Message
 	m.err = ""
 	return m, nil
 }

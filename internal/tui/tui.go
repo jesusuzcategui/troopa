@@ -14,6 +14,7 @@ import (
 
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/gitinit"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
@@ -334,7 +335,11 @@ func (m Model) Init() tea.Cmd {
 	if m.screen == screenWelcome {
 		first = tea.Tick(1800*time.Millisecond, func(time.Time) tea.Msg { return splashDoneMsg{} })
 	}
-	return tea.Batch(append([]tea.Cmd{first}, reconcileRuns(m.store)...)...)
+	return tea.Batch(append([]tea.Cmd{first}, reconcileRuns(m.eng())...)...)
+}
+
+func (m Model) eng() *engine.Engine {
+	return engine.New(m.store, m.cfg, m.configPath)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

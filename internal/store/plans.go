@@ -106,14 +106,33 @@ func (s *Store) CreatePlan(p Plan) (Plan, error) {
 }
 
 func (s *Store) UpdatePlan(p Plan) error {
+	_, err := s.UpdatePlanIfState(p, "")
+	return err
+}
+
+// UpdatePlanIfState writes p only when the row is still in from (empty from
+// matches any state). It reports whether this caller won the update.
+func (s *Store) UpdatePlanIfState(p Plan, from string) (bool, error) {
 	p, err := normalizePlan(p)
 	if err != nil {
-		return err
+		return false, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = s.db.Exec(`UPDATE plans SET title = ?, goal = ?, agent = ?, model = ?, state = ?, auto = ?, auto_approve = ?, base = ?, updated_at = ? WHERE id = ?`,
-		p.Title, p.Goal, p.Agent, p.Model, p.State, boolInt(p.Auto), boolInt(p.AutoApprove), p.Base, now, p.ID)
-	return err
+	q := `UPDATE plans SET title = ?, goal = ?, agent = ?, model = ?, state = ?, auto = ?, auto_approve = ?, base = ?, updated_at = ? WHERE id = ?`
+	args := []any{p.Title, p.Goal, p.Agent, p.Model, p.State, boolInt(p.Auto), boolInt(p.AutoApprove), p.Base, now, p.ID}
+	if from != "" {
+		q += ` AND state = ?`
+		args = append(args, from)
+	}
+	res, err := s.db.Exec(q, args...)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }
 
 // DeletePlan removes the plan; its steps stay as ordinary tasks.

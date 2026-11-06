@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -87,84 +86,24 @@ func (m Model) updateChangesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // again in the same worktree, keeping what it already did.
 func (m Model) sendChanges(feedback string) (tea.Model, tea.Cmd) {
 	m.loadComments()
-	pending := m.pendingComments()
-	body := launch.FormatCommentFeedback(feedback, pending)
-	if body == "" {
-		m.err = i18n.T("Write what should change")
-		return m, nil
-	}
-	if _, err := m.store.ActiveRun(); err == nil {
-		m.err = i18n.T("An agent is already running")
-		return m, nil
-	}
-	t := m.runTask
-	if !launch.AgentInstalled(m.cfg.Launch, t.Agent) {
-		m.err = i18n.T("%s is not installed. Install it or pick another agent with A.", launch.AgentName(t.Agent))
-		return m, nil
-	}
-	wt := m.runSess.Worktree
-	round, err := launch.RequestChanges(wt, body)
+	res, err := m.eng().RequestChanges(m.run.ID, feedback, m.pendingComments())
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	if err := m.stageTask(wt, t); err != nil {
-		m.err = err.Error()
-		return m, nil
+	m.loadComments()
+	if res.Pair {
+		m.run = res.Run
+		m.runTask = res.Task
+		m.runSess = res.Session
+		m.status = res.Message
+		m.err = ""
+		return m.startPair(res.Task)
 	}
-	note := i18n.T("Changes requested (round %d)", round)
-	if err := m.beginRound(store.RoundChanges, strings.TrimSpace(feedback)); err != nil {
-		m.err = err.Error()
-		return m, nil
+	if res.Watch {
+		return m.applyEngineLaunch(res)
 	}
-	if r, ok := m.selectedRound(); ok {
-		if err := m.store.ResolvePendingComments(m.run.ID, r.Number); err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		m.loadComments()
-	}
-	if t.Mode == store.ModePair {
-		m.run.Note = note
-		_ = m.store.UpdateRun(m.run)
-		m.status = note
-		return m.startPair(t)
-	}
-	lc, err := m.launchCfg(m.taskProject(t))
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	cmd, err := launch.AgentCommandPrompt(lc, t.Agent, t.Model, wt, launch.ChangesPrompt(wt, round))
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	if f, err := os.OpenFile(m.run.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-		fmt.Fprintf(f, "\n\n── Troopa · %s ──\n%s\n\n", note, body)
-		f.Close()
-	}
-	m.run.State = store.RunRunning
-	m.run.Note = note
-	if err := m.store.UpdateRun(m.run); err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	if err := m.moveTask(t.ID, store.StatusInProgress); err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	m.logOffset = 0
-	m.screen = screenLog
-	m.err = ""
-	m.status = note + " · " + launch.AgentName(t.Agent)
-	m.reloadTasks()
-	m.colIndex = indexOfStatus(store.StatusInProgress)
-	watch, err := startAgent(cmd, m.run)
-	if err != nil {
-		return m.finishAgent(agentDoneMsg{runID: m.run.ID, err: err})
-	}
-	return m, tea.Batch(watch, tickLog())
+	return m.applyEngineFinish(res, true)
 }
 
 func (m Model) viewChanges() string {

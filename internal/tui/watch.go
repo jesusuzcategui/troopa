@@ -3,14 +3,13 @@ package tui
 import (
 	"errors"
 	"fmt"
-	"os/exec"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
-	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
 // Agents run detached (see launch.StartAgent), so they keep working when
@@ -18,15 +17,6 @@ import (
 // agent exits, whether or not its screen is open.
 
 const watchEvery = time.Second
-
-// startAgent starts the agent of a run in the background and returns the
-// command that watches it.
-func startAgent(cmd *exec.Cmd, run store.Run) (tea.Cmd, error) {
-	if err := launch.StartAgent(cmd, run.Worktree, run.LogPath); err != nil {
-		return nil, err
-	}
-	return watchAgent(run.ID, run.Worktree), nil
-}
 
 // watchAgent checks the agent every second until it stops.
 func watchAgent(runID int64, worktree string) tea.Cmd {
@@ -60,23 +50,18 @@ func errAgentLost() string {
 // reconcileRuns looks at the runs left running from an earlier session:
 // agents still working get a watcher, the ones that finished or died are
 // finalized right away.
-func reconcileRuns(s *store.Store) []tea.Cmd {
-	runs, err := s.ListRuns(store.RunRunning)
+func reconcileRuns(e *engine.Engine) []tea.Cmd {
+	if e == nil {
+		return nil
+	}
+	rec, err := e.Reconcile()
 	if err != nil {
 		return nil
 	}
 	var cmds []tea.Cmd
-	for _, run := range runs {
-		t, err := s.GetTask(run.TaskID)
-		if err != nil || t.Mode == store.ModePair {
-			continue
-		}
+	for _, run := range rec.Alive {
 		run := run
-		if state, _ := launch.AgentStatus(run.Worktree); state == launch.AgentRunning {
-			cmds = append(cmds, watchAgent(run.ID, run.Worktree))
-			continue
-		}
-		cmds = append(cmds, func() tea.Msg { return agentStatusMsg(run.ID, run.Worktree) })
+		cmds = append(cmds, watchAgent(run.ID, run.Worktree))
 	}
 	return cmds
 }
@@ -84,33 +69,9 @@ func reconcileRuns(s *store.Store) []tea.Cmd {
 // finishBackgroundRun finalizes a run whose screen is not open and leaves the
 // current screen as it is.
 func (m Model) finishBackgroundRun(msg agentDoneMsg) (tea.Model, tea.Cmd) {
-	run, err := m.store.GetRun(msg.runID)
-	if err != nil {
+	res, err := m.eng().Finish(msg.runID, msg.err)
+	if err != nil || !res.Won {
 		return m, nil
 	}
-	t, err := m.store.GetTask(run.TaskID)
-	if err != nil {
-		return m, nil
-	}
-	c := m
-	c.bindRun(t, run)
-	if r, err := launch.RepoFromWorktree(run.Worktree); err == nil {
-		c.runSess.Repo = r
-	}
-	res, cmd := c.finishAgent(msg)
-	done := res.(Model)
-	if m.screen == screenBoard {
-		m.reloadTasks()
-	}
-	m.err = ""
-	m.status = fmt.Sprintf("%s · %s", t.Title, done.run.State)
-	if done.run.ID != run.ID {
-		// Auto-approve started the next plan step: keep watching it.
-		m.status = done.status
-		if m.screen == screenBoard {
-			m.reloadTasks()
-		}
-		return m, cmd
-	}
-	return m, nil
+	return m.applyEngineFinish(res, false)
 }

@@ -157,24 +157,41 @@ func (s *Store) ActiveRun() (Run, error) {
 }
 
 func (s *Store) UpdateRun(r Run) error {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	res, err := s.db.Exec(`UPDATE runs SET worktree = ?, branch = ?, base = ?, log_path = ?, summary = ?, checks = ?, state = ?, note = ?, agent = ?,
-		duration_ms = ?, tokens_in = ?, tokens_out = ?, tokens_cache = ?, tokens_context = ?, cost_usd = ?, updated_at = ?
-		WHERE id = ?`,
-		r.Worktree, r.Branch, r.Base, r.LogPath, r.Summary, r.Checks, r.State, r.Note, r.Agent,
-		jsonInt(r.DurationMS), jsonInt(r.TokensIn), jsonInt(r.TokensOut), jsonInt(r.TokensCache), jsonInt(r.TokensContext),
-		nullFloat(r.CostUSD), now, r.ID)
+	ok, err := s.UpdateRunIfState(r, "")
 	if err != nil {
 		return err
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n == 0 {
+	if !ok {
 		return fmt.Errorf("run not found")
 	}
 	return nil
+}
+
+// UpdateRunIfState writes r only when the row is still in from (empty from
+// matches any state). It reports whether this caller won the update.
+func (s *Store) UpdateRunIfState(r Run, from string) (bool, error) {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	q := `UPDATE runs SET worktree = ?, branch = ?, base = ?, log_path = ?, summary = ?, checks = ?, state = ?, note = ?, agent = ?,
+		duration_ms = ?, tokens_in = ?, tokens_out = ?, tokens_cache = ?, tokens_context = ?, cost_usd = ?, updated_at = ?
+		WHERE id = ?`
+	args := []any{
+		r.Worktree, r.Branch, r.Base, r.LogPath, r.Summary, r.Checks, r.State, r.Note, r.Agent,
+		jsonInt(r.DurationMS), jsonInt(r.TokensIn), jsonInt(r.TokensOut), jsonInt(r.TokensCache), jsonInt(r.TokensContext),
+		nullFloat(r.CostUSD), now, r.ID,
+	}
+	if from != "" {
+		q += ` AND state = ?`
+		args = append(args, from)
+	}
+	res, err := s.db.Exec(q, args...)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
 }
 
 func (s *Store) MetricsByAgent() ([]MetricRow, error) {

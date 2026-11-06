@@ -40,6 +40,41 @@ func TestCreateAndUpdateRun(t *testing.T) {
 	}
 }
 
+func TestUpdateRunIfState(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	p := testProject(t, s)
+	task, err := s.CreateTask(Task{ProjectID: p.ID, Title: "Go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.CreateRun(Run{TaskID: task.ID, ProjectID: p.ID, State: RunRunning})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.State = RunReview
+	r.Summary = "one"
+	ok, err := s.UpdateRunIfState(r, RunRunning)
+	if err != nil || !ok {
+		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+	r.Summary = "two"
+	ok, err = s.UpdateRunIfState(r, RunRunning)
+	if err != nil || ok {
+		t.Fatalf("second write must lose: ok=%v err=%v", ok, err)
+	}
+	got, err := s.GetRun(r.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != RunReview || got.Summary != "one" {
+		t.Fatalf("%+v", got)
+	}
+}
+
 func TestRunMetricsAndAggregation(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "db"))
 	if err != nil {

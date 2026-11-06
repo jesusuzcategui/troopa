@@ -46,29 +46,23 @@ func TestReconcileMarksLostRunBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmds := reconcileRuns(m.store)
-	if len(cmds) != 1 {
-		t.Fatalf("cmds=%d", len(cmds))
-	}
-	msg, ok := cmds[0]().(agentDoneMsg)
-	if !ok || msg.runID != run.ID || msg.err == nil {
-		t.Fatalf("msg=%#v", msg)
-	}
 	before := m.screen
-	next, _ := m.Update(msg)
-	got := next.(Model)
-	saved, _ := got.store.GetRun(run.ID)
+	cmds := reconcileRuns(m.eng())
+	if len(cmds) != 0 {
+		t.Fatalf("lost run should be finished in Reconcile, cmds=%d", len(cmds))
+	}
+	if m.screen != before {
+		t.Fatalf("a background run must not change the screen: %v", m.screen)
+	}
+	saved, _ := m.store.GetRun(run.ID)
 	if saved.State != store.RunBlocked || !strings.Contains(saved.Note, "x") {
 		t.Fatalf("run=%+v", saved)
 	}
-	tk, _ := got.store.GetTask(task.ID)
+	tk, _ := m.store.GetTask(task.ID)
 	if tk.Status != store.StatusBlocked {
 		t.Fatalf("task status %s", tk.Status)
 	}
-	if got.screen != before {
-		t.Fatalf("a background run must not change the screen: %v", got.screen)
-	}
-	if cmds := reconcileRuns(got.store); len(cmds) != 0 {
+	if cmds := reconcileRuns(m.eng()); len(cmds) != 0 {
 		t.Fatalf("nothing should be left running: %d", len(cmds))
 	}
 }
@@ -90,7 +84,7 @@ func TestReconcileWatchesLiveAgent(t *testing.T) {
 	if st, _ := launch.AgentStatus(wt); st != launch.AgentRunning {
 		t.Fatal("agent should be running")
 	}
-	if cmds := reconcileRuns(m.store); len(cmds) != 1 {
+	if cmds := reconcileRuns(m.eng()); len(cmds) != 1 {
 		t.Fatalf("cmds=%d", len(cmds))
 	}
 	msg := runAgent(cmd, "", run.ID)()
