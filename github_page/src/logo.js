@@ -2,16 +2,17 @@
 // Block characters (▀ ▄ █) become rectangles that fill the cell, so the
 // wordmark has no gaps; every other character is text centered in its cell.
 
+// The wordmark sits on the two middle rows, vertically centered on the robots.
 const ROWS = [
-  "   ▲      ▲      ▲       ▀█▀ █▀█ █▀█ █▀█ █▀█ ▄▀█",
-  " [◉_◉]  [◉_◉]  [◉_◉]      █  █▀▄ █▄█ █▄█ █▀▀ █▀█",
-  " /|█|\\  /|█|\\  /|█|\\",
+  "   ▲      ▲      ▲",
+  " [◉_◉]  [◉_◉]  [◉_◉]     ▀█▀ █▀█ █▀█ █▀█ █▀█ ▄▀█",
+  " /|█|\\  /|█|\\  /|█|\\      █  █▀▄ █▄█ █▄█ █▀▀ █▀█",
   "  / \\    / \\    / \\",
 ];
 
 const CELL_W = 12;
 const CELL_H = 24;
-const WORDMARK_FROM = 24; // first column of the wordmark
+const WORDMARK_FROM = 25; // first column of the wordmark
 
 // Color role of a cell: accent (antennas, leader, wordmark), body (heads) or dim (bodies).
 function role(row, col) {
