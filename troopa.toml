@@ -1,0 +1,16 @@
+# Troopa works on itself: every task of this repo runs these checks and gets
+# these instructions in TASK.md.
+checks = [
+  "test -z \"$(gofmt -l cmd internal)\"",
+  "go vet ./...",
+  "go test ./...",
+]
+
+instructions = """
+- Go 1.26+, Bubble Tea, Lip Gloss, SQLite (modernc). Keep one binary, no CGO.
+- Every user-facing string goes through i18n.T("English text") and needs its Spanish entry (internal/i18n); TestSpanishCoversTCalls fails otherwise.
+- New SQL changes are new files in internal/store/migrations (next number); never edit an applied migration.
+- Write tests next to the code (table tests, t.TempDir, fake agent scripts on PATH as in internal/tui/agent_test.go).
+- Open source: no personal data, no private paths, no references to other private tools.
+- Update docs/cli-json.md and github_page/docs.html (English and Spanish) when behaviour changes.
+"""
