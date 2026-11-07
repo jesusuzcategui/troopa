@@ -59,27 +59,133 @@
       </div>
     </section>
 
+    <section id="map" class="map">
+      <div class="wrap">
+        <p class="eyebrow" data-i18n="map.eyebrow">The whole flow</p>
+        <h2 data-i18n="map.title">From an idea to main, while you do something else</h2>
+        <p class="sub" data-i18n="map.sub">A task becomes a plan step, gets its own worktree and agent, passes its checks and waits for you. Approve it from the terminal or from your phone, and the next step starts by itself.</p>
+        <div class="flowmap" id="flowmap"></div>
+      </div>
+    </section>
+
     <section id="features" class="band">
       <div class="wrap">
         <h2 data-i18n="features.title">Everything a task needs, from inbox to main</h2>
-        <div class="features">
-          <article><h3 data-i18n="f1.t">Board and list</h3><p data-i18n="f1.d">Kanban that scrolls sideways on small terminals, a list grouped by status, foldable statuses, popups and a task panel beside the board.</p></article>
-          <article><h3 data-i18n="f2.t">Agents in worktrees</h3><p data-i18n="f2.d">Move a task to ready and its agent works on a branch in an isolated git worktree. Yolo runs alone; pair opens the agent next to you with TDD.</p></article>
-          <article><h3 data-i18n="f3.t">Review and request changes</h3><p data-i18n="f3.d">See the diff, the checks and a "How to run" summary. Not right yet? Write what should change and the same agent picks it up in the same worktree.</p></article>
-          <article><h3 data-i18n="f4.t">Merge without leaving</h3><p data-i18n="f4.d">Approve, then merge into the base branch with squash or a merge commit. Conflicts abort cleanly. With a remote, Troopa pushes and opens the PR.</p></article>
-          <article><h3 data-i18n="f9.t">Comments on the diff</h3><p data-i18n="f9.d">Move through the diff, comment any line, and send every comment back to the agent as file:line notes in a new round.</p></article>
-          <article><h3 data-i18n="f10.t">Every round, kept</h3><p data-i18n="f10.d">Each launch and each request for changes is its own round with your feedback, the agent's summary, checks and log. Older rounds fold away; the latest stays open.</p></article>
-          <article><h3 data-i18n="f11.t">Attachments and @files</h3><p data-i18n="f11.d">Attach images, PDFs, code or video to a task, and type @ to reference files from the repo. The agent gets them in its worktree; they never reach your commits.</p></article>
-          <article><h3 data-i18n="f12.t">A second brain</h3><p data-i18n="f12.d">A Markdown vault (Obsidian-friendly) with a note per project, its tasks and how-to-run guides. Troopa keeps it up to date, gives the agent the project context, and lets you browse it with B, or as a graph of notes and links with G.</p></article>
-          <article><h3 data-i18n="f13.t">Plans</h3><p data-i18n="f13.d">Chain tasks into a plan. Each step builds on the branch of the one before it, starts by itself when you approve the previous one (or approves itself when its checks pass), and the whole plan merges once.</p></article>
-          <article><h3 data-i18n="f14.t">Profiles and accounts</h3><p data-i18n="f14.d">Tell the agents who they work for (developer, chef, accountant…) and run each project with its own login, like a company subscription next to your personal one.</p></article>
-          <article><h3 data-i18n="f15.t">Hooks and extensions</h3><p data-i18n="f15.d">Get Telegram alerts you can answer (approve, request changes, see the diff), run your scripts on launch, review, approve or merge, and add commands of your own: any troopa-&lt;name&gt; program on the PATH becomes troopa &lt;name&gt;.</p></article>
-          <article><h3 data-i18n="f5.t">Detects your agents</h3><p data-i18n="f5.d">A first-run setup finds Claude Code, Codex, OpenCode, Cursor and Pi on your computer, and asks before any agent starts.</p></article>
-          <article><h3 data-i18n="f6.t">Fifteen themes, two languages</h3><p data-i18n="f6.d">Nord, Dracula, Gruvbox, Catppuccin, Tokyo Night and more, or your own TOML. English and Spanish interface.</p></article>
-          <article><h3 data-i18n="f7.t">Projects, clients and metrics</h3><p data-i18n="f7.d">Group work by client, filter boards, and compare time, tokens and cost per agent and per project.</p></article>
-          <article><h3 data-i18n="f8.t">A CLI for automation</h3><p data-i18n="f8.d">Every action has a versioned JSON command, so scripts and future integrations use the same store as the TUI.</p></article>
-          <article><h3 data-i18n="f16.t">MCP and daemon</h3><p data-i18n="f16.d">troopa mcp install registers Claude, Codex, OpenCode or Cursor. The daemon keeps plans moving. Approve from MCP is opt-in; merge stays in the TUI.</p></article>
+        <div class="spot">
+          <article class="spot-card">
+            <svg class="ill" viewBox="0 0 280 140" aria-hidden="true">
+              <g class="ill-cols">
+                <rect x="8" y="10" width="62" height="122" rx="8"/><rect x="77" y="10" width="62" height="122" rx="8"/>
+                <rect x="146" y="10" width="62" height="122" rx="8"/><rect x="215" y="10" width="57" height="122" rx="8"/>
+              </g>
+              <rect class="ill-head" x="16" y="18" width="30" height="5" rx="2.5"/><rect class="ill-head" x="85" y="18" width="34" height="5" rx="2.5"/>
+              <rect class="ill-head" x="154" y="18" width="26" height="5" rx="2.5"/><rect class="ill-head ill-ok-fill" x="223" y="18" width="22" height="5" rx="2.5"/>
+              <g class="ill-cards">
+                <rect x="14" y="32" width="50" height="22" rx="5"/><rect x="14" y="60" width="50" height="22" rx="5"/><rect x="14" y="88" width="50" height="22" rx="5"/>
+                <rect x="152" y="32" width="50" height="22" rx="5"/><rect x="221" y="32" width="45" height="22" rx="5"/><rect x="221" y="60" width="45" height="22" rx="5"/>
+              </g>
+              <rect class="ill-card-move" x="83" y="32" width="50" height="22" rx="5"/>
+              <rect class="ill-dot-line" x="90" y="41" width="28" height="4" rx="2"/>
+            </svg>
+            <h3 data-i18n="f1.t">Board and list</h3>
+            <p data-i18n="f1.d">Kanban that scrolls sideways on small terminals, a list grouped by status, foldable statuses, popups and a task panel beside the board.</p>
+          </article>
+          <article class="spot-card">
+            <svg class="ill" viewBox="0 0 280 140" aria-hidden="true">
+              <path class="ill-main" d="M 14 112 H 266"/>
+              <path class="ill-branch b1" d="M 40 112 C 60 112, 60 40, 90 40 H 200 C 225 40, 225 112, 245 112"/>
+              <path class="ill-branch b2" d="M 70 112 C 90 112, 90 72, 120 72 H 170 C 190 72, 190 112, 210 112"/>
+              <circle class="ill-node" cx="14" cy="112" r="5"/><circle class="ill-node" cx="266" cy="112" r="5"/>
+              <circle class="ill-agent a1" cx="140" cy="40" r="13"/><text class="ill-agent-t" x="140" y="44.5">AI</text>
+              <circle class="ill-agent a2" cx="145" cy="72" r="13"/><text class="ill-agent-t" x="145" y="76.5">AI</text>
+              <text class="ill-label" x="16" y="132">main</text>
+              <text class="ill-label" x="160" y="32">feat/login</text>
+              <text class="ill-label" x="162" y="64">fix/menu</text>
+            </svg>
+            <h3 data-i18n="f2.t">Agents in worktrees</h3>
+            <p data-i18n="f2.d">Move a task to ready and its agent works on a branch in an isolated git worktree. Yolo runs alone; pair opens the agent next to you with TDD.</p>
+          </article>
+          <article class="spot-card">
+            <svg class="ill" viewBox="0 0 280 140" aria-hidden="true">
+              <rect class="ill-panel" x="8" y="8" width="264" height="124" rx="10"/>
+              <g class="ill-diff">
+                <rect class="ctx" x="20" y="20" width="150" height="10" rx="3"/>
+                <rect class="del" x="20" y="36" width="170" height="12" rx="3"/><rect class="del-mark" x="24" y="40" width="6" height="4" rx="1"/>
+                <rect class="add" x="20" y="52" width="190" height="12" rx="3"/><rect class="add-mark" x="24" y="56" width="6" height="4" rx="1"/><rect class="add-mark" x="26" y="54" width="2" height="8" rx="1"/>
+                <rect class="add sel" x="20" y="68" width="160" height="12" rx="3"/><rect class="add-mark" x="24" y="72" width="6" height="4" rx="1"/><rect class="add-mark" x="26" y="70" width="2" height="8" rx="1"/>
+                <rect class="ctx" x="20" y="86" width="120" height="10" rx="3"/>
+                <rect class="ctx" x="20" y="102" width="140" height="10" rx="3"/>
+              </g>
+              <g class="ill-comment">
+                <path class="ill-bubble" d="M 196 62 h 62 a 6 6 0 0 1 6 6 v 26 a 6 6 0 0 1 -6 6 h -50 l -8 8 v -8 h -4 a 6 6 0 0 1 -6 -6 v -26 a 6 6 0 0 1 6 -6 z"/>
+                <rect class="ill-bubble-line" x="200" y="72" width="54" height="4" rx="2"/><rect class="ill-bubble-line" x="200" y="82" width="38" height="4" rx="2"/>
+              </g>
+              <g class="ill-check"><circle cx="248" cy="28" r="13"/><path d="M 241 28 l 5 5 l 9 -10"/></g>
+            </svg>
+            <h3 data-i18n="f3.t">Review and request changes</h3>
+            <p data-i18n="f3.d">See the diff, the checks and a "How to run" summary. Not right yet? Write what should change and the same agent picks it up in the same worktree.</p>
+          </article>
+          <article class="spot-card">
+            <svg class="ill" viewBox="0 0 280 140" aria-hidden="true">
+              <path class="ill-chain" d="M 36 70 H 244"/>
+              <path class="ill-chain-done" d="M 36 70 H 140"/>
+              <g class="ill-step done"><circle cx="36" cy="70" r="18"/><path d="M 28 70 l 6 6 l 11 -12"/></g>
+              <g class="ill-step done"><circle cx="105" cy="70" r="18"/><path d="M 97 70 l 6 6 l 11 -12"/></g>
+              <circle class="ill-ring" cx="175" cy="70" r="18"/>
+              <g class="ill-step run"><circle cx="175" cy="70" r="18"/><circle class="ill-spin" cx="175" cy="70" r="8"/></g>
+              <g class="ill-step todo"><circle cx="244" cy="70" r="18"/></g>
+              <text class="ill-label c" x="36" y="112">1</text><text class="ill-label c" x="105" y="112">2</text>
+              <text class="ill-label c" x="175" y="112">3</text><text class="ill-label c" x="244" y="112">4</text>
+            </svg>
+            <h3 data-i18n="f13.t">Plans</h3>
+            <p data-i18n="f13.d">Chain tasks into a plan. Each step builds on the branch of the one before it, starts by itself when you approve the previous one (or approves itself when its checks pass), and the whole plan merges once.</p>
+          </article>
+          <article class="spot-card">
+            <svg class="ill" viewBox="0 0 280 140" aria-hidden="true">
+              <g class="ill-edges">
+                <path d="M 140 70 L 70 40 M 140 70 L 80 108 M 140 70 L 205 38 M 140 70 L 215 100 M 70 40 L 30 62 M 70 40 L 52 14 M 205 38 L 250 22 M 205 38 L 252 62 M 215 100 L 258 118 M 80 108 L 34 120 M 215 100 L 170 124"/>
+              </g>
+              <g class="ill-nodes">
+                <circle class="hub" cx="140" cy="70" r="11"/>
+                <circle class="mid n1" cx="70" cy="40" r="7"/><circle class="mid n2" cx="80" cy="108" r="7"/>
+                <circle class="mid n3" cx="205" cy="38" r="7"/><circle class="mid n4" cx="215" cy="100" r="7"/>
+                <circle class="leaf" cx="30" cy="62" r="4"/><circle class="leaf" cx="52" cy="14" r="4"/><circle class="leaf" cx="250" cy="22" r="4"/>
+                <circle class="leaf" cx="252" cy="62" r="4"/><circle class="leaf" cx="258" cy="118" r="4"/><circle class="leaf" cx="34" cy="120" r="4"/><circle class="leaf" cx="170" cy="124" r="4"/>
+              </g>
+            </svg>
+            <h3 data-i18n="f12.t">A second brain</h3>
+            <p data-i18n="f12.d">A Markdown vault (Obsidian-friendly) with a note per project, its tasks and how-to-run guides. Troopa keeps it up to date, gives the agent the project context, and lets you browse it with B, or as a graph of notes and links with G.</p>
+          </article>
+          <article class="spot-card">
+            <svg class="ill" viewBox="0 0 280 140" aria-hidden="true">
+              <rect class="ill-phone" x="98" y="4" width="84" height="132" rx="14"/>
+              <rect class="ill-phone-screen" x="104" y="16" width="72" height="112" rx="6"/>
+              <rect class="ill-phone-notch" x="128" y="9" width="24" height="3" rx="1.5"/>
+              <g class="ill-msg m1"><rect x="110" y="24" width="56" height="20" rx="5"/><rect class="l" x="115" y="30" width="34" height="3" rx="1.5"/><rect class="l" x="115" y="36" width="24" height="3" rx="1.5"/></g>
+              <g class="ill-msg m2"><rect x="110" y="50" width="60" height="26" rx="5"/><rect class="l" x="115" y="56" width="40" height="3" rx="1.5"/><rect class="l" x="115" y="62" width="30" height="3" rx="1.5"/><rect class="l" x="115" y="68" width="44" height="3" rx="1.5"/></g>
+              <g class="ill-btns"><rect class="ok" x="110" y="82" width="60" height="13" rx="4"/><rect x="110" y="99" width="28" height="11" rx="4"/><rect x="142" y="99" width="28" height="11" rx="4"/></g>
+              <circle class="ill-tap" cx="150" cy="88" r="0"/>
+              <path class="ill-wave w1" d="M 66 52 a 26 26 0 0 0 0 36"/><path class="ill-wave w2" d="M 54 42 a 40 40 0 0 0 0 56"/>
+              <path class="ill-wave w1" d="M 214 52 a 26 26 0 0 1 0 36"/><path class="ill-wave w2" d="M 226 42 a 40 40 0 0 1 0 56"/>
+            </svg>
+            <h3 data-i18n="f15.t">Hooks and extensions</h3>
+            <p data-i18n="f15.d">Get Telegram alerts you can answer, plus a bot with a menu and buttons to start plans, approve steps or add tasks from your phone. Run your scripts on launch, review, approve or merge, and add commands of your own: any troopa-&lt;name&gt; program on the PATH becomes troopa &lt;name&gt;.</p>
+          </article>
         </div>
+
+        <h3 class="also" data-i18n="features.also">And also</h3>
+        <ul class="mini">
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 7.5v9M15.5 12H11a5 5 0 0 1-5-5"/></svg><div><strong data-i18n="f4.t">Merge without leaving</strong><span data-i18n="f4.d">Approve, then merge into the base branch with squash or a merge commit. Conflicts abort cleanly. With a remote, Troopa pushes and opens the PR.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg><div><strong data-i18n="f9.t">Comments on the diff</strong><span data-i18n="f9.d">Move through the diff, comment any line, and send every comment back to the agent as file:line notes in a new round.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/><path d="M12 8v4l3 2"/></svg><div><strong data-i18n="f10.t">Every round, kept</strong><span data-i18n="f10.d">Each launch and each request for changes is its own round with your feedback, the agent's summary, checks and log. Older rounds fold away; the latest stays open.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7l-7.5 7.5a2.1 2.1 0 0 0 3 3L19 10a4.2 4.2 0 0 0-6-6l-7.5 7.5a6.4 6.4 0 0 0 9 9L20 15"/></svg><div><strong data-i18n="f11.t">Attachments and @files</strong><span data-i18n="f11.d">Attach images, PDFs, code or video to a task, and type @ to reference files from the repo. The agent gets them in its worktree; they never reach your commits.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg><div><strong data-i18n="f14.t">Profiles and accounts</strong><span data-i18n="f14.d">Tell the agents who they work for (developer, chef, accountant…) and run each project with its own login, like a company subscription next to your personal one.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><div><strong data-i18n="f5.t">Detects your agents</strong><span data-i18n="f5.d">A first-run setup finds Claude Code, Codex, OpenCode, Cursor and Pi on your computer, and asks before any agent starts.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" class="fill"/></svg><div><strong data-i18n="f6.t">Fifteen themes, two languages</strong><span data-i18n="f6.d">Nord, Dracula, Gruvbox, Catppuccin, Tokyo Night and more, or your own TOML. English and Spanish interface.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><div><strong data-i18n="f7.t">Projects, clients and metrics</strong><span data-i18n="f7.d">Group work by client, filter boards, and compare time, tokens and cost per agent and per project.</span></div></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l5 6-5 6M12 18h8"/></svg><div><strong data-i18n="f8.t">A CLI for automation</strong><span data-i18n="f8.d">Every action has a versioned JSON command, so scripts and future integrations use the same store as the TUI.</span></div></li>
+        </ul>
+        <h3 class="also" data-i18n="f16.t">MCP and daemon</h3>
         <ul class="points">
           <li data-i18n="mcp.k1">Register with <code>troopa mcp install claude</code> (or codex, opencode, cursor). Missing clients get the snippet.</li>
           <li data-i18n="mcp.k2"><code>review_approve</code> needs <code>allow_approve</code>. There is no merge tool.</li>

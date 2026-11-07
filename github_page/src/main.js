@@ -2,6 +2,7 @@ import "./style.css";
 import { strings } from "./i18n.js";
 import { logoSVG } from "./logo.js";
 import { createPlayer } from "./terminal.js";
+import { renderFlowmap } from "./flowmap.js";
 
 const root = document.documentElement;
 
@@ -21,6 +22,7 @@ function applyLang(lang) {
   });
   document.getElementById("lang").textContent = lang === "en" ? "ES" : "EN";
   document.querySelectorAll(".copy").forEach((b) => (b.textContent = dict.copy));
+  renderFlowmap(document.getElementById("flowmap"), dict);
 }
 
 let lang = store.get("troopa-lang") === "es" ? "es" : "en";
