@@ -144,6 +144,37 @@ func TestSettingsChangeAndAbout(t *testing.T) {
 	}
 }
 
+func TestSettingsMCPApproveToggle(t *testing.T) {
+	m := newTestModel(t)
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("S")})
+	got := next.(Model)
+	row := 0
+	for i, r := range settingRows {
+		if r.key == "allow_mcp_approve" {
+			row = i
+		}
+	}
+	for i := 0; i < row; i++ {
+		next, _ = got.Update(tea.KeyMsg{Type: tea.KeyDown})
+		got = next.(Model)
+	}
+	if got.cfg.MCP.AllowApprove {
+		t.Fatal("allow_approve should start off")
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRight})
+	got = next.(Model)
+	if !got.cfg.MCP.AllowApprove {
+		t.Fatal("toggle should turn allow_approve on")
+	}
+	saved, err := config.Load(got.configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saved.MCP.AllowApprove {
+		t.Fatal("allow_approve not saved")
+	}
+}
+
 func TestCtrlKPaletteRunsHelp(t *testing.T) {
 	m := newTestModel(t)
 	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})

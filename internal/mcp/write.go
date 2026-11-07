@@ -6,6 +6,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -74,6 +76,23 @@ type runWaitIn struct {
 	TimeoutSeconds int   `json:"timeout_seconds,omitempty" jsonschema:"seconds to wait, at most 600"`
 }
 
+type reviewCommentIn struct {
+	Path string `json:"path" jsonschema:"file path"`
+	Line int    `json:"line" jsonschema:"line number"`
+	Side string `json:"side,omitempty" jsonschema:"diff side"`
+	Body string `json:"body" jsonschema:"comment body"`
+}
+
+type reviewChangesIn struct {
+	RunID    int64             `json:"run_id" jsonschema:"run id"`
+	Feedback string            `json:"feedback,omitempty" jsonschema:"general notes for the agent"`
+	Comments []reviewCommentIn `json:"comments,omitempty" jsonschema:"line comments with path, line, side, body"`
+}
+
+type reviewApproveIn struct {
+	RunID int64 `json:"run_id" jsonschema:"run id"`
+}
+
 type planActionOut struct {
 	planOut
 	Run     *store.Run `json:"run,omitempty"`
@@ -89,6 +108,12 @@ type runWaitOut struct {
 	PlanID     int64  `json:"plan_id,omitempty"`
 	TaskID     int64  `json:"task_id,omitempty"`
 	TaskStatus string `json:"task_status,omitempty"`
+}
+
+type reviewOut struct {
+	Run     store.Run `json:"run"`
+	Message string    `json:"message,omitempty"`
+	Watch   bool      `json:"watch,omitempty"`
 }
 
 func (h *handler) taskCreate(_ context.Context, _ *mcpsdk.CallToolRequest, in taskWriteIn) (*mcpsdk.CallToolResult, any, error) {
@@ -308,6 +333,52 @@ func (h *handler) planPause(_ context.Context, _ *mcpsdk.CallToolRequest, in idI
 		return fail(err)
 	}
 	return jsonOut(planActionOut{planOut: d, Message: res.Message})
+}
+
+func (h *handler) reviewRequestChanges(_ context.Context, _ *mcpsdk.CallToolRequest, in reviewChangesIn) (*mcpsdk.CallToolResult, any, error) {
+	if err := requireID(in.RunID); err != nil {
+		return fail(errors.New("run_id must be a positive integer"))
+	}
+	comments := make([]store.ReviewComment, 0, len(in.Comments))
+	for _, c := range in.Comments {
+		comments = append(comments, store.ReviewComment{Path: c.Path, Line: c.Line, Side: c.Side, Body: c.Body})
+	}
+	res, err := h.eng.RequestChanges(in.RunID, in.Feedback, comments)
+	if err != nil {
+		return fail(err)
+	}
+	return h.reviewOut(res)
+}
+
+func (h *handler) reviewApprove(_ context.Context, _ *mcpsdk.CallToolRequest, in reviewApproveIn) (*mcpsdk.CallToolResult, any, error) {
+	if err := requireID(in.RunID); err != nil {
+		return fail(errors.New("run_id must be a positive integer"))
+	}
+	if !h.allowMCPApprove() {
+		return fail(errors.New(i18n.T("review_approve is off. Turn on Allow MCP approve in Settings, or set allow_approve = true under [mcp] in config.toml.")))
+	}
+	res, err := h.eng.Approve(in.RunID)
+	if err != nil {
+		return fail(err)
+	}
+	return h.reviewOut(res)
+}
+
+func (h *handler) allowMCPApprove() bool {
+	if h.eng.ConfigPath != "" {
+		if cfg, err := config.Load(h.eng.ConfigPath); err == nil {
+			h.eng.Cfg.MCP = cfg.MCP
+			return cfg.MCP.AllowApprove
+		}
+	}
+	return h.eng.Cfg.MCP.AllowApprove
+}
+
+func (h *handler) reviewOut(res engine.Result) (*mcpsdk.CallToolResult, any, error) {
+	if res.Watch && !h.watcherRunning() {
+		h.watchFromMCP()
+	}
+	return jsonOut(reviewOut{Run: res.Run, Message: res.Message, Watch: res.Watch})
 }
 
 func (h *handler) runWait(ctx context.Context, _ *mcpsdk.CallToolRequest, in runWaitIn) (*mcpsdk.CallToolResult, any, error) {

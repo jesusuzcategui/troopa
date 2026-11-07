@@ -41,6 +41,7 @@ var settingRows = []settingRow{
 	{"worktrees", settingText},
 	{"brain", settingText},
 	{"brain_git", settingToggle},
+	{"allow_mcp_approve", settingToggle},
 	{"show_logo", settingToggle},
 	{"rerun_setup", settingAction},
 	{"about", settingAction},
@@ -92,6 +93,8 @@ func (m Model) settingLabel(key string) string {
 		return i18n.T("Second brain")
 	case "brain_git":
 		return i18n.T("Commit the brain locally")
+	case "allow_mcp_approve":
+		return i18n.T("Allow MCP approve")
 	case "show_logo":
 		return i18n.T("Logo at start")
 	case "rerun_setup":
@@ -158,8 +161,11 @@ func (m Model) settingDisplay(row settingRow) string {
 	switch row.kind {
 	case settingToggle:
 		on := !m.cfg.HideLogo
-		if row.key == "brain_git" {
+		switch row.key {
+		case "brain_git":
 			on = m.cfg.BrainGit
+		case "allow_mcp_approve":
+			on = m.cfg.MCP.AllowApprove
 		}
 		if on {
 			return i18n.T("on")
@@ -336,6 +342,8 @@ func (m *Model) toggleSetting(key string) {
 	switch key {
 	case "brain_git":
 		m.cfg.BrainGit = !m.cfg.BrainGit
+	case "allow_mcp_approve":
+		m.cfg.MCP.AllowApprove = !m.cfg.MCP.AllowApprove
 	default:
 		m.cfg.HideLogo = !m.cfg.HideLogo
 		key = "show_logo"

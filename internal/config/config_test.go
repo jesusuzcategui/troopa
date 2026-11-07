@@ -218,6 +218,50 @@ func TestSaveSetupSettings(t *testing.T) {
 	}
 }
 
+func TestLoadSaveMCPAllowApprove(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MCP.AllowApprove {
+		t.Fatal("allow_approve should default to false")
+	}
+	if err := os.WriteFile(path, []byte("[mcp]\nallow_approve = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err = Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.MCP.AllowApprove {
+		t.Fatal("allow_approve not loaded")
+	}
+	c.Theme = "dark"
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.MCP.AllowApprove {
+		t.Fatal("Save lost allow_approve")
+	}
+	c.MCP.AllowApprove = false
+	if err := Save(path, c); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = Load(path)
+	if got.MCP.AllowApprove {
+		t.Fatal("allow_approve should be false")
+	}
+	raw, _ := os.ReadFile(path)
+	if !strings.Contains(string(raw), "allow_approve = false") {
+		t.Fatalf("expected false in file:\n%s", raw)
+	}
+}
+
 func TestLoadBrain(t *testing.T) {
 	dir := t.TempDir()
 	tomlPath := filepath.Join(dir, "config.toml")

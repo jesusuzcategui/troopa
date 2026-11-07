@@ -121,6 +121,8 @@ func NewWithContext(ctx context.Context, e *engine.Engine) *mcpsdk.Server {
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_start", Description: "Starts a plan through the engine. Returns the plan, run if launched, and a message."}, h.planStart)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_pause", Description: "Pauses a running plan through the engine. Returns the plan."}, h.planPause)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "run_wait", Description: "Waits until a run leaves running, or a plan's current step changes. Returns state, summary and checks."}, h.runWait)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "review_request_changes", Description: "Requests changes on a run: new round, CHANGES.md, same agent continues. Same as x in the TUI."}, h.reviewRequestChanges)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "review_approve", Description: "Approves a run in review. Requires [mcp] allow_approve = true. There is no merge tool."}, h.reviewApprove)
 	return srv
 }
 

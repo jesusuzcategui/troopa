@@ -68,7 +68,13 @@ type Config struct {
 	BoardView       string // "board" or "list"
 	Collapsed       []string
 	MaxAttachmentMB int
+	MCP             MCP
 	Launch          Launch
+}
+
+// MCP holds [mcp] in config.toml. AllowApprove is off unless set.
+type MCP struct {
+	AllowApprove bool
 }
 
 type tomlConfig struct {
@@ -96,6 +102,11 @@ type tomlConfig struct {
 	DefaultProfile  int64                 `toml:"default_profile"`
 	Accounts        map[string]Account    `toml:"accounts"`
 	Hooks           map[string]any        `toml:"hooks"`
+	MCP             mcpTOML               `toml:"mcp"`
+}
+
+type mcpTOML struct {
+	AllowApprove *bool `toml:"allow_approve"`
 }
 
 const DefaultMaxAttachmentMB = 50
@@ -261,6 +272,9 @@ func Load(path string) (Config, error) {
 		c.Launch.Accounts[name] = acc
 	}
 	c.Launch.Hooks = HookCommands(t.Hooks)
+	if t.MCP.AllowApprove != nil {
+		c.MCP.AllowApprove = *t.MCP.AllowApprove
+	}
 	for name, price := range t.Prices {
 		if c.Launch.Prices == nil {
 			c.Launch.Prices = map[string]TokenPrice{}
@@ -319,6 +333,7 @@ func Save(path string, c Config) error {
 	text = setString(text, "worktrees", c.WorktreesRaw)
 	text = setString(text, "brain", c.BrainRaw)
 	text = setBool(text, "brain_git", c.BrainGit)
+	text = setTableBool(text, "mcp", "allow_approve", c.MCP.AllowApprove)
 	if c.BoardView != "" {
 		text = setRootKey(text, "board_view", strconv.Quote(c.BoardView))
 	}
@@ -374,6 +389,78 @@ func setBool(text, key string, value bool) string {
 		return text
 	}
 	return setRootKey(text, key, strconv.FormatBool(value))
+}
+
+func setTableBool(text, table, key string, value bool) string {
+	if !value && !hasTableKey(text, table, key) {
+		return text
+	}
+	return setTableKey(text, table, key, strconv.FormatBool(value))
+}
+
+func hasTableKey(text, table, key string) bool {
+	header := "[" + table + "]"
+	in := false
+	for _, l := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "[") {
+			in = trimmed == header
+			continue
+		}
+		if !in {
+			continue
+		}
+		if k, _, ok := strings.Cut(trimmed, "="); ok && strings.TrimSpace(k) == key {
+			return true
+		}
+	}
+	return false
+}
+
+func setTableKey(text, table, key, value string) string {
+	line := key + " = " + value
+	header := "[" + table + "]"
+	lines := strings.Split(text, "\n")
+	in := false
+	foundTable := false
+	for i, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "[") {
+			if in {
+				out := make([]string, 0, len(lines)+1)
+				out = append(out, lines[:i]...)
+				out = append(out, line)
+				out = append(out, lines[i:]...)
+				return strings.Join(out, "\n")
+			}
+			in = trimmed == header
+			if in {
+				foundTable = true
+			}
+			continue
+		}
+		if !in {
+			continue
+		}
+		if k, _, ok := strings.Cut(trimmed, "="); ok && strings.TrimSpace(k) == key {
+			lines[i] = line
+			return strings.Join(lines, "\n")
+		}
+	}
+	if foundTable {
+		if text != "" && !strings.HasSuffix(text, "\n") {
+			text += "\n"
+		}
+		return text + line + "\n"
+	}
+	block := header + "\n" + line + "\n"
+	if strings.TrimSpace(text) == "" {
+		return block
+	}
+	if !strings.HasSuffix(text, "\n") {
+		text += "\n"
+	}
+	return text + "\n" + block
 }
 
 func hasRootKey(text, key string) bool {

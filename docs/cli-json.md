@@ -112,6 +112,8 @@ Read tools: `projects_list`, `project_show`, `tasks_list` (filters: `project`, `
 
 Write tools fire the same hooks as the TUI: `task_create`, `task_update`, `task_move`, `plan_create` (title, goal, agent, model, auto, and steps with title, description, criteria in one call), `plan_add_step`, `plan_update`. `plan_start` and `plan_pause` go through the engine. If no daemon is running, `plan_start` watches from the MCP process and the result says that `troopa daemon` keeps plans moving. `run_wait` (`run_id` or `plan_id`, `timeout_seconds` at most 600) blocks until the run leaves running or the plan's current step changes, and returns the new state with summary and checks. On timeout it returns with the state still `running`.
 
+`review_request_changes` (`run_id`, `feedback`, `comments` with `path`, `line`, `side`, `body`) is the same as `x` in the TUI: a new round, notes in `CHANGES.md`, and the same agent continues. `review_approve` (`run_id`) only works when `[mcp] allow_approve = true` in `config.toml` (off by default; Settings has the toggle). The error says how to turn it on. There is no merge tool: merging a plan or a task stays in the TUI (`g`).
+
 `run rounds` lists the agent rounds of a run (`launch` then each `x` request). Each item uses numbers or `null` for metrics, `log_from`/`log_to` and `id` (legacy runs without stored rounds appear as a single synthetic round with `"id": null`). `kind` is `launch` or `changes`; `state` is `running`, `review` or `blocked`.
 
 ## Example

@@ -123,6 +123,7 @@ func TestInitializeAndToolsList(t *testing.T) {
 		"tasks_list", "task_show", "task_create", "task_update", "task_move",
 		"plans_list", "plan_show", "plan_create", "plan_add_step", "plan_update", "plan_start", "plan_pause",
 		"run_show", "run_diff", "run_log", "run_wait",
+		"review_request_changes", "review_approve",
 		"brain_search", "brain_read",
 		"profiles_list",
 	}
@@ -526,5 +527,96 @@ func TestRunWaitTimeout(t *testing.T) {
 	}
 	if !waited.TimedOut || waited.State != store.RunRunning {
 		t.Fatalf("%+v", waited)
+	}
+}
+
+func TestReviewRequestChangesAndApprove(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git")
+	}
+	repo := filepath.Join(t.TempDir(), "repo")
+	if err := gitinit.InitRepo(repo, "Demo"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "troopa.toml"), []byte("checks = [\"true\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fakeClaude(t, "#!/bin/sh\necho done > SUMMARY.md\n")
+	session, s, _, eng := startEng(t, nil)
+	p, err := s.Create(store.Project{Name: "App", RepoPath: repo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var created planOut
+	if err := json.Unmarshal(call(t, session, "plan_create", map[string]any{
+		"project": p.ID, "title": "Review", "agent": store.AgentClaude, "auto": false,
+		"steps": []map[string]any{{"title": "One"}},
+	}), &created); err != nil {
+		t.Fatal(err)
+	}
+	var started map[string]any
+	if err := json.Unmarshal(call(t, session, "plan_start", map[string]any{"id": created.ID}), &started); err != nil {
+		t.Fatal(err)
+	}
+	run, _ := started["run"].(map[string]any)
+	if run == nil {
+		t.Fatalf("start %+v", started)
+	}
+	runID := int64(run["id"].(float64))
+	var waited runWaitOut
+	if err := json.Unmarshal(call(t, session, "run_wait", map[string]any{"run_id": runID, "timeout_seconds": 15}), &waited); err != nil {
+		t.Fatal(err)
+	}
+	if waited.TimedOut || waited.State != store.RunReview {
+		t.Fatalf("wait %+v", waited)
+	}
+
+	deny := callErr(t, session, "review_approve", map[string]any{"run_id": runID})
+	if !strings.Contains(deny, "allow_approve") {
+		t.Fatalf("deny %q", deny)
+	}
+
+	var changed map[string]any
+	if err := json.Unmarshal(call(t, session, "review_request_changes", map[string]any{
+		"run_id":   runID,
+		"feedback": "fix the button",
+		"comments": []map[string]any{
+			{"path": "main.go", "line": 12, "side": "+", "body": "rename this"},
+		},
+	}), &changed); err != nil {
+		t.Fatal(err)
+	}
+	changedRun, _ := changed["run"].(map[string]any)
+	if changedRun == nil || changedRun["state"] != store.RunRunning {
+		t.Fatalf("changes %+v", changed)
+	}
+	wt, _ := changedRun["worktree"].(string)
+	raw, err := os.ReadFile(filepath.Join(wt, "CHANGES.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if !strings.Contains(body, "## Round 1") || !strings.Contains(body, "fix the button") || !strings.Contains(body, "main.go:12") || !strings.Contains(body, "rename this") {
+		t.Fatalf("CHANGES.md:\n%s", body)
+	}
+
+	if err := json.Unmarshal(call(t, session, "run_wait", map[string]any{"run_id": runID, "timeout_seconds": 15}), &waited); err != nil {
+		t.Fatal(err)
+	}
+	if waited.TimedOut || waited.State != store.RunReview {
+		t.Fatalf("second wait %+v", waited)
+	}
+
+	eng.Cfg.MCP.AllowApprove = true
+	if err := config.Save(eng.ConfigPath, eng.Cfg); err != nil {
+		t.Fatal(err)
+	}
+	var approved map[string]any
+	if err := json.Unmarshal(call(t, session, "review_approve", map[string]any{"run_id": runID}), &approved); err != nil {
+		t.Fatal(err)
+	}
+	approvedRun, _ := approved["run"].(map[string]any)
+	if approvedRun == nil || approvedRun["state"] != store.RunApproved {
+		t.Fatalf("approve %+v", approved)
 	}
 }
