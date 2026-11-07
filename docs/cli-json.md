@@ -101,3 +101,7 @@ Example output shape (timestamps are RFC 3339 UTC):
 ```json
 {"schema_version":1,"data":{"id":1,"name":"API","slug":"api","repo_path":"/home/me/src/api","archived":false}}
 ```
+
+## Notifications
+
+`troopa notify telegram [--token T --chat C] [--dry-run] [--test]` is meant to run as a hook: it reads the hook event (JSON) on stdin, loads the run, task and plan from the database and sends a Telegram message (HTML) with the agent's summary, checks, time, tokens, cost and the next plan step. `TROOPA_TELEGRAM_TOKEN` and `TROOPA_TELEGRAM_CHAT` replace the flags. `--test` sends the latest run as a sample.

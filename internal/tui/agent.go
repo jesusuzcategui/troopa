@@ -441,16 +441,22 @@ func (m Model) finishAgent(msg agentDoneMsg) (tea.Model, tea.Cmd) {
 	m.colIndex = indexOfStatus(dest)
 	m.screen = screenReview
 	m.status = dest
-	if dest == store.StatusReview {
-		m.fireRunHook(launch.HookReview, m.runTask, run, summary)
-	} else {
-		m.fireRunHook(launch.HookBlocked, m.runTask, run, run.Note)
-	}
+	autoApprove := false
 	if dest == store.StatusReview && m.runTask.PlanID != 0 {
 		if plan, err := m.store.GetPlan(m.runTask.PlanID); err == nil && plan.State == store.PlanRunning && plan.AutoApprove {
-			// The agent finished and every check passed: approve and go on.
-			return m.approveRun()
+			autoApprove = true
 		}
+	}
+	switch {
+	case dest == store.StatusReview && !autoApprove:
+		m.fireRunHook(launch.HookReview, m.runTask, run, summary)
+	case dest != store.StatusReview:
+		m.fireRunHook(launch.HookBlocked, m.runTask, run, run.Note)
+	}
+	if autoApprove {
+		// The agent finished and every check passed: approve and go on (the
+		// approve hook reports it, so review does not fire twice).
+		return m.approveRun()
 	}
 	if m.cfg.Launch.Notify {
 		title := "Troopa: " + dest

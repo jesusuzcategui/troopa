@@ -12,6 +12,7 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
+	"github.com/jesusuzcategui/troopa/internal/notify"
 	"github.com/jesusuzcategui/troopa/internal/store"
 	"github.com/jesusuzcategui/troopa/internal/tui"
 )
@@ -37,6 +38,7 @@ Usage:
   troopa                              open the interactive TUI
   troopa setup                        run the first-run setup again
   troopa login <account> <agent>      sign an agent in to an account
+  troopa notify telegram [flags]      send a hook event to Telegram (see the docs)
   troopa extensions                   list troopa-* extensions on the PATH
   troopa <extension> [args]           run troopa-<extension>
   troopa <resource> <command> --json  run a non-interactive command
@@ -87,6 +89,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "login":
 		return runLogin(args[1:], stdout, stderr)
+	case "notify":
+		return runNotify(args[1:], stdout, stderr)
 	case "extensions":
 		exts := cli.ListExtensions()
 		if len(exts) == 0 {
@@ -181,6 +185,28 @@ func runLogin(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// runNotify sends the hook event on stdin to a chat app
+// (troopa notify telegram …), in the configured language.
+func runNotify(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 || args[0] != "telegram" {
+		fmt.Fprintln(stderr, "usage: troopa notify telegram [--token T --chat C] [--dry-run] [--test]")
+		return 2
+	}
+	_, configPath, dbPath, err := config.Paths()
+	if err == nil {
+		if cfg, err := config.Load(configPath); err == nil {
+			i18n.Apply(cfg.Language)
+		}
+	}
+	open := func() (*store.Store, error) {
+		if _, err := os.Stat(dbPath); err != nil {
+			return nil, err
+		}
+		return store.Open(dbPath)
+	}
+	return notify.Telegram(args[1:], os.Stdin, stdout, stderr, open)
 }
 
 // runExtension runs troopa-<name> with the paths Troopa uses.

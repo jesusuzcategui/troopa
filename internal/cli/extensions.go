@@ -16,7 +16,7 @@ import (
 
 // Builtin lists the first words Troopa handles itself; an extension cannot
 // replace them.
-var Builtin = []string{"setup", "help", "version", "login", "extensions", "project", "client", "task", "run", "brain", "plan", "profile"}
+var Builtin = []string{"setup", "help", "version", "login", "notify", "extensions", "project", "client", "task", "run", "brain", "plan", "profile"}
 
 func IsBuiltin(name string) bool {
 	for _, b := range Builtin {
