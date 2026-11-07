@@ -70,6 +70,7 @@ const (
 )
 
 type Model struct {
+	stamp       string // last store.ChangeStamp seen, see sync.go
 	store       *store.Store
 	cfg         config.Config
 	configPath  string
@@ -336,7 +337,7 @@ func (m Model) Init() tea.Cmd {
 	if m.screen == screenWelcome {
 		first = tea.Tick(1800*time.Millisecond, func(time.Time) tea.Msg { return splashDoneMsg{} })
 	}
-	return tea.Batch(append([]tea.Cmd{first}, reconcileRuns(m.eng())...)...)
+	return tea.Batch(append([]tea.Cmd{first, syncTick()}, reconcileRuns(m.eng())...)...)
 }
 
 func (m Model) eng() *engine.Engine {
@@ -370,6 +371,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tickLog()
 		}
 		return m, nil
+	case syncTickMsg:
+		return m.syncFromStore(), syncTick()
 	case agentWatchMsg:
 		return m, watchAgent(msg.runID, msg.worktree)
 	case agentDoneMsg:

@@ -268,3 +268,16 @@ func nullFloat(n sql.NullFloat64) any {
 	}
 	return n.Float64
 }
+
+// ChangeStamp changes whenever a task, run, plan or review comment is added
+// or updated, by this process or another one (the daemon, the bot, the CLI).
+// The TUI polls it to stay in sync without reloading on every tick.
+func (s *Store) ChangeStamp() string {
+	var stamp string
+	_ = s.db.QueryRow(`SELECT
+		(SELECT COUNT(*) || '|' || COALESCE(MAX(updated_at), '') FROM tasks) || '#' ||
+		(SELECT COUNT(*) || '|' || COALESCE(MAX(updated_at), '') FROM runs) || '#' ||
+		(SELECT COUNT(*) || '|' || COALESCE(MAX(updated_at), '') FROM plans) || '#' ||
+		(SELECT COUNT(*) || '|' || COALESCE(SUM(resolved), 0) FROM review_comments)`).Scan(&stamp)
+	return stamp
+}

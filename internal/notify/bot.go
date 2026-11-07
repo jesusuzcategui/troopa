@@ -125,7 +125,7 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 	action, idText, _ := strings.Cut(data, ":")
 	msgID := cq.Message.MessageID
 	switch action {
-	case "status", "plans", "plan", "newtask", "tasks", "task":
+	case "status", "plans", "plan", "newtask", "task":
 		if action == "newtask" && idText != "" {
 			b.askTaskTitle(ctx, cq, idText)
 			return
@@ -134,8 +134,13 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 		b.show(ctx, msgID, data)
 		return
 	}
-	if action == "launch" {
+	switch action {
+	case "launch":
 		b.launchTask(ctx, cq, idText)
+		return
+	case "tasks":
+		b.api.answer(ctx, cq.ID, "")
+		b.show(ctx, msgID, data)
 		return
 	}
 	id, err := strconv.ParseInt(idText, 10, 64)
@@ -191,6 +196,17 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 		b.api.answer(ctx, cq.ID, "")
 		text := "✏️ " + esc(i18n.T("Reply to this message with what %s should change in “%s”.", launch.AgentName(run.Agent), task.Title))
 		b.ask(ctx, text, msgID, prompt{kind: "changes", id: id})
+	case "comment":
+		b.api.answer(ctx, cq.ID, "")
+		b.ask(ctx, "💬 "+esc(i18n.T("Reply to this message with your comment. It waits with the other comments until you request changes.")), msgID, prompt{kind: "comment", id: id})
+	case "sendc":
+		b.api.answer(ctx, cq.ID, "")
+		b.requestChanges(ctx, id, "")
+	case "merge", "pmerge":
+		b.api.answer(ctx, cq.ID, "")
+		b.confirmMerge(ctx, msgID, action, id, back)
+	case "domerge", "dopmerge":
+		b.doMerge(ctx, cq, action, id, back)
 	case "diff":
 		b.api.answer(ctx, cq.ID, "")
 		b.sendDiff(ctx, id)
@@ -224,10 +240,13 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 		}
 		b.mu.Unlock()
 		if ok {
-			if p.kind == "task" {
+			switch p.kind {
+			case "task":
 				id, msg := b.createTask(p.id, text)
 				b.added(ctx, id, msg)
-			} else {
+			case "comment":
+				b.addComment(ctx, p.id, text)
+			default:
 				b.requestChanges(ctx, p.id, text)
 			}
 			return
@@ -330,11 +349,12 @@ func argID(args []string) (int64, bool) {
 }
 
 func (b *Bot) requestChanges(ctx context.Context, runID int64, feedback string) {
-	if feedback == "" {
+	comments, _ := b.eng.Store.ListPendingComments(runID)
+	if strings.TrimSpace(feedback) == "" && len(comments) == 0 {
 		b.reply(ctx, esc(i18n.T("The message was empty: nothing was sent.")))
 		return
 	}
-	res, err := b.eng.RequestChanges(runID, feedback, nil)
+	res, err := b.eng.RequestChanges(runID, feedback, comments)
 	if err != nil {
 		b.reply(ctx, "⚠️ "+esc(err.Error()))
 		return
@@ -351,9 +371,10 @@ func (b *Bot) help() string {
 		"/run &lt;id&gt; · " + esc(i18n.T("start or resume a plan")),
 		"/pause &lt;id&gt; · " + esc(i18n.T("pause a plan")),
 		"/task &lt;project&gt; &lt;title&gt; · " + esc(i18n.T("add a task to a project's backlog")),
+		"/tasks · " + esc(i18n.T("tasks by status: start, review, comment or merge them")),
 		"/log &lt;run&gt; · /diff &lt;run&gt;",
 		"",
-		esc(i18n.T("The buttons under each alert approve, request changes, or show the diff and the log. Merging stays in the TUI.")),
+		esc(i18n.T("The buttons under each alert approve, request changes, comment, merge, or show the diff and the log.")),
 		esc(i18n.T("Use the keyboard below or the menu: plans, steps and reviews open as buttons.")),
 	}
 	return strings.Join(lines, "\n")

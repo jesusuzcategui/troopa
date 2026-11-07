@@ -518,20 +518,7 @@ func (m Model) requestClean() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) mergeBlockReason() string {
-	if m.runTask.PlanID != 0 {
-		return i18n.T("This task is a plan step: merge the whole plan from its plan (w, then g)")
-	}
-	if m.run.State != store.RunApproved || m.runTask.Commits != store.CommitsAuto {
-		return i18n.T("Only an approved run without remote can be merged")
-	}
-	repo := m.runSess.Repo
-	if repo == "" {
-		repo = m.runSess.Worktree
-	}
-	if launch.HasRemote(repo) || (m.runSess.Worktree != "" && launch.HasRemote(m.runSess.Worktree)) {
-		return i18n.T("Only an approved run without remote can be merged")
-	}
-	return ""
+	return engine.MergeBlockReason(m.run, m.runTask, m.runSess)
 }
 
 func (m Model) requestMerge() (tea.Model, tea.Cmd) {
@@ -549,26 +536,16 @@ func (m Model) mergeRun() (tea.Model, tea.Cmd) {
 		m.err = ""
 		return m, nil
 	}
-	kind, err := launch.NormalizeMergeStrategy(m.cfg.Launch.Merge)
+	res, err := m.eng().MergeTask(m.run.ID)
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	msg, err := launch.MergeLocal(m.runSess, m.runTask, kind)
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	m.run.State = store.RunMerged
-	m.run.Note = msg
-	_ = m.store.UpdateRun(m.run)
-	_ = m.moveTask(m.run.TaskID, store.StatusDone)
-	m.rememberMerge(m.boardProject, m.runTask, m.run)
-	m.fireRunHook(launch.HookMerge, m.runTask, m.run, msg)
+	m.run = res.Run
 	m.screen = screenBoard
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(store.StatusDone)
-	m.status = msg
+	m.status = res.Message
 	m.err = ""
 	return m, nil
 }

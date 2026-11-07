@@ -216,9 +216,9 @@ What the agent says
             <li><strong>Plans</strong> lists each plan with its progress; tap one to see its steps, with <strong>▶️ Start</strong> or <strong>⏸ Pause</strong>, and approve, request changes or open the diff of the step waiting for review.</li>
             <li><strong>Status</strong> shows what is running, waiting or blocked, with the same buttons for each run.</li>
             <li><strong>New task</strong> asks for the project with a button, then for the title as a reply; the task lands in that project's backlog with a ▶️ button per installed agent.</li>
-            <li><strong>Tasks</strong> (or <code>/tasks</code>) lists the tasks waiting to start; pick one, then the agent, and it launches.</li>
+            <li><strong>Tasks</strong> (or <code>/tasks</code>) has a tab per status: pending, running, review, blocked and done. Open a task to launch it with the agent you pick, read its summary, approve it, request changes, leave comments (they wait and go to the agent together with your next request for changes), or merge it once approved. A finished plan merges from its own screen.</li>
           </ul>
-          <p>Merging stays in the TUI on purpose. Use a bot of its own for Troopa: two programs cannot read the same bot's messages at once.</p>
+          <p>Merging always asks first. The TUI stays in sync: whatever you do from Telegram shows up on the board within a couple of seconds. Use a bot of its own for Troopa: two programs cannot read the same bot's messages at once.</p>
         </section>
 
         <section id="extensions">
@@ -474,9 +474,9 @@ Lo que dice el agente
             <li><strong>Planes</strong> lista cada plan con su avance; toca uno para ver sus pasos, con <strong>▶️ Iniciar</strong> o <strong>⏸ Pausar</strong>, y aprobar, pedir cambios o abrir el diff del paso que espera revisión.</li>
             <li><strong>Estado</strong> muestra lo que está corriendo, esperando o bloqueado, con los mismos botones en cada ejecución.</li>
             <li><strong>Nueva tarea</strong> te pide el proyecto con un botón y luego el título como respuesta; la tarea cae en el backlog de ese proyecto con un botón ▶️ por cada agente instalado.</li>
-            <li><strong>Tareas</strong> (o <code>/tareas</code>) lista las tareas que esperan arrancar; eliges una, luego el agente, y arranca.</li>
+            <li><strong>Tareas</strong> (o <code>/tareas</code>) tiene una pestaña por estado: pendientes, en curso, revisión, bloqueadas y hechas. Abre una tarea para lanzarla con el agente que elijas, leer su resumen, aprobarla, pedir cambios, dejar comentarios (esperan y van al agente junto con tu siguiente pedido de cambios) o hacer merge cuando esté aprobada. Un plan terminado hace merge desde su propia pantalla.</li>
           </ul>
-          <p>El merge se queda en la TUI a propósito. Usa un bot solo para Troopa: dos programas no pueden leer los mensajes del mismo bot a la vez.</p>
+          <p>El merge siempre pide confirmación. La TUI se mantiene al día: lo que hagas desde Telegram aparece en el tablero en un par de segundos. Usa un bot solo para Troopa: dos programas no pueden leer los mensajes del mismo bot a la vez.</p>
         </section>
 
         <section id="extensions-es">

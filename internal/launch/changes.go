@@ -67,7 +67,9 @@ func FormatCommentFeedback(general string, comments []store.ReviewComment) strin
 		if b.Len() > 0 {
 			b.WriteString("\n")
 		}
-		fmt.Fprintf(&b, "%s:%d\n", c.Path, c.Line)
+		if c.Path != "" {
+			fmt.Fprintf(&b, "%s:%d\n", c.Path, c.Line)
+		}
 		if q := strings.TrimSpace(c.Quote); q != "" {
 			fmt.Fprintf(&b, "> %s\n", q)
 		}

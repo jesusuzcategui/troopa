@@ -319,3 +319,60 @@ func TestBotPickAndLaunchTask(t *testing.T) {
 	}
 	_ = run
 }
+
+func TestBotCommentApproveAndMerge(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	task, err := e.Store.CreateTask(store.Task{ProjectID: 1, Title: "Footer", Status: store.StatusBacklog,
+		Priority: store.PriorityMedium, Agent: store.AgentClaude, Mode: store.ModeYolo, Commits: store.CommitsAuto, Type: store.TypeFeature})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.Launch(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	launch.WaitAgents([]string{res.Run.Worktree}, 10*time.Second)
+	if _, err := e.Finish(res.Run.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	rid := itoa(res.Run.ID)
+	tid := itoa(task.ID)
+
+	b.Handle(ctx, cb("tasks:review"))
+	if edit := fake.last("editMessageText"); !strings.Contains(edit["reply_markup"], "task:"+tid) {
+		t.Fatalf("the review tab should list the task: %v", edit)
+	}
+	b.Handle(ctx, cb("task:"+tid))
+	edit := fake.last("editMessageText")
+	for _, want := range []string{"approve:" + rid + "|task:" + tid, "comment:" + rid, "diff:" + rid} {
+		if !strings.Contains(edit["reply_markup"], want) {
+			t.Fatalf("review task lacks %s: %s", want, edit["reply_markup"])
+		}
+	}
+	b.Handle(ctx, cb("comment:"+rid))
+	fake.mu.Lock()
+	promptID := fake.next
+	fake.mu.Unlock()
+	b.Handle(ctx, msg("Use the brand colors", promptID))
+	if c, _ := e.Store.ListPendingComments(res.Run.ID); len(c) != 1 || c[0].Body != "Use the brand colors" {
+		t.Fatalf("comment not saved: %+v", c)
+	}
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "sendc:"+rid) {
+		t.Fatalf("a saved comment should offer to send it: %v", m)
+	}
+
+	b.Handle(ctx, cb("approve:"+rid+"|task:"+tid))
+	edit = fake.last("editMessageText")
+	if !strings.Contains(edit["reply_markup"], "merge:"+rid) {
+		t.Fatalf("an approved task should offer merge: %s", edit["reply_markup"])
+	}
+	b.Handle(ctx, cb("merge:"+rid+"|task:"+tid))
+	if edit = fake.last("editMessageText"); !strings.Contains(edit["reply_markup"], "domerge:"+rid) {
+		t.Fatalf("merge should ask first: %v", edit)
+	}
+	b.Handle(ctx, cb("domerge:"+rid+"|task:"+tid))
+	if got, _ := e.Store.GetRun(res.Run.ID); got.State != store.RunMerged {
+		t.Fatalf("run state %s", got.State)
+	}
+}

@@ -443,127 +443,21 @@ func (m Model) applyEnginePlan(res engine.Result) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// planLastBranch is the branch that holds the whole plan, and its run.
-func (m Model) planLastRun(planID int64) (store.Run, store.Task, bool) {
-	steps, err := m.store.PlanSteps(planID)
-	if err != nil {
-		return store.Run{}, store.Task{}, false
-	}
-	for i := len(steps) - 1; i >= 0; i-- {
-		run, err := m.store.LatestRun(steps[i].ID)
-		if err == nil && run.State == store.RunApproved && run.Branch != "" {
-			return run, steps[i], true
-		}
-	}
-	return store.Run{}, store.Task{}, false
-}
-
 // mergePlan merges the last branch of a finished plan into the branch the plan
 // started from, or pushes it and opens a PR when the repo has a remote.
 func (m Model) mergePlan(id int64) (tea.Model, tea.Cmd) {
-	plan, err := m.store.GetPlan(id)
+	res, err := m.eng().MergePlan(id)
 	if err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	if plan.State == store.PlanPROpen {
-		// The PR was merged on the remote: remove the step worktrees.
-		project := m.taskProjectByID(plan.ProjectID)
-		repo, err := launch.RepoRoot(project.RepoPath)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		m.cleanPlanWorktrees(id, 0, repo)
-		plan.State = store.PlanMerged
-		_ = m.store.UpdatePlan(plan)
-		if m.plans != nil {
-			m.loadPlan(id)
-		}
 		m.err = ""
-		m.status = i18n.T("Plan closed: its worktrees and branches were removed. Pull %s to get the merged PR.", plan.Base)
+		m.status = err.Error()
 		return m, nil
 	}
-	if plan.State != store.PlanDone {
-		m.status = i18n.T("Finish every step before merging the plan")
-		return m, nil
-	}
-	run, _, ok := m.planLastRun(id)
-	if !ok {
-		m.status = i18n.T("No approved step to merge")
-		return m, nil
-	}
-	project := m.taskProjectByID(plan.ProjectID)
-	repo, err := launch.RepoRoot(project.RepoPath)
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	sess := launch.Session{Repo: repo, Worktree: run.Worktree, Branch: run.Branch, Base: plan.Base, LogPath: run.LogPath}
-	var msg string
-	state := store.PlanMerged
-	if launch.HasRemote(repo) {
-		state = store.PlanPROpen
-		if err := launch.PushBranch(run.Worktree, run.Branch); err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		body := plan.Goal
-		if steps, err := m.store.PlanSteps(id); err == nil {
-			body += "\n\n"
-			for _, s := range steps {
-				body += fmt.Sprintf("%d. %s\n", s.PlanStep, s.Title)
-			}
-		}
-		url, err := launch.CreatePR(run.Worktree, run.Branch, plan.Base, plan.Title, strings.TrimSpace(body)+"\n\nMade with Troopa.")
-		if err != nil {
-			msg = i18n.T("Branch %s pushed. ", run.Branch) + err.Error()
-		} else {
-			msg = i18n.T("PR opened: ") + url
-		}
-		msg += " · " + i18n.T("merge it on the remote, then press g again to clean up")
-	} else {
-		kind, err := launch.NormalizeMergeStrategy(m.cfg.Launch.Merge)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		msg, err = launch.MergeLocal(sess, store.Task{Title: plan.Title, Commits: store.CommitsAuto}, kind)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		m.cleanPlanWorktrees(id, run.ID, repo)
-	}
-	plan.State = state
-	_ = m.store.UpdatePlan(plan)
-	m.fireHook(launch.HookEvent{Event: launch.HookMerge, PlanID: plan.ID, Plan: plan.Title, Branch: run.Branch, Message: msg}, project)
 	if m.plans != nil {
 		m.loadPlan(id)
 	}
 	m.err = ""
-	m.status = msg
+	m.status = res.Message
 	return m, nil
-}
-
-// cleanPlanWorktrees removes the worktrees and branches of the steps once the
-// plan is merged; the last one was already removed by the merge.
-func (m Model) cleanPlanWorktrees(planID, mergedRun int64, repo string) {
-	steps, err := m.store.PlanSteps(planID)
-	if err != nil {
-		return
-	}
-	for _, s := range steps {
-		run, err := m.store.LatestRun(s.ID)
-		if err != nil {
-			continue
-		}
-		if run.ID != mergedRun {
-			_ = launch.Discard(launch.Session{Repo: repo, Worktree: run.Worktree, Branch: run.Branch})
-		}
-		run.State = store.RunMerged
-		_ = m.store.UpdateRun(run)
-	}
 }
 
 func (m Model) viewPlans() string {

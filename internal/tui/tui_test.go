@@ -84,3 +84,23 @@ func TestListShowsLogoWhenTall(t *testing.T) {
 		t.Fatal("short terminal should hide the logo")
 	}
 }
+
+func TestSyncReloadsBoardChangedElsewhere(t *testing.T) {
+	m := newTestModel(t)
+	p, _ := m.store.Create(store.Project{Name: "Sync", Slug: "sync", RepoPath: t.TempDir()})
+	m.boardProject = p
+	m.screen = screenBoard
+	m.reloadTasks()
+	m = m.syncFromStore() // first stamp, nothing to reload
+	if _, err := m.store.CreateTask(store.Task{ProjectID: p.ID, Title: "From the bot", Status: store.StatusBacklog}); err != nil {
+		t.Fatal(err)
+	}
+	m = m.syncFromStore()
+	found := false
+	for _, tk := range m.tasks {
+		found = found || tk.Title == "From the bot"
+	}
+	if !found {
+		t.Fatal("the board should pick up a task created by another process")
+	}
+}
