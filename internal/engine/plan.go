@@ -8,6 +8,26 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
+func (e *Engine) PausePlan(id int64) (Result, error) {
+	plan, err := e.Store.GetPlan(id)
+	if err != nil {
+		return Result{}, err
+	}
+	if plan.State != store.PlanRunning {
+		return Result{Plan: plan, Won: false}, nil
+	}
+	plan.State = store.PlanPaused
+	won, err := e.Store.UpdatePlanIfState(plan, store.PlanRunning)
+	if err != nil {
+		return Result{}, err
+	}
+	if !won {
+		fresh, _ := e.Store.GetPlan(id)
+		return Result{Plan: fresh, Won: false}, nil
+	}
+	return Result{Plan: plan, Message: i18n.T("Plan paused. The running step finishes; the next one waits for s."), Won: true}, nil
+}
+
 func (e *Engine) StartPlan(id int64) (Result, error) {
 	plan, err := e.Store.GetPlan(id)
 	if err != nil {

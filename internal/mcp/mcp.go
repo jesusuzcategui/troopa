@@ -1,4 +1,4 @@
-// Package mcp is Troopa's MCP server: read tools over stdio.
+// Package mcp is Troopa's MCP server: read, write and run tools over stdio.
 package mcp
 
 import (
@@ -8,9 +8,13 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/daemon"
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -22,8 +26,11 @@ const defaultLogLines = 200
 const maxLogLines = 2000
 
 type handler struct {
-	store    *store.Store
-	brainDir string
+	store     *store.Store
+	eng       *engine.Engine
+	brainDir  string
+	ctx       context.Context
+	watchOnce sync.Once
 }
 
 type idIn struct {
@@ -81,9 +88,17 @@ type noteOut struct {
 	Content string `json:"content"`
 }
 
-// New builds the MCP server with Troopa's read tools.
-func New(s *store.Store, brainDir string) *mcpsdk.Server {
-	h := &handler{store: s, brainDir: brainDir}
+// New builds the MCP server with Troopa's read, write and run tools.
+func New(e *engine.Engine) *mcpsdk.Server {
+	return NewWithContext(context.Background(), e)
+}
+
+// NewWithContext is New with a lifetime context for background reconcile.
+func NewWithContext(ctx context.Context, e *engine.Engine) *mcpsdk.Server {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	h := &handler{store: e.Store, eng: e, brainDir: brain.FromConfig(e.Cfg).Dir, ctx: ctx}
 	srv := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "troopa", Version: "dev"}, nil)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "projects_list", Description: "Lists projects. Returns the project JSON array."}, h.projectsList)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "project_show", Description: "Shows one project. Returns the project JSON object."}, h.projectShow)
@@ -97,6 +112,15 @@ func New(s *store.Store, brainDir string) *mcpsdk.Server {
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "brain_search", Description: "Searches the second brain. Returns matching note lines."}, h.brainSearch)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "brain_read", Description: "Reads a note inside the second brain. Returns path and content."}, h.brainRead)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "profiles_list", Description: "Lists profiles. Returns the profile JSON array."}, h.profilesList)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_create", Description: "Creates a task. Returns the task JSON object."}, h.taskCreate)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_update", Description: "Updates a task. Returns the task JSON object."}, h.taskUpdate)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_move", Description: "Moves a task to a status. Returns the task JSON object."}, h.taskMove)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_create", Description: "Creates a plan and its steps in one call. Returns the plan with steps."}, h.planCreate)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_add_step", Description: "Adds a step to a plan. Returns the task JSON object."}, h.planAddStep)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_update", Description: "Updates a plan. Returns the plan with steps."}, h.planUpdate)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_start", Description: "Starts a plan through the engine. Returns the plan, run if launched, and a message."}, h.planStart)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_pause", Description: "Pauses a running plan through the engine. Returns the plan."}, h.planPause)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "run_wait", Description: "Waits until a run leaves running, or a plan's current step changes. Returns state, summary and checks."}, h.runWait)
 	return srv
 }
 
@@ -116,8 +140,61 @@ func Run(ctx context.Context) error {
 		return err
 	}
 	i18n.Apply(cfg.Language)
-	srv := New(s, brain.FromConfig(cfg).Dir)
+	srv := NewWithContext(ctx, engine.New(s, cfg, configPath))
 	return srv.Run(ctx, &mcpsdk.StdioTransport{})
+}
+
+func (h *handler) rememberTask(t store.Task) {
+	p, err := h.store.Get(t.ProjectID)
+	if err != nil {
+		return
+	}
+	_ = brain.OnTask(brain.FromConfig(h.eng.Cfg), p, t)
+}
+
+func (h *handler) watcherRunning() bool {
+	dataDir, _, _, err := config.Paths()
+	if err != nil {
+		return false
+	}
+	_, ok := daemon.Running(dataDir)
+	return ok
+}
+
+func (h *handler) watchFromMCP() {
+	h.watchOnce.Do(func() {
+		go h.watchLoop()
+	})
+}
+
+func (h *handler) watchLoop() {
+	tick := time.NewTicker(daemon.Interval)
+	defer tick.Stop()
+	for {
+		select {
+		case <-h.ctx.Done():
+			return
+		case <-tick.C:
+			h.tickPlans()
+		}
+	}
+}
+
+func (h *handler) tickPlans() {
+	_, _ = h.eng.Reconcile()
+	plans, err := h.store.ListPlans(0)
+	if err != nil {
+		return
+	}
+	busy := i18n.T("An agent is already running")
+	for _, p := range plans {
+		if p.State != store.PlanRunning || !(p.Auto || p.AutoApprove) {
+			continue
+		}
+		if _, err := h.eng.AdvancePlan(p.ID); err != nil && err.Error() != busy {
+			continue
+		}
+	}
 }
 
 func (h *handler) projectsList(_ context.Context, _ *mcpsdk.CallToolRequest, _ struct{}) (*mcpsdk.CallToolResult, any, error) {

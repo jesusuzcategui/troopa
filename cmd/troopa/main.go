@@ -48,7 +48,7 @@ Usage:
   troopa daemon status                show whether it runs and which runs it watches
   troopa daemon install               install a user service (Linux/macOS)
   troopa daemon uninstall             remove the user service
-  troopa mcp                          MCP server over stdio (read tools)
+  troopa mcp                          MCP server over stdio (read and write tools)
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version

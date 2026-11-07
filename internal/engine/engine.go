@@ -151,6 +151,14 @@ func (e *Engine) fireHook(ev launch.HookEvent, p store.Project) {
 	launch.RunHooks(e.Cfg.Launch.Hooks, project, ev, hooksLog())
 }
 
+func (e *Engine) FireTaskHook(event string, t store.Task) {
+	p, err := e.project(t.ProjectID)
+	if err != nil {
+		return
+	}
+	e.fireHook(launch.HookEvent{Event: event, TaskID: t.ID, Task: t.Title, Status: t.Status, Agent: t.Agent, PlanID: t.PlanID}, p)
+}
+
 func (e *Engine) fireRunHook(event string, t store.Task, run store.Run, msg string, p store.Project) {
 	e.fireHook(launch.HookEvent{
 		Event: event, TaskID: t.ID, Task: t.Title, Status: t.Status, Agent: run.Agent,

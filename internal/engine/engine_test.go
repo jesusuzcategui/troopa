@@ -312,3 +312,19 @@ func TestStartPlanLaunchesFirstStep(t *testing.T) {
 		t.Fatalf("expected next step: %+v", next)
 	}
 }
+
+func TestPausePlan(t *testing.T) {
+	e, s := testEngine(t)
+	p, err := s.Create(store.Project{Name: "App", RepoPath: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := s.CreatePlan(store.Plan{ProjectID: p.ID, Title: "Menu", State: store.PlanRunning})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.PausePlan(plan.ID)
+	if err != nil || !res.Won || res.Plan.State != store.PlanPaused {
+		t.Fatalf("%+v err=%v", res, err)
+	}
+}

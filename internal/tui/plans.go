@@ -294,10 +294,14 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		_ = m.store.UpdatePlan(ps.plan)
 		m.status = i18n.T("Auto-approve: ") + onOff(ps.plan.AutoApprove)
 	case "p":
-		if ps.plan.State == store.PlanRunning {
-			ps.plan.State = store.PlanPaused
-			_ = m.store.UpdatePlan(ps.plan)
-			m.status = i18n.T("Plan paused. The running step finishes; the next one waits for s.")
+		res, err := m.eng().PausePlan(ps.plan.ID)
+		if err != nil {
+			m.err = err.Error()
+			return m, nil
+		}
+		ps.plan = res.Plan
+		if res.Message != "" {
+			m.status = res.Message
 		}
 	case "s":
 		return m.startPlan(ps.plan.ID)

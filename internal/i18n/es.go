@@ -408,6 +408,7 @@ var es = map[string]string{
 	"The Troopa daemon is not supported on Windows yet.":          "El daemon de Troopa aún no está soportado en Windows.",
 	"usage: troopa daemon [install | uninstall | status]":         "uso: troopa daemon [install | uninstall | status]",
 	"usage: troopa mcp":                                           "uso: troopa mcp",
+	"`troopa daemon` keeps plans moving":                          "`troopa daemon` sigue moviendo los planes",
 	AboutCreator:                                                  aboutCreatorES,
 	HelpText:                                                      helpTextES,
 	WelcomeText:                                                   welcomeTextES,
