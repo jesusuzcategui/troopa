@@ -100,6 +100,16 @@ troopa daemon uninstall
 
 `install` writes a systemd user unit on Linux (`~/.config/systemd/user/troopa.service`) and a launchd agent on macOS (`~/Library/LaunchAgents/dev.troopa.plist`), then enables it. `uninstall` removes that file. Windows prints that it is not supported yet. `status` prints whether the daemon is running and the runs it watches.
 
+## MCP
+
+`troopa mcp` is an MCP server over stdio in the same binary. It does not use `--json`. Point an MCP client at the `troopa mcp` command. Tools return JSON in the same shapes as the CLI `data` values:
+
+```sh
+troopa mcp
+```
+
+Read tools: `projects_list`, `project_show`, `tasks_list` (filters: `project`, `status`, `plan`), `task_show`, `plans_list`, `plan_show` (steps with status and latest run), `run_show` (summary, checks, state, branch, rounds), `run_diff` (files and patch text, size-limited), `run_log` (tail of `agent.log`), `brain_search`, `brain_read` (paths inside the brain only), `profiles_list`.
+
 `run rounds` lists the agent rounds of a run (`launch` then each `x` request). Each item uses numbers or `null` for metrics, `log_from`/`log_to` and `id` (legacy runs without stored rounds appear as a single synthetic round with `"id": null`). `kind` is `launch` or `changes`; `state` is `running`, `review` or `blocked`.
 
 ## Example

@@ -23,9 +23,9 @@ type Link struct {
 }
 
 type Hit struct {
-	Rel  string
-	Line int
-	Text string
+	Rel  string `json:"rel"`
+	Line int    `json:"line"`
+	Text string `json:"text"`
 }
 
 var (
@@ -353,7 +353,11 @@ func absInside(dir, rel string) (string, bool) {
 	if strings.TrimSpace(rel) == "" {
 		return "", false
 	}
-	path := filepath.Join(dir, filepath.FromSlash(rel))
+	rel = filepath.FromSlash(rel)
+	if filepath.IsAbs(rel) {
+		return "", false
+	}
+	path := filepath.Join(dir, rel)
 	if _, ok := relInside(dir, path); !ok {
 		return "", false
 	}

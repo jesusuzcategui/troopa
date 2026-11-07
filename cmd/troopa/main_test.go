@@ -270,7 +270,7 @@ func TestHelpAndVersion(t *testing.T) {
 		if got := run([]string{arg}, &out, &errOut); got != 0 {
 			t.Fatalf("%s: exit code = %d, want 0", arg, got)
 		}
-		if !strings.Contains(out.String(), "Usage:") || !strings.Contains(out.String(), "daemon") {
+		if !strings.Contains(out.String(), "Usage:") || !strings.Contains(out.String(), "daemon") || !strings.Contains(out.String(), "mcp") {
 			t.Fatalf("%s: missing usage, got %q", arg, out.String())
 		}
 	}
@@ -318,6 +318,21 @@ func TestDaemonStatusAndSecondInstance(t *testing.T) {
 	out.Reset()
 	errOut.Reset()
 	if got := run([]string{"daemon", "nope"}, &out, &errOut); got != 2 {
+		t.Fatalf("unknown: %d %q", got, errOut.String())
+	}
+}
+
+func TestMCPHelp(t *testing.T) {
+	var out, errOut bytes.Buffer
+	if got := run([]string{"mcp", "-h"}, &out, &errOut); got != 0 {
+		t.Fatalf("help: %d %q %q", got, out.String(), errOut.String())
+	}
+	if !strings.Contains(out.String(), "troopa mcp") {
+		t.Fatalf("help: %q", out.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if got := run([]string{"mcp", "nope"}, &out, &errOut); got != 2 {
 		t.Fatalf("unknown: %d %q", got, errOut.String())
 	}
 }

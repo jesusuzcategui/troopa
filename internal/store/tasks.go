@@ -73,6 +73,7 @@ type TaskFilter struct {
 	Status   string
 	Priority string
 	ClientID int64
+	PlanID   int64
 }
 
 func (s *Store) ListTasks(projectID int64, f TaskFilter) ([]Task, error) {
@@ -87,6 +88,10 @@ func (s *Store) ListTasks(projectID int64, f TaskFilter) ([]Task, error) {
 	if f.ClientID != 0 {
 		q += ` AND project_id IN (SELECT id FROM projects WHERE client_id = ?)`
 		args = append(args, f.ClientID)
+	}
+	if f.PlanID != 0 {
+		q += ` AND plan_id = ?`
+		args = append(args, f.PlanID)
 	}
 	if st := strings.TrimSpace(f.Status); st != "" {
 		if !oneOf(st, Statuses) {

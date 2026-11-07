@@ -40,6 +40,7 @@
       <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
       <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
       <a href="#daemon" data-i18n="docs.daemon">Daemon</a>
+      <a href="#mcp" data-i18n="docs.mcp">MCP</a>
       <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
       <a href="#config" data-i18n="docs.config">Configuration</a>
     </nav>
@@ -176,6 +177,13 @@ troopa daemon status
 troopa daemon install
 troopa daemon uninstall</pre>
           <p><code>install</code> writes a systemd user unit on Linux (<code>~/.config/systemd/user/troopa.service</code>) and a launchd agent on macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), then enables it. <code>uninstall</code> removes that file. Windows is not supported yet. <code>status</code> prints whether it is running and the runs it watches.</p>
+        </section>
+
+        <section id="mcp">
+          <h2>MCP</h2>
+          <p><code>troopa mcp</code> is an MCP server over stdio in the same binary. Point a client at that command. Tools return JSON in the same shapes as the CLI.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa mcp</pre>
+          <p>Read tools: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filters: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (steps with status and latest run), <code>run_show</code> (summary, checks, state, branch, rounds), <code>run_diff</code> (files and size-limited patch text), <code>run_log</code> (log tail), <code>brain_search</code>, <code>brain_read</code> (paths inside the brain only), <code>profiles_list</code>.</p>
         </section>
 
         <section id="cli">
@@ -362,6 +370,13 @@ troopa daemon status
 troopa daemon install
 troopa daemon uninstall</pre>
           <p><code>install</code> escribe una unidad de systemd de usuario en Linux (<code>~/.config/systemd/user/troopa.service</code>) y un agente launchd en macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), y lo activa. <code>uninstall</code> quita ese archivo. Windows aún no está soportado. <code>status</code> dice si está en marcha y qué ejecuciones vigila.</p>
+        </section>
+
+        <section id="mcp-es">
+          <h2>MCP</h2>
+          <p><code>troopa mcp</code> es un servidor MCP por stdio en el mismo binario. Apunta un cliente a ese comando. Las herramientas devuelven JSON con las mismas formas que la CLI.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa mcp</pre>
+          <p>Herramientas de lectura: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filtros: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (pasos con estado y última ejecución), <code>run_show</code> (resumen, checks, estado, rama, rondas), <code>run_diff</code> (archivos y parche con límite de tamaño), <code>run_log</code> (cola del log), <code>brain_search</code>, <code>brain_read</code> (solo rutas dentro del cerebro), <code>profiles_list</code>.</p>
         </section>
 
         <section id="cli-es">

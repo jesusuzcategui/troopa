@@ -16,6 +16,7 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/daemon"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
+	troopamcp "github.com/jesusuzcategui/troopa/internal/mcp"
 	"github.com/jesusuzcategui/troopa/internal/store"
 	"github.com/jesusuzcategui/troopa/internal/tui"
 )
@@ -47,6 +48,7 @@ Usage:
   troopa daemon status                show whether it runs and which runs it watches
   troopa daemon install               install a user service (Linux/macOS)
   troopa daemon uninstall             remove the user service
+  troopa mcp                          MCP server over stdio (read tools)
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
@@ -97,6 +99,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runLogin(args[1:], stdout, stderr)
 	case "daemon":
 		return runDaemon(args[1:], stdout, stderr)
+	case "mcp":
+		return runMCP(args[1:], stdout, stderr)
 	case "extensions":
 		exts := cli.ListExtensions()
 		if len(exts) == 0 {
@@ -190,6 +194,27 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, i18n.T("usage: troopa daemon [install | uninstall | status]"))
 		return 2
 	}
+}
+
+func runMCP(args []string, stdout, stderr io.Writer) int {
+	applyConfigLang()
+	if len(args) > 0 {
+		switch args[0] {
+		case "help", "-h", "--help":
+			fmt.Fprintln(stdout, i18n.T("usage: troopa mcp"))
+			return 0
+		default:
+			fmt.Fprintln(stderr, i18n.T("usage: troopa mcp"))
+			return 2
+		}
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := troopamcp.Run(ctx); err != nil {
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func runTUI(forceSetup bool) error {

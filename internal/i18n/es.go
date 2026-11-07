@@ -407,7 +407,8 @@ var es = map[string]string{
 	"Unload with: launchctl unload %s":                            "Descárgalo con: launchctl unload %s",
 	"The Troopa daemon is not supported on Windows yet.":          "El daemon de Troopa aún no está soportado en Windows.",
 	"usage: troopa daemon [install | uninstall | status]":         "uso: troopa daemon [install | uninstall | status]",
-	AboutCreator: aboutCreatorES,
-	HelpText:     helpTextES,
-	WelcomeText:  welcomeTextES,
+	"usage: troopa mcp":                                           "uso: troopa mcp",
+	AboutCreator:                                                  aboutCreatorES,
+	HelpText:                                                      helpTextES,
+	WelcomeText:                                                   welcomeTextES,
 }
