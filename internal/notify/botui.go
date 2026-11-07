@@ -45,6 +45,8 @@ func (b *Bot) view(view string) (string, *tgKeyboard) {
 		return b.projectsView()
 	case "tasks":
 		return b.tasksView(idText)
+	case "chat":
+		return b.chatAgentsView()
 	case "task":
 		if id, err := strconv.ParseInt(idText, 10, 64); err == nil {
 			return b.taskView(id, "")
@@ -58,14 +60,14 @@ func mainKeyboard() replyKeyboard {
 	return replyKeyboard{Resize: true, Persistent: true, Rows: [][]replyButton{
 		{{Text: "📊 " + i18n.T("Status")}, {Text: "🗺 " + i18n.T("Plans")}},
 		{{Text: "📋 " + i18n.T("Tasks")}, {Text: "➕ " + i18n.T("New task")}},
-		{{Text: "❓ " + i18n.T("Help")}},
+		{{Text: "💬 " + i18n.T("Chat")}, {Text: "❓ " + i18n.T("Help")}},
 	}}
 }
 
 // keyboardView maps a tap on the persistent keyboard to a screen, whatever
 // language the keyboard was drawn in.
 func keyboardView(text string) (string, bool) {
-	for prefix, view := range map[string]string{"📊": "status", "🗺": "plans", "📋": "tasks", "➕": "newtask", "❓": "help"} {
+	for prefix, view := range map[string]string{"📊": "status", "🗺": "plans", "📋": "tasks", "➕": "newtask", "💬": "chat", "❓": "help"} {
 		if strings.HasPrefix(text, prefix) {
 			return view, true
 		}
@@ -85,6 +87,8 @@ func (b *Bot) commands() []tgCommand {
 		{"status", i18n.T("what is running, waiting for review or blocked")},
 		{"plans", i18n.T("plans and their progress")},
 		{"tasks", i18n.T("tasks by status: start, review, comment or merge them")},
+		{"chat", i18n.T("talk with an agent; /end closes the conversation")},
+		{"end", i18n.T("close the conversation with the agent")},
 		{"task", i18n.T("add a task to a project's backlog")},
 		{"plan", i18n.T("the steps of a plan")},
 		{"run", i18n.T("start or resume a plan")},

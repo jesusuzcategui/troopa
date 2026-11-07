@@ -26,9 +26,12 @@ type Bot struct {
 	eng     *engine.Engine
 	logger  *log.Logger
 	offsetF string
+	dataDir string
 
 	mu      sync.Mutex
 	pending map[int64]prompt // prompt message id -> what the reply is for
+	conv    *chatState       // the open conversation with an agent, if any
+	wg      sync.WaitGroup   // conversation turns in flight
 }
 
 // prompt is a question the bot asked with a forced reply.
@@ -42,10 +45,12 @@ func NewBot(token, chat string, eng *engine.Engine, dataDir string, logger *log.
 	if logger == nil {
 		logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
-	return &Bot{
+	b := &Bot{
 		api: newTG(token), chat: strings.TrimSpace(chat), eng: eng, logger: logger,
-		offsetF: filepath.Join(dataDir, "telegram.offset"), pending: map[int64]prompt{},
+		offsetF: filepath.Join(dataDir, "telegram.offset"), dataDir: dataDir, pending: map[int64]prompt{},
 	}
+	b.loadChat()
+	return b
 }
 
 // Run polls Telegram until ctx ends.
@@ -135,6 +140,28 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 		return
 	}
 	switch action {
+	case "chat":
+		b.api.answer(ctx, cq.ID, "")
+		if idText == "" {
+			b.show(ctx, msgID, "chat")
+		} else {
+			text, kb := b.chatProjectsView(idText)
+			if err := b.api.edit(ctx, b.chat, msgID, text, kb); err != nil {
+				b.api.send(ctx, b.chat, text, kb, 0)
+			}
+		}
+		return
+	case "chatp":
+		b.api.answer(ctx, cq.ID, "")
+		agent, pid, _ := strings.Cut(idText, ":")
+		id, _ := strconv.ParseInt(pid, 10, 64)
+		b.startChat(ctx, msgID, agent, id)
+		return
+	case "chatend":
+		b.api.answer(ctx, cq.ID, "")
+		b.api.clearButtons(ctx, b.chat, msgID)
+		b.endChat(ctx)
+		return
 	case "launch":
 		b.launchTask(ctx, cq, idText)
 		return
@@ -262,6 +289,12 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 		}
 		return
 	}
+	if !strings.HasPrefix(text, "/") && b.chatting() {
+		if text != "" {
+			b.chatSend(ctx, text)
+		}
+		return
+	}
 	if !strings.HasPrefix(text, "/") {
 		b.reply(ctx, esc(i18n.T("Send /help to see what I can do.")))
 		return
@@ -310,6 +343,10 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 			return
 		}
 		b.reply(ctx, "⏸ "+esc(i18n.T("Plan %s paused: the running step finishes, the next one waits.", res.Plan.Title)))
+	case "/chat", "/conversar":
+		b.show(ctx, 0, "chat")
+	case "/end", "/cerrar":
+		b.endChat(ctx)
 	case "/tasks", "/tareas":
 		b.show(ctx, 0, "tasks")
 	case "/launch", "/lanzar":
@@ -374,6 +411,7 @@ func (b *Bot) help() string {
 		"/pause &lt;id&gt; · " + esc(i18n.T("pause a plan")),
 		"/task &lt;project&gt; &lt;title&gt; · " + esc(i18n.T("add a task to a project's backlog")),
 		"/tasks · " + esc(i18n.T("tasks by status: start, review, comment or merge them")),
+		"/chat · " + esc(i18n.T("talk with an agent; /end closes the conversation")),
 		"/log &lt;run&gt; · /diff &lt;run&gt;",
 		"",
 		esc(i18n.T("The buttons under each alert approve, request changes, comment, merge, or show the diff and the log.")),

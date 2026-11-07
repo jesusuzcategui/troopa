@@ -411,3 +411,51 @@ func TestBotMergesTaskApprovedWithoutCommits(t *testing.T) {
 		t.Fatalf("main should have the merge: %s", out)
 	}
 }
+
+func TestBotConversation(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	// The fake agent answers by writing to the reply file named in its prompt.
+	bin := filepath.Join(t.TempDir(), "chatbin")
+	_ = os.MkdirAll(bin, 0o755)
+	script := "#!/bin/sh\nfor a in \"$@\"; do f=$(printf '%s' \"$a\" | grep -o '/[^ ]*reply-[0-9]*\\.md'); if [ -n \"$f\" ]; then printf 'Hola, **todo bien**' > \"$f\"; fi; done\n"
+	_ = os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	_, _ = e.Store.Create(store.Project{Name: "Conversar", Slug: "conversar", RepoPath: t.TempDir()})
+
+	b.Handle(ctx, msg("💬 Conversar", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], `"chat:claude"`) {
+		t.Fatalf("chat should list agents: %v", m)
+	}
+	b.Handle(ctx, cb("chat:claude"))
+	edit := fake.last("editMessageText")
+	if !strings.Contains(edit["reply_markup"], "chatp:claude:2") || strings.Index(edit["reply_markup"], "chatp:claude:2") > strings.Index(edit["reply_markup"], "chatp:claude:1") {
+		t.Fatalf("Conversar should come first: %s", edit["reply_markup"])
+	}
+	b.Handle(ctx, cb("chatp:claude:2"))
+	if !b.chatting() {
+		t.Fatal("conversation should be open")
+	}
+	b.Handle(ctx, msg("¿Qué tal?", 0))
+	b.wg.Wait()
+	m := fake.last("sendMessage")
+	if !strings.Contains(m["text"], "<b>todo bien</b>") || !strings.Contains(m["reply_markup"], "chatend") {
+		t.Fatalf("answer not relayed: %v", m)
+	}
+	raw, _ := os.ReadFile(filepath.Join(b.conv.Dir, "transcript.md"))
+	if !strings.Contains(string(raw), "¿Qué tal?") || !strings.Contains(string(raw), "todo bien") {
+		t.Fatalf("transcript: %s", raw)
+	}
+	// A restart keeps the conversation open.
+	b2 := NewBot("t", "42", e, b.dataDir, nil)
+	if !b2.chatting() {
+		t.Fatal("the conversation should survive a restart")
+	}
+	b.Handle(ctx, cb("chatend"))
+	if b.chatting() {
+		t.Fatal("conversation should be closed")
+	}
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "1") {
+		t.Fatalf("close message: %v", m)
+	}
+}
