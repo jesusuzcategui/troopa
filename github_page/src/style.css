@@ -125,6 +125,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 
 .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 28px 36px; }
 .features p { margin: 0; color: var(--muted); font-size: 16px; }
+.points {
+  list-style: none; margin: 36px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+}
+.points li {
+  margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+}
 
 .flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; counter-reset: step; }
 .flow li { position: relative; padding-top: 14px; border-top: 2px solid var(--line); }
@@ -188,7 +196,7 @@ pre.cmd {
 .doc p, .doc li { color: var(--fg); }
 .doc ol, .doc ul { padding-left: 22px; }
 .doc li { margin: 6px 0; }
-.doc pre.cmd { white-space: pre; }
+.doc pre.cmd { white-space: pre; overflow-x: auto; max-width: 100%; }
 @media (max-width: 900px) {
   .docs { grid-template-columns: minmax(0, 1fr); gap: 20px; padding-block: 28px 64px; }
   .toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; }

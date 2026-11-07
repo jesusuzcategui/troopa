@@ -99,6 +99,16 @@ When the work is not quite right, press `x` in the review (or on the task in the
 
 Every `TASK.md` asks the agent to start `SUMMARY.md` with a **How to run** section (setup, dependencies, command, how to test), so the review tells you how to try the change. It also includes a **Project context** section with the absolute paths of `project.md` and `INDEX.md` and the Current state / Next / Decisions text. The agent may read the rest of the brain; it must not edit it unless the task says so.
 
+## Daemon and MCP
+
+`troopa daemon` finishes runs and advances plans without the TUI (`install` / `status` / `uninstall`). `troopa mcp` is the MCP server in the same binary. Register it with a client, or print the snippet if that client is missing:
+
+```bash
+troopa mcp install claude    # or codex, opencode, cursor
+```
+
+`review_approve` needs `[mcp] allow_approve = true`. There is no merge tool; merge stays on `g` in the TUI.
+
 ## Second brain
 
 Markdown notes Troopa keeps next to SQLite. Default folder: `$XDG_DATA_HOME/troopa/brain`. The first-run setup and Settings (`S`) pick Troopa's own folder or an existing vault. If the folder is missing, Troopa creates it with this tree:

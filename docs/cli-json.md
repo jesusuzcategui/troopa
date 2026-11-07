@@ -106,7 +106,10 @@ troopa daemon uninstall
 
 ```sh
 troopa mcp
+troopa mcp install claude    # or codex, opencode, cursor
 ```
+
+`install` registers the stdio server with that client: Claude Code runs `claude mcp add troopa -- troopa mcp`; Codex writes `[mcp_servers.troopa]` in `~/.codex/config.toml`; OpenCode writes `~/.config/opencode/opencode.json`; Cursor writes `~/.cursor/mcp.json`. If the client binary is not on `PATH`, Troopa prints the snippet instead of writing.
 
 Read tools: `projects_list`, `project_show`, `tasks_list` (filters: `project`, `status`, `plan`), `task_show`, `plans_list`, `plan_show` (steps with status and latest run), `run_show` (summary, checks, state, branch, rounds), `run_diff` (files and patch text, size-limited), `run_log` (tail of `agent.log`), `brain_search`, `brain_read` (paths inside the brain only), `profiles_list`.
 

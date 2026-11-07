@@ -327,12 +327,22 @@ func TestMCPHelp(t *testing.T) {
 	if got := run([]string{"mcp", "-h"}, &out, &errOut); got != 0 {
 		t.Fatalf("help: %d %q %q", got, out.String(), errOut.String())
 	}
-	if !strings.Contains(out.String(), "troopa mcp") {
+	if !strings.Contains(out.String(), "troopa mcp") || !strings.Contains(out.String(), "install") {
 		t.Fatalf("help: %q", out.String())
 	}
 	out.Reset()
 	errOut.Reset()
 	if got := run([]string{"mcp", "nope"}, &out, &errOut); got != 2 {
 		t.Fatalf("unknown: %d %q", got, errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if got := run([]string{"mcp", "install"}, &out, &errOut); got != 2 {
+		t.Fatalf("install without client: %d %q", got, errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if got := run([]string{"mcp", "install", "nope"}, &out, &errOut); got != 2 {
+		t.Fatalf("bad client: %d %q", got, errOut.String())
 	}
 }

@@ -93,13 +93,17 @@ export const strings = {
     "docs.brain": "Second brain",
     "docs.hooks": "Hooks",
     "docs.extensions": "Extensions",
-    "docs.daemon": "Daemon",
-    "docs.mcp": "MCP",
+    "docs.mcp": "MCP and daemon",
     "docs.cli": "JSON CLI",
     "docs.config": "Configuration",
     "docs.more": "Read the docs →",
     "keys.brain": "second brain",
-    "keys.comment": "comment a diff line"
+    "keys.comment": "comment a diff line",
+    "f16.t": "MCP and daemon",
+    "f16.d": "troopa mcp install registers Claude, Codex, OpenCode or Cursor. The daemon keeps plans moving. Approve from MCP is opt-in; merge stays in the TUI.",
+    "mcp.k1": "Register with <code>troopa mcp install claude</code> (or codex, opencode, cursor). Missing clients get the snippet.",
+    "mcp.k2": "<code>review_approve</code> needs <code>allow_approve</code>. There is no merge tool.",
+    "mcp.k3": "<code>troopa daemon</code> finishes runs and advances plans without the TUI."
   },
   "es": {
     "demo.client": "Cliente",
@@ -194,12 +198,16 @@ export const strings = {
     "docs.brain": "Segundo cerebro",
     "docs.hooks": "Hooks",
     "docs.extensions": "Extensiones",
-    "docs.daemon": "Daemon",
-    "docs.mcp": "MCP",
+    "docs.mcp": "MCP y daemon",
     "docs.cli": "CLI JSON",
     "docs.config": "Configuración",
     "docs.more": "Leer la documentación →",
     "keys.brain": "segundo cerebro",
-    "keys.comment": "comentar una línea del diff"
+    "keys.comment": "comentar una línea del diff",
+    "f16.t": "MCP y daemon",
+    "f16.d": "troopa mcp install registra Claude, Codex, OpenCode o Cursor. El daemon sigue moviendo los planes. Aprobar desde MCP es opt-in; el merge se queda en la TUI.",
+    "mcp.k1": "Regístralo con <code>troopa mcp install claude</code> (o codex, opencode, cursor). Si falta el cliente, imprime el fragmento.",
+    "mcp.k2": "<code>review_approve</code> necesita <code>allow_approve</code>. No hay herramienta de merge.",
+    "mcp.k3": "<code>troopa daemon</code> termina ejecuciones y avanza planes sin la TUI."
   }
 };

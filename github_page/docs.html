@@ -39,8 +39,7 @@
       <a href="#brain" data-i18n="docs.brain">Second brain</a>
       <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
       <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
-      <a href="#daemon" data-i18n="docs.daemon">Daemon</a>
-      <a href="#mcp" data-i18n="docs.mcp">MCP</a>
+      <a href="#mcp" data-i18n="docs.mcp">MCP and daemon</a>
       <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
       <a href="#config" data-i18n="docs.config">Configuration</a>
     </nav>
@@ -169,23 +168,25 @@ approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</p
           <p><code>troopa extensions</code> lists the ones it finds. Built-in commands cannot be replaced.</p>
         </section>
 
-        <section id="daemon">
-          <h2>Daemon</h2>
+        <section id="mcp">
+          <h2>MCP and daemon</h2>
+          <p>Keep plans moving with <code>troopa daemon</code>, then register the MCP server with your client. Merge of a plan or a task stays in the TUI (<kbd>g</kbd>); MCP can review, not ship.</p>
+          <h3>Setup</h3>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa daemon install
+troopa mcp install claude    # or codex, opencode, cursor</pre>
           <p><code>troopa daemon</code> is a long-running process without the TUI. Every few seconds it looks at running agents, finishes a run when the agent has exited, and starts the next step of a plan that has auto-advance. Logs go to <code>$XDG_DATA_HOME/troopa/daemon.log</code>. A pid file keeps a second daemon from starting. The TUI keeps working with or without it.</p>
           <pre class="cmd"><button class="copy" type="button">Copy</button>troopa daemon
 troopa daemon status
 troopa daemon install
 troopa daemon uninstall</pre>
-          <p><code>install</code> writes a systemd user unit on Linux (<code>~/.config/systemd/user/troopa.service</code>) and a launchd agent on macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), then enables it. <code>uninstall</code> removes that file. Windows is not supported yet. <code>status</code> prints whether it is running and the runs it watches.</p>
-        </section>
-
-        <section id="mcp">
-          <h2>MCP</h2>
-          <p><code>troopa mcp</code> is an MCP server over stdio in the same binary. Point a client at that command. Tools return JSON in the same shapes as the CLI.</p>
-          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa mcp</pre>
-          <p>Read tools: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filters: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (steps with status and latest run), <code>run_show</code> (summary, checks, state, branch, rounds), <code>run_diff</code> (files and size-limited patch text), <code>run_log</code> (log tail), <code>brain_search</code>, <code>brain_read</code> (paths inside the brain only), <code>profiles_list</code>.</p>
+          <p><code>daemon install</code> writes a systemd user unit on Linux (<code>~/.config/systemd/user/troopa.service</code>) and a launchd agent on macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), then enables it. <code>uninstall</code> removes that file. Windows is not supported yet. <code>status</code> prints whether it is running and the runs it watches.</p>
+          <p><code>troopa mcp</code> is an MCP server over stdio in the same binary. <code>troopa mcp install</code> registers it: Claude Code runs <code>claude mcp add troopa -- troopa mcp</code>; Codex, OpenCode and Cursor get a TOML or JSON snippet in their config. If the client is not installed, Troopa prints that snippet instead.</p>
+          <h3>Tools</h3>
+          <p>Tools return JSON in the same shapes as the CLI.</p>
+          <p>Read: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filters: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (steps with status and latest run), <code>run_show</code> (summary, checks, state, branch, rounds), <code>run_diff</code> (files and size-limited patch text), <code>run_log</code> (log tail), <code>brain_search</code>, <code>brain_read</code> (paths inside the brain only), <code>profiles_list</code>.</p>
           <p>Write tools fire the same hooks as the TUI: <code>task_create</code>, <code>task_update</code>, <code>task_move</code>, <code>plan_create</code> (title, goal, agent, model, auto, and steps in one call), <code>plan_add_step</code>, <code>plan_update</code>. <code>plan_start</code> and <code>plan_pause</code> go through the engine. If no daemon is running, start watches from the MCP process and the result says that <code>troopa daemon</code> keeps plans moving. <code>run_wait</code> (<code>run_id</code> or <code>plan_id</code>, <code>timeout_seconds</code> at most 600) blocks until the run leaves running or the plan step changes, and returns state, summary and checks. On timeout the state is still <code>running</code>.</p>
-          <p><code>review_request_changes</code> (<code>run_id</code>, <code>feedback</code>, <code>comments</code> with <code>path</code>, <code>line</code>, <code>side</code>, <code>body</code>) matches <code>x</code> in the TUI: a new round, notes in <code>CHANGES.md</code>, same agent continues. <code>review_approve</code> needs <code>[mcp] allow_approve = true</code> in <code>config.toml</code> (off by default; Settings has the toggle). There is no merge tool; merge stays on <code>g</code> in the TUI.</p>
+          <h3>Review loop</h3>
+          <p><code>review_request_changes</code> (<code>run_id</code>, <code>feedback</code>, <code>comments</code> with <code>path</code>, <code>line</code>, <code>side</code>, <code>body</code>) matches <code>x</code> in the TUI: a new round, notes in <code>CHANGES.md</code>, same agent continues. <code>review_approve</code> needs <code>[mcp] allow_approve = true</code> in <code>config.toml</code> (off by default; Settings has the toggle). There is no merge tool: merging is a local decision on <kbd>g</kbd>, after you have seen the branch.</p>
         </section>
 
         <section id="cli">
@@ -364,23 +365,25 @@ approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</p
           <p><code>troopa extensions</code> lista las que encuentra. Los comandos propios de Troopa no se pueden reemplazar.</p>
         </section>
 
-        <section id="daemon-es">
-          <h2>Daemon</h2>
+        <section id="mcp-es">
+          <h2>MCP y daemon</h2>
+          <p>Mantén los planes en marcha con <code>troopa daemon</code> y registra el servidor MCP en tu cliente. El merge de un plan o una tarea se queda en la TUI (<kbd>g</kbd>); MCP puede revisar, no publicar.</p>
+          <h3>Configuración</h3>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa daemon install
+troopa mcp install claude    # o codex, opencode, cursor</pre>
           <p><code>troopa daemon</code> es un proceso largo sin TUI. Cada pocos segundos mira los agentes en curso, termina una ejecución cuando el agente ha salido y arranca el siguiente paso de un plan con avance automático. El registro va a <code>$XDG_DATA_HOME/troopa/daemon.log</code>. Un archivo de pid evita que arranque un segundo daemon. La TUI sigue funcionando con o sin él.</p>
           <pre class="cmd"><button class="copy" type="button">Copy</button>troopa daemon
 troopa daemon status
 troopa daemon install
 troopa daemon uninstall</pre>
-          <p><code>install</code> escribe una unidad de systemd de usuario en Linux (<code>~/.config/systemd/user/troopa.service</code>) y un agente launchd en macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), y lo activa. <code>uninstall</code> quita ese archivo. Windows aún no está soportado. <code>status</code> dice si está en marcha y qué ejecuciones vigila.</p>
-        </section>
-
-        <section id="mcp-es">
-          <h2>MCP</h2>
-          <p><code>troopa mcp</code> es un servidor MCP por stdio en el mismo binario. Apunta un cliente a ese comando. Las herramientas devuelven JSON con las mismas formas que la CLI.</p>
-          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa mcp</pre>
-          <p>Herramientas de lectura: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filtros: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (pasos con estado y última ejecución), <code>run_show</code> (resumen, checks, estado, rama, rondas), <code>run_diff</code> (archivos y parche con límite de tamaño), <code>run_log</code> (cola del log), <code>brain_search</code>, <code>brain_read</code> (solo rutas dentro del cerebro), <code>profiles_list</code>.</p>
+          <p><code>daemon install</code> escribe una unidad de systemd de usuario en Linux (<code>~/.config/systemd/user/troopa.service</code>) y un agente launchd en macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), y lo activa. <code>uninstall</code> quita ese archivo. Windows aún no está soportado. <code>status</code> dice si está en marcha y qué ejecuciones vigila.</p>
+          <p><code>troopa mcp</code> es un servidor MCP por stdio en el mismo binario. <code>troopa mcp install</code> lo registra: Claude Code corre <code>claude mcp add troopa -- troopa mcp</code>; Codex, OpenCode y Cursor reciben un fragmento TOML o JSON en su config. Si el cliente no está instalado, Troopa imprime ese fragmento.</p>
+          <h3>Herramientas</h3>
+          <p>Las herramientas devuelven JSON con las mismas formas que la CLI.</p>
+          <p>Lectura: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filtros: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (pasos con estado y última ejecución), <code>run_show</code> (resumen, checks, estado, rama, rondas), <code>run_diff</code> (archivos y parche con límite de tamaño), <code>run_log</code> (cola del log), <code>brain_search</code>, <code>brain_read</code> (solo rutas dentro del cerebro), <code>profiles_list</code>.</p>
           <p>Las herramientas de escritura disparan los mismos hooks que la TUI: <code>task_create</code>, <code>task_update</code>, <code>task_move</code>, <code>plan_create</code> (título, objetivo, agente, modelo, auto y pasos en una llamada), <code>plan_add_step</code>, <code>plan_update</code>. <code>plan_start</code> y <code>plan_pause</code> pasan por el motor. Si no hay daemon, el arranque vigila desde el proceso MCP y el resultado dice que <code>troopa daemon</code> sigue moviendo los planes. <code>run_wait</code> (<code>run_id</code> o <code>plan_id</code>, <code>timeout_seconds</code> como máximo 600) espera a que la ejecución deje de estar en curso o cambie el paso del plan, y devuelve estado, resumen y checks. Si se agota el tiempo, el estado sigue <code>running</code>.</p>
-          <p><code>review_request_changes</code> (<code>run_id</code>, <code>feedback</code>, <code>comments</code> con <code>path</code>, <code>line</code>, <code>side</code>, <code>body</code>) es lo mismo que <code>x</code> en la TUI: una ronda nueva, notas en <code>CHANGES.md</code> y el mismo agente sigue. <code>review_approve</code> exige <code>[mcp] allow_approve = true</code> en <code>config.toml</code> (desactivado por defecto; Configuración tiene el interruptor). No hay herramienta de merge; el merge sigue en <code>g</code> en la TUI.</p>
+          <h3>Bucle de revisión</h3>
+          <p><code>review_request_changes</code> (<code>run_id</code>, <code>feedback</code>, <code>comments</code> con <code>path</code>, <code>line</code>, <code>side</code>, <code>body</code>) es lo mismo que <code>x</code> en la TUI: una ronda nueva, notas en <code>CHANGES.md</code> y el mismo agente sigue. <code>review_approve</code> exige <code>[mcp] allow_approve = true</code> en <code>config.toml</code> (desactivado por defecto; Configuración tiene el interruptor). No hay herramienta de merge: el merge es una decisión local con <kbd>g</kbd>, después de ver la rama.</p>
         </section>
 
         <section id="cli-es">

@@ -49,6 +49,7 @@ Usage:
   troopa daemon install               install a user service (Linux/macOS)
   troopa daemon uninstall             remove the user service
   troopa mcp                          MCP server over stdio (read and write tools)
+  troopa mcp install <client>         register with claude, codex, opencode or cursor
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
@@ -198,13 +199,30 @@ func runDaemon(args []string, stdout, stderr io.Writer) int {
 
 func runMCP(args []string, stdout, stderr io.Writer) int {
 	applyConfigLang()
+	usage := i18n.T("usage: troopa mcp [install claude|codex|opencode|cursor]")
 	if len(args) > 0 {
 		switch args[0] {
+		case "install":
+			if len(args) != 2 {
+				fmt.Fprintln(stderr, usage)
+				return 2
+			}
+			switch args[1] {
+			case "claude", "codex", "opencode", "cursor":
+			default:
+				fmt.Fprintln(stderr, usage)
+				return 2
+			}
+			if err := troopamcp.Install(stdout, args[1]); err != nil {
+				fmt.Fprintf(stderr, "troopa: %v\n", err)
+				return 1
+			}
+			return 0
 		case "help", "-h", "--help":
-			fmt.Fprintln(stdout, i18n.T("usage: troopa mcp"))
+			fmt.Fprintln(stdout, usage)
 			return 0
 		default:
-			fmt.Fprintln(stderr, i18n.T("usage: troopa mcp"))
+			fmt.Fprintln(stderr, usage)
 			return 2
 		}
 	}
