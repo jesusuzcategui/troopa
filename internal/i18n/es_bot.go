@@ -3,6 +3,17 @@ package i18n
 // Telegram bot and plan PRs.
 func init() {
 	for k, v := range map[string]string{
+		"%s already exists and is not a git repository": "%s ya existe y no es un repositorio git",
+		"Clone %s":    "Clonar %s",
+		"Cloning %s…": "Clonando %s…",
+		"In which folder? It goes in a subfolder named after the project.": "¿En qué carpeta? Va en una subcarpeta con el nombre del proyecto.",
+		"New project %s":                      "Nuevo proyecto %s",
+		"Only the owner can create projects.": "Solo el dueño puede crear proyectos.",
+		"Project %s created":                  "Proyecto %s creado",
+		"Reply with the name of the new project, or the URL of a git repository to clone.": "Responde con el nombre del nuevo proyecto, o la URL de un repositorio git para clonarlo.",
+		"Start again with /project.":             "Empieza otra vez con /proyecto.",
+		"The project needs a name":               "El proyecto necesita un nombre",
+		"create a project, or clone one":         "crea un proyecto o clona uno",
 		"Images":                                 "Imágenes",
 		"This run has no images.":                "Esta ejecución no tiene imágenes.",
 		"You don't have access to that project.": "No tienes acceso a ese proyecto.",

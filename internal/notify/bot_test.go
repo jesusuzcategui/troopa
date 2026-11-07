@@ -655,3 +655,56 @@ func TestNotifyRoutesToUsersWithImages(t *testing.T) {
 	}
 	_ = fake
 }
+
+func TestBotCreatesAndClonesProjects(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	b.Handle(ctx, msg("📁 Nuevo proyecto", 0))
+	fake.mu.Lock()
+	promptID := fake.next
+	fake.mu.Unlock()
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "force_reply") {
+		t.Fatalf("should ask for the name: %v", m)
+	}
+	b.Handle(ctx, msg("Mi Tienda", promptID))
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "projdir:0") {
+		t.Fatalf("should offer folders: %v", m)
+	}
+	b.Handle(ctx, cb("projdir:0"))
+	app, _ := e.Store.Get(1)
+	want := filepath.Join(filepath.Dir(app.RepoPath), "mi-tienda")
+	list, _ := e.Store.List(false)
+	var created store.Project
+	for _, p := range list {
+		if p.Slug == "mi-tienda" {
+			created = p
+		}
+	}
+	if created.RepoPath != want {
+		t.Fatalf("project %+v, want path %s", created, want)
+	}
+	if _, err := launch.RepoRoot(want); err != nil {
+		t.Fatalf("a new git repo should exist: %v", err)
+	}
+	if edit := fake.last("editMessageText"); !strings.Contains(edit["text"], "Mi Tienda") || !strings.Contains(edit["reply_markup"], "newtask:") {
+		t.Fatalf("confirmation: %v", edit)
+	}
+
+	// A git URL is cloned.
+	bare := filepath.Join(t.TempDir(), "landing.git")
+	if _, err := launch.Git(filepath.Dir(bare), "clone", "--bare", app.RepoPath, bare); err != nil {
+		t.Fatal(err)
+	}
+	b.Handle(ctx, msg("/proyecto "+bare, 0))
+	b.Handle(ctx, cb("projdir:0"))
+	if _, err := os.Stat(filepath.Join(filepath.Dir(app.RepoPath), "landing", "README.md")); err != nil {
+		t.Fatalf("the repo should be cloned: %v", err)
+	}
+
+	// Other users cannot.
+	b.SetUsers([]config.TelegramUser{{Name: "Ana", ChatID: "77", Projects: []string{"app"}}})
+	b.Handle(ctx, from(77, msg("/proyecto Secreto", 0)))
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "owner") {
+		t.Fatalf("users must not create projects: %v", m)
+	}
+}

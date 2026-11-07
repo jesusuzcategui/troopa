@@ -36,6 +36,7 @@ type Bot struct {
 	pending map[int64]prompt        // prompt message id -> what the reply is for
 	convs   map[string]*chatState   // open conversations, by chat
 	photos  map[string]pendingPhoto // photo waiting for its project, by chat
+	newProj map[string]newProject   // project waiting for its folder, by chat
 	wg      sync.WaitGroup          // conversation turns in flight
 }
 
@@ -202,6 +203,14 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 		id, _ := strconv.ParseInt(pid, 10, 64)
 		b.startChat(ctx, msgID, agent, id)
 		return
+	case "projdir":
+		i, _ := strconv.Atoi(idText)
+		b.createProject(ctx, cq, i)
+		return
+	case "newproj":
+		b.api.answer(ctx, cq.ID, "")
+		b.askProjectName(ctx)
+		return
 	case "photop":
 		id, _ := strconv.ParseInt(idText, 10, 64)
 		b.photoProject(ctx, cq, id)
@@ -327,6 +336,8 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 				b.added(ctx, id, msg)
 			case "comment":
 				b.addComment(ctx, p.id, text)
+			case "project":
+				b.askProjectFolder(ctx, text)
 			default:
 				b.requestChanges(ctx, p.id, text)
 			}
@@ -336,6 +347,8 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 	if view, ok := keyboardView(text); ok {
 		if view == "help" {
 			b.sendHelp(ctx)
+		} else if view == "newproject" {
+			b.askProjectName(ctx)
 		} else {
 			b.show(ctx, 0, view)
 		}
@@ -407,6 +420,12 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 			return
 		}
 		b.reply(ctx, "⏸ "+esc(i18n.T("Plan %s paused: the running step finishes, the next one waits.", res.Plan.Title)))
+	case "/project", "/proyecto":
+		if len(args) == 0 {
+			b.askProjectName(ctx)
+			return
+		}
+		b.askProjectFolder(ctx, strings.Join(args, " "))
 	case "/chat", "/conversar":
 		b.show(ctx, 0, "chat")
 	case "/end", "/cerrar":
@@ -476,6 +495,7 @@ func (b *Bot) help() string {
 		"/task &lt;project&gt; &lt;title&gt; · " + esc(i18n.T("add a task to a project's backlog")),
 		"/tasks · " + esc(i18n.T("tasks by status: start, review, comment or merge them")),
 		"/chat · " + esc(i18n.T("talk with an agent; /end closes the conversation")),
+		"/project &lt;name or git URL&gt; · " + esc(i18n.T("create a project, or clone one")),
 		"/log &lt;run&gt; · /diff &lt;run&gt;",
 		"",
 		esc(i18n.T("The buttons under each alert approve, request changes, comment, merge, or show the diff and the log.")),
