@@ -202,11 +202,13 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 	case "sendc":
 		b.api.answer(ctx, cq.ID, "")
 		b.requestChanges(ctx, id, "")
-	case "merge", "pmerge":
+	case "merge", "pr", "pmerge", "ppr":
 		b.api.answer(ctx, cq.ID, "")
 		b.confirmMerge(ctx, msgID, action, id, back)
-	case "domerge", "dopmerge":
+	case "domerge", "dopr", "dopmerge", "doppr":
 		b.doMerge(ctx, cq, action, id, back)
+	case "pull":
+		b.pull(ctx, cq, id)
 	case "diff":
 		b.api.answer(ctx, cq.ID, "")
 		b.sendDiff(ctx, id)

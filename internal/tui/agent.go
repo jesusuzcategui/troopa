@@ -527,7 +527,62 @@ func (m Model) requestMerge() (tea.Model, tea.Cmd) {
 		m.err = ""
 		return m, nil
 	}
-	return m.openMergePopup()
+	return m.openMergePopup(false)
+}
+
+func (m Model) requestPR() (tea.Model, tea.Cmd) {
+	if reason := engine.PRBlockReason(m.run, m.runTask, m.runSess); reason != "" {
+		m.status = reason
+		m.err = ""
+		return m, nil
+	}
+	return m.openMergePopup(true)
+}
+
+func (m Model) requestPRFromTask() (tea.Model, tea.Cmd) {
+	t, ok := m.selectedTask()
+	if !ok {
+		m.status = i18n.T("No task selected")
+		m.err = ""
+		return m, nil
+	}
+	run, err := m.store.LatestRun(t.ID)
+	if err != nil || run.State != store.RunApproved {
+		m.status = i18n.T("This task has no approved run to merge")
+		m.err = ""
+		return m, nil
+	}
+	m.bindRun(t, run)
+	return m.requestPR()
+}
+
+func (m Model) prRun() (tea.Model, tea.Cmd) {
+	res, err := m.eng().OpenTaskPR(m.run.ID)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	m.run = res.Run
+	m.runTask = res.Task
+	m.reloadTasks()
+	m.status = res.Message
+	m.err = ""
+	return m, nil
+}
+
+// pullBase fast-forwards the project's checked-out branch from its remote.
+func (m Model) pullBase() (tea.Model, tea.Cmd) {
+	if m.boardProject.ID == 0 {
+		return m, nil
+	}
+	msg, err := m.eng().Pull(m.boardProject.ID)
+	if err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	m.err = ""
+	m.status = msg
+	return m, nil
 }
 
 func (m Model) mergeRun() (tea.Model, tea.Cmd) {
@@ -643,6 +698,8 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.approveRun()
 	case "g":
 		return m.requestMerge()
+	case "O":
+		return m.requestPR()
 	case "c":
 		return m.requestClean()
 	case "d":
@@ -785,7 +842,7 @@ func (m Model) viewReview() string {
 
 func reviewHelp(state string) string {
 	if state == store.RunApproved {
-		return i18n.T("g merge  x request changes  C comments  enter comment  e edit  D delete  c clean  d discard  r fold  [ ] round  n/p file  j/k line  o editor  esc board")
+		return i18n.T("g merge  O PR  x request changes  C comments  enter comment  e edit  D delete  c clean  d discard  r fold  [ ] round  n/p file  j/k line  o editor  esc board")
 	}
 	return i18n.T("y approve  x request changes  C comments  enter comment  e edit  D delete  d discard  r fold  [ ] round  n/p file  j/k line  o editor  esc board")
 }

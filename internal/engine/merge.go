@@ -10,45 +10,132 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
-// MergeBlockReason says why an approved run cannot be merged on its own, or
-// "" when it can: plan steps merge with their plan, and repos with a remote
-// get their PR when the run is approved. A run approved without committing
-// can always go on: the merge commits it first (and opens the PR on a remote).
+// MergeBlockReason says why an approved run cannot be merged into its base
+// branch on this machine, or "" when it can. Plan steps merge with their plan.
+// A run approved without committing is committed first.
 func MergeBlockReason(run store.Run, task store.Task, sess launch.Session) string {
 	if task.PlanID != 0 {
 		return i18n.T("This task is a plan step: merge the whole plan from its plan (w, then g)")
 	}
 	if run.State != store.RunApproved {
-		return i18n.T("Only an approved run without remote can be merged")
+		return i18n.T("Only an approved run can be merged")
 	}
-	if task.Commits == store.CommitsNone {
-		return ""
-	}
-	if task.Commits != store.CommitsAuto {
-		return i18n.T("Only an approved run without remote can be merged")
-	}
-	if HasRemote(sess) {
-		return i18n.T("Only an approved run without remote can be merged")
+	if task.Commits != store.CommitsNone && task.Commits != store.CommitsAuto {
+		return i18n.T("Only an approved run can be merged")
 	}
 	return ""
 }
 
-// CanMerge reports whether MergeTask would accept the run.
-func (e *Engine) CanMerge(runID int64) (string, bool) {
+// PRBlockReason says why the run cannot become a pull request, or "".
+func PRBlockReason(run store.Run, task store.Task, sess launch.Session) string {
+	if reason := MergeBlockReason(run, task, sess); reason != "" {
+		return reason
+	}
+	if !HasRemote(sess) {
+		return i18n.T("This repo has no remote: merge it locally instead")
+	}
+	if strings.Contains(run.Note, "http") && strings.Contains(run.Note, i18n.T("PR opened: ")) {
+		return i18n.T("The PR is already open: %s", run.Note)
+	}
+	return ""
+}
+
+// MergeOptions says which ways out an approved run has: a local merge and,
+// with a remote, a pull request.
+func (e *Engine) MergeOptions(runID int64) (merge, pr bool) {
+	run, task, sess, err := e.runContext(runID)
+	if err != nil {
+		return false, false
+	}
+	return MergeBlockReason(run, task, sess) == "", PRBlockReason(run, task, sess) == ""
+}
+
+func (e *Engine) runContext(runID int64) (store.Run, store.Task, launch.Session, error) {
 	run, err := e.Store.GetRun(runID)
 	if err != nil {
-		return err.Error(), false
+		return store.Run{}, store.Task{}, launch.Session{}, err
 	}
 	task, err := e.Store.GetTask(run.TaskID)
 	if err != nil {
-		return err.Error(), false
+		return store.Run{}, store.Task{}, launch.Session{}, err
 	}
 	project, err := e.project(task.ProjectID)
 	if err != nil {
-		return err.Error(), false
+		return store.Run{}, store.Task{}, launch.Session{}, err
 	}
-	reason := MergeBlockReason(run, task, e.sessionFor(run, project))
-	return reason, reason == ""
+	return run, task, e.sessionFor(run, project), nil
+}
+
+// commitIfNeeded commits a run approved without committing, the way an auto
+// task does at approval.
+func (e *Engine) commitIfNeeded(task *store.Task, sess launch.Session) error {
+	if task.Commits != store.CommitsNone {
+		return nil
+	}
+	if err := launch.CommitAll(sess.Worktree, "troopa: "+task.Title); err != nil {
+		return err
+	}
+	task.Commits = store.CommitsAuto
+	return e.Store.UpdateTask(*task)
+}
+
+// OpenTaskPR pushes the run's branch and opens a pull request to its base.
+func (e *Engine) OpenTaskPR(runID int64) (Result, error) {
+	run, task, sess, err := e.runContext(runID)
+	if err != nil {
+		return Result{}, err
+	}
+	if reason := PRBlockReason(run, task, sess); reason != "" {
+		return Result{}, fmt.Errorf("%s", reason)
+	}
+	if err := e.commitIfNeeded(&task, sess); err != nil {
+		return Result{}, err
+	}
+	if err := launch.PushBranch(sess.Worktree, sess.Branch); err != nil {
+		return Result{}, err
+	}
+	body := run.Summary
+	if body == "" {
+		body = "Made with Troopa."
+	}
+	url, err := launch.CreatePR(sess.Worktree, sess.Branch, sess.Base, task.Title, body)
+	msg := i18n.T("PR opened: ") + url
+	if err != nil {
+		msg = i18n.T("Branch %s pushed. ", sess.Branch) + err.Error()
+	}
+	run.Note = msg
+	_ = e.Store.UpdateRun(run)
+	return e.result(run, task, sess, msg, false), nil
+}
+
+// Pull brings the project's checked-out branch (usually main) up to date with
+// its remote, fast-forward only, so the next task starts from fresh code.
+func (e *Engine) Pull(projectID int64) (string, error) {
+	project, err := e.project(projectID)
+	if err != nil {
+		return "", err
+	}
+	repo, err := launch.RepoRoot(project.RepoPath)
+	if err != nil {
+		return "", err
+	}
+	branch, err := launch.Git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	branch = strings.TrimSpace(branch)
+	if !launch.HasRemote(repo) {
+		return "", fmt.Errorf("%s", i18n.T("%s has no remote to pull from", project.Name))
+	}
+	before, _ := launch.Git(repo, "rev-parse", "--short", "HEAD")
+	if _, err := launch.Git(repo, "pull", "--ff-only"); err != nil {
+		return "", fmt.Errorf("%s: %v", i18n.T("Could not update %s (only fast-forward pulls; commit or stash local changes first)", branch), err)
+	}
+	after, _ := launch.Git(repo, "rev-parse", "--short", "HEAD")
+	if strings.TrimSpace(before) == strings.TrimSpace(after) {
+		return i18n.T("%s · %s was already up to date", project.Name, branch), nil
+	}
+	return i18n.T("%s · %s updated: %s → %s", project.Name, branch, strings.TrimSpace(before), strings.TrimSpace(after)), nil
 }
 
 // MergeTask merges an approved run into the branch it started from.
@@ -73,23 +160,8 @@ func (e *Engine) MergeTask(runID int64) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if task.Commits == store.CommitsNone {
-		// Approved without committing: commit now, the way an auto task does.
-		task.Commits = store.CommitsAuto
-		if HasRemote(sess) {
-			msg, err := launch.Approve(sess, task, run.Summary)
-			if err != nil {
-				return Result{}, err
-			}
-			_ = e.Store.UpdateTask(task)
-			run.Note = msg
-			_ = e.Store.UpdateRun(run)
-			return e.result(run, task, sess, msg, false), nil
-		}
-		if err := launch.CommitAll(sess.Worktree, "troopa: "+task.Title); err != nil {
-			return Result{}, err
-		}
-		_ = e.Store.UpdateTask(task)
+	if err := e.commitIfNeeded(&task, sess); err != nil {
+		return Result{}, err
 	}
 	msg, err := launch.MergeLocal(sess, task, kind)
 	if err != nil {
@@ -126,8 +198,8 @@ func (e *Engine) PlanLastRun(planID int64) (store.Run, store.Task, bool) {
 }
 
 // MergePlan merges the last branch of a finished plan into the branch the plan
-// started from, or pushes it and opens a PR when the repo has a remote. On a
-// plan whose PR is open it closes the plan and removes the worktrees.
+// started from, on this computer. On a plan whose PR is open (OpenPlanPR) it
+// closes the plan and removes the worktrees.
 func (e *Engine) MergePlan(id int64) (Result, error) {
 	plan, err := e.Store.GetPlan(id)
 	if err != nil {
@@ -155,39 +227,65 @@ func (e *Engine) MergePlan(id int64) (Result, error) {
 		return Result{}, fmt.Errorf("%s", i18n.T("No approved step to merge"))
 	}
 	sess := launch.Session{Repo: repo, Worktree: run.Worktree, Branch: run.Branch, Base: plan.Base, LogPath: run.LogPath}
-	var msg string
-	state := store.PlanMerged
-	if launch.HasRemote(repo) {
-		state = store.PlanPROpen
-		if err := launch.PushBranch(run.Worktree, run.Branch); err != nil {
-			return Result{}, err
-		}
-		body := plan.Goal
-		if steps, err := e.Store.PlanSteps(id); err == nil {
-			body += "\n\n"
-			for _, s := range steps {
-				body += fmt.Sprintf("%d. %s\n", s.PlanStep, s.Title)
-			}
-		}
-		url, err := launch.CreatePR(run.Worktree, run.Branch, plan.Base, plan.Title, strings.TrimSpace(body)+"\n\nMade with Troopa.")
-		if err != nil {
-			msg = i18n.T("Branch %s pushed. ", run.Branch) + err.Error()
-		} else {
-			msg = i18n.T("PR opened: ") + url
-		}
-		msg += " · " + i18n.T("merge it on the remote, then press g again to clean up")
-	} else {
-		kind, err := launch.NormalizeMergeStrategy(e.Cfg.Launch.Merge)
-		if err != nil {
-			return Result{}, err
-		}
-		msg, err = launch.MergeLocal(sess, store.Task{Title: plan.Title, Commits: store.CommitsAuto}, kind)
-		if err != nil {
-			return Result{}, err
-		}
-		e.cleanPlanWorktrees(id, run.ID, repo)
+	kind, err := launch.NormalizeMergeStrategy(e.Cfg.Launch.Merge)
+	if err != nil {
+		return Result{}, err
 	}
-	plan.State = state
+	msg, err := launch.MergeLocal(sess, store.Task{Title: plan.Title, Commits: store.CommitsAuto}, kind)
+	if err != nil {
+		return Result{}, err
+	}
+	e.cleanPlanWorktrees(id, run.ID, repo)
+	plan.State = store.PlanMerged
+	_ = e.Store.UpdatePlan(plan)
+	e.fireHook(launch.HookEvent{Event: launch.HookMerge, PlanID: plan.ID, Plan: plan.Title, Branch: run.Branch, Message: msg}, project)
+	return Result{Plan: plan, Run: run, Won: true, Message: msg}, nil
+}
+
+// OpenPlanPR pushes the last branch of a finished plan and opens a PR to the
+// branch the plan started from. Merge it on the remote, then MergePlan cleans up.
+func (e *Engine) OpenPlanPR(id int64) (Result, error) {
+	plan, err := e.Store.GetPlan(id)
+	if err != nil {
+		return Result{}, err
+	}
+	if plan.State != store.PlanDone {
+		return Result{}, fmt.Errorf("%s", i18n.T("Finish every step before merging the plan"))
+	}
+	project, err := e.project(plan.ProjectID)
+	if err != nil {
+		return Result{}, err
+	}
+	repo, err := launch.RepoRoot(project.RepoPath)
+	if err != nil {
+		return Result{}, err
+	}
+	if !launch.HasRemote(repo) {
+		return Result{}, fmt.Errorf("%s", i18n.T("This repo has no remote: merge it locally instead"))
+	}
+	run, _, ok := e.PlanLastRun(id)
+	if !ok {
+		return Result{}, fmt.Errorf("%s", i18n.T("No approved step to merge"))
+	}
+	if err := launch.PushBranch(run.Worktree, run.Branch); err != nil {
+		return Result{}, err
+	}
+	body := plan.Goal
+	if steps, err := e.Store.PlanSteps(id); err == nil {
+		body += "\n\n"
+		for _, s := range steps {
+			body += fmt.Sprintf("%d. %s\n", s.PlanStep, s.Title)
+		}
+	}
+	var msg string
+	url, err := launch.CreatePR(run.Worktree, run.Branch, plan.Base, plan.Title, strings.TrimSpace(body)+"\n\nMade with Troopa.")
+	if err != nil {
+		msg = i18n.T("Branch %s pushed. ", run.Branch) + err.Error()
+	} else {
+		msg = i18n.T("PR opened: ") + url
+	}
+	msg += " · " + i18n.T("merge it on the remote, then press g again to clean up")
+	plan.State = store.PlanPROpen
 	_ = e.Store.UpdatePlan(plan)
 	e.fireHook(launch.HookEvent{Event: launch.HookMerge, PlanID: plan.ID, Plan: plan.Title, Branch: run.Branch, Message: msg}, project)
 	return Result{Plan: plan, Run: run, Won: true, Message: msg}, nil
@@ -223,26 +321,20 @@ func HasRemote(sess launch.Session) bool {
 	return launch.HasRemote(repo) || (sess.Worktree != "" && launch.HasRemote(sess.Worktree))
 }
 
-// MergePreview says what merging the run will do, for a confirmation.
-func (e *Engine) MergePreview(runID int64) string {
-	run, err := e.Store.GetRun(runID)
+// MergePreview says what merging (or opening the PR of) the run will do.
+func (e *Engine) MergePreview(runID int64, pr bool) string {
+	run, task, sess, err := e.runContext(runID)
 	if err != nil {
 		return ""
 	}
-	task, err := e.Store.GetTask(run.TaskID)
-	if err != nil {
-		return ""
+	var text string
+	if pr {
+		text = i18n.T("Push %s and open a PR from #%d “%s” to %s?", sess.Branch, task.ID, task.Title, run.Base)
+	} else {
+		text = i18n.T("Merge #%d “%s” into %s on this computer?", task.ID, task.Title, run.Base)
 	}
-	project, err := e.project(task.ProjectID)
-	if err != nil {
-		return ""
+	if task.Commits == store.CommitsNone {
+		text = i18n.T("It was approved without committing: Troopa commits it first.") + " " + text
 	}
-	sess := e.sessionFor(run, project)
-	if task.Commits != store.CommitsNone {
-		return i18n.T("Merge #%d “%s” into %s?", task.ID, task.Title, run.Base)
-	}
-	if HasRemote(sess) {
-		return i18n.T("#%d “%s” was approved without committing. Commit it, push %s and open a PR to %s?", task.ID, task.Title, run.Branch, run.Base)
-	}
-	return i18n.T("#%d “%s” was approved without committing. Commit it and merge it into %s?", task.ID, task.Title, run.Base)
+	return text
 }

@@ -62,6 +62,8 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "new-theme", Title: i18n.T("Create custom theme"), Hint: i18n.T("copies the current palette to a TOML file")},
 		{ID: "approve", Title: i18n.T("Approve review"), Keys: "y"},
 		{ID: "merge", Title: i18n.T("Merge into base"), Keys: "g"},
+		{ID: "open-pr", Title: i18n.T("Push and open a PR"), Hint: i18n.T("needs a remote"), Keys: "O"},
+		{ID: "pull", Title: i18n.T("Pull the base branch"), Hint: i18n.T("fast-forward it from its remote before the next task"), Keys: "U"},
 		{ID: "clean", Title: i18n.T("Clean worktree (keep branch)"), Keys: "c"},
 		{ID: "discard", Title: i18n.T("Discard worktree"), Keys: "d"},
 		{ID: "request-changes", Title: i18n.T("Request changes"), Hint: i18n.T("send the task back to its agent"), Keys: "x"},
@@ -402,6 +404,16 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		}
 		m.screen = screenReview
 		return m.approveRun()
+	case "open-pr":
+		if from == screenReview || m.screen == screenReview {
+			m.screen = screenReview
+			return m.requestPR()
+		}
+		m.screen = screenBoard
+		return m.requestPRFromTask()
+	case "pull":
+		m.screen = from
+		return m.pullBase()
 	case "merge":
 		if from == screenReview || m.screen == screenReview {
 			m.screen = screenReview

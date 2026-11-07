@@ -29,19 +29,20 @@ const (
 )
 
 type plansState struct {
-	view    planView
-	list    []store.Plan
-	cursor  int
-	plan    store.Plan
-	steps   []store.Task
-	stepCur int
-	focus   int // plan form: 0 title, 1 goal, 2 agent, 3 model, 4 auto, 5 auto-approve
-	title   textinput.Model
-	goal    textarea.Model
-	model   textinput.Model
-	step    textinput.Model
-	draft   store.Plan
-	confirm int64
+	view      planView
+	list      []store.Plan
+	cursor    int
+	plan      store.Plan
+	steps     []store.Task
+	stepCur   int
+	focus     int // plan form: 0 title, 1 goal, 2 agent, 3 model, 4 auto, 5 auto-approve
+	title     textinput.Model
+	goal      textarea.Model
+	model     textinput.Model
+	step      textinput.Model
+	draft     store.Plan
+	confirm   int64
+	prConfirm int64 // plan waiting for a second O before its PR
 }
 
 const planFormFields = 6
@@ -80,7 +81,7 @@ func planListHelp() string {
 }
 
 func planDetailHelp() string {
-	return i18n.T("a add step · enter edit step · K/J move · s start · p pause · t auto · A auto-approve · e edit · g merge · esc plans")
+	return i18n.T("a add step · enter edit step · K/J move · s start · p pause · t auto · A auto-approve · e edit · g merge · O PR · U pull · esc plans")
 }
 
 func (m *Model) reloadPlans() {
@@ -307,6 +308,24 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.startPlan(ps.plan.ID)
 	case "g":
 		return m.mergePlan(ps.plan.ID)
+	case "O":
+		if ps.prConfirm != ps.plan.ID {
+			ps.prConfirm = ps.plan.ID
+			m.status = i18n.T("Press O again to push the plan and open a PR")
+			return m, nil
+		}
+		ps.prConfirm = 0
+		res, err := m.eng().OpenPlanPR(ps.plan.ID)
+		if err != nil {
+			m.err = ""
+			m.status = err.Error()
+			return m, nil
+		}
+		m.loadPlan(ps.plan.ID)
+		m.err = ""
+		m.status = res.Message
+	case "U":
+		return m.pullBase()
 	}
 	return m, nil
 }

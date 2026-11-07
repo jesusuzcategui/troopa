@@ -67,7 +67,7 @@ func (p prop) options() []string {
 	case propConfirmDiscard, propConfirmLaunch:
 		return []string{"yes", "no"}
 	case propConfirmMerge:
-		return []string{"yes", "no"}
+		return []string{"yes", "pr", "no"}
 	case propConfirmClean:
 		return []string{"yes", "no"}
 	case propConfirmDeleteComment:
@@ -178,15 +178,31 @@ func (m Model) openCleanPopup() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) openMergePopup() (tea.Model, tea.Cmd) {
+// openMergePopup offers the ways out of an approved run: merge on this
+// computer and, with a remote, a pull request. prOnly leaves just the PR.
+func (m Model) openMergePopup(prOnly bool) (tea.Model, tea.Cmd) {
 	kind, _ := launch.NormalizeMergeStrategy(m.cfg.Launch.Merge)
-	m.popup = &popup{
-		kind:    propConfirmMerge,
-		title:   i18n.T("Merge %s into %s (%s)?", m.runSess.Branch, m.runSess.Base, kind),
-		options: []string{"yes", "no"},
-		labels:  []string{i18n.T("Yes, merge"), i18n.T("No")},
-		cursor:  1,
+	merge, pr := m.eng().MergeOptions(m.run.ID)
+	var opts, labels []string
+	if merge && !prOnly {
+		opts = append(opts, "yes")
+		labels = append(labels, i18n.T("Merge into %s (%s)", m.runSess.Base, kind))
 	}
+	if pr {
+		opts = append(opts, "pr")
+		labels = append(labels, i18n.T("Push and open a PR to %s", m.runSess.Base))
+	}
+	if len(opts) == 0 {
+		m.status = i18n.T("This repo has no remote: merge it locally instead")
+		return m, nil
+	}
+	opts = append(opts, "no")
+	labels = append(labels, i18n.T("No"))
+	title := i18n.T("What should happen with %s?", m.runSess.Branch)
+	if m.runTask.Commits == store.CommitsNone {
+		title += " " + i18n.T("It was approved without committing: Troopa commits it first.")
+	}
+	m.popup = &popup{kind: propConfirmMerge, title: title, options: opts, labels: labels, cursor: len(opts) - 1}
 	return m, nil
 }
 
@@ -226,8 +242,11 @@ func (m Model) applyPopup(value string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if p.kind == propConfirmMerge {
-		if value == "yes" {
+		switch value {
+		case "yes":
 			return m.mergeRun()
+		case "pr":
+			return m.prRun()
 		}
 		return m, nil
 	}

@@ -333,6 +333,10 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openEditor(m.taskFolder())
 	case "g":
 		return m.requestMergeFromTask()
+	case "O":
+		return m.requestPRFromTask()
+	case "U":
+		return m.pullBase()
 	case "c":
 		return m.requestCleanFromTask()
 	case "m":

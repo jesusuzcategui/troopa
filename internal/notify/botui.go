@@ -231,11 +231,15 @@ func (b *Bot) planView(id int64) (string, *tgKeyboard) {
 	case store.PlanRunning:
 		kb.Rows = append(kb.Rows, []tgButton{btn("⏸ "+i18n.T("Pause"), "ppause:"+pid)})
 	case store.PlanDone:
-		kb.Rows = append(kb.Rows, []tgButton{btn("🔀 "+i18n.T("Merge plan"), "pmerge:"+pid+"|plan:"+pid)})
+		row := []tgButton{btn("🔀 "+i18n.T("Merge plan"), "pmerge:"+pid+"|plan:"+pid)}
+		if b.planHasRemote(p) {
+			row = append(row, btn("⬆️ PR", "ppr:"+pid+"|plan:"+pid))
+		}
+		kb.Rows = append(kb.Rows, row)
 	case store.PlanPROpen:
 		kb.Rows = append(kb.Rows, []tgButton{btn("🧹 "+i18n.T("PR merged: clean up"), "pmerge:"+pid+"|plan:"+pid)})
 	}
-	kb.Rows = append(kb.Rows, []tgButton{btn("🔄 "+i18n.T("Refresh"), "plan:"+pid), back[0]})
+	kb.Rows = append(kb.Rows, []tgButton{btn("🔄 "+i18n.T("Refresh"), "plan:"+pid), btn("⬇️ "+i18n.T("Pull"), "pull:"+strconv.FormatInt(p.ProjectID, 10)), back[0]})
 	return strings.Join(out, "\n"), kb
 }
 
@@ -421,9 +425,11 @@ func (b *Bot) taskView(id int64, header string) (string, *tgKeyboard) {
 		out = append(out, b.runLines(run)...)
 		kb.Rows = append(kb.Rows, b.runButtons(t, run)...)
 	}
+	extra := []tgButton{btn("⬇️ "+i18n.T("Pull"), "pull:"+strconv.FormatInt(t.ProjectID, 10))}
 	if t.PlanID != 0 {
-		kb.Rows = append(kb.Rows, []tgButton{btn("🗺 "+i18n.T("Plan"), "plan:"+strconv.FormatInt(t.PlanID, 10))})
+		extra = append(extra, btn("🗺 "+i18n.T("Plan"), "plan:"+strconv.FormatInt(t.PlanID, 10)))
 	}
+	kb.Rows = append(kb.Rows, extra)
 	kb.Rows = append(kb.Rows, back)
 	return strings.Join(out, "\n"), kb
 }
@@ -516,8 +522,16 @@ func (b *Bot) runButtons(t store.Task, run store.Run) [][]tgButton {
 			[]tgButton{btn("📄 Diff", "diff:"+rid), btn("📜 Log", "log:"+rid)})
 		sendRow()
 	case store.RunApproved:
-		if _, ok := b.eng.CanMerge(run.ID); ok {
-			rows = append(rows, []tgButton{btn("🔀 "+i18n.T("Merge"), "merge:"+rid+back)})
+		merge, pr := b.eng.MergeOptions(run.ID)
+		var row []tgButton
+		if merge {
+			row = append(row, btn("🔀 "+i18n.T("Merge"), "merge:"+rid+back))
+		}
+		if pr {
+			row = append(row, btn("⬆️ PR", "pr:"+rid+back))
+		}
+		if row != nil {
+			rows = append(rows, row)
 		}
 		rows = append(rows, []tgButton{btn("📄 Diff", "diff:"+rid), btn("✏️ "+i18n.T("Changes"), "changes:"+rid)})
 	default:
@@ -559,60 +573,93 @@ func (b *Bot) addComment(ctx context.Context, runID int64, body string) {
 	}
 }
 
-// confirmMerge asks before merging a task or a plan.
+// confirmMerge asks before merging, or opening the PR of, a task or a plan.
 func (b *Bot) confirmMerge(ctx context.Context, msgID int64, action string, id int64, back string) {
-	sid := strconv.FormatInt(id, 10)
 	cancel := back
 	if cancel == "" {
 		cancel = "status"
 	}
-	var text, yes string
-	if action == "pmerge" {
+	var text string
+	switch action {
+	case "pmerge", "ppr":
 		p, err := b.eng.Store.GetPlan(id)
 		if err != nil {
 			b.reply(ctx, "⚠️ "+esc(err.Error()))
 			return
 		}
-		if p.State == store.PlanPROpen {
+		switch {
+		case p.State == store.PlanPROpen:
 			text = "🧹 " + esc(i18n.T("Was the PR of “%s” merged on the remote? Troopa will remove the plan's worktrees and branches.", p.Title))
-		} else {
-			text = "🔀 " + esc(i18n.T("Merge the plan “%s” into %s? With a remote, Troopa pushes the branch and opens a PR instead.", p.Title, p.Base))
+		case action == "ppr":
+			text = "⬆️ " + esc(i18n.T("Push the plan “%s” and open a PR to %s?", p.Title, p.Base))
+		default:
+			text = "🔀 " + esc(i18n.T("Merge the plan “%s” into %s on this computer?", p.Title, p.Base))
 		}
-		yes = "dopmerge:" + sid
-	} else {
-		text = "🔀 " + esc(b.eng.MergePreview(id))
-		yes = "domerge:" + sid
+	case "pr":
+		text = "⬆️ " + esc(b.eng.MergePreview(id, true))
+	default:
+		text = "🔀 " + esc(b.eng.MergePreview(id, false))
 	}
+	yes := "do" + action + ":" + strconv.FormatInt(id, 10)
 	if back != "" {
 		yes += "|" + back
 	}
-	kb := &tgKeyboard{Rows: [][]tgButton{{btn("✅ "+i18n.T("Yes, merge"), yes), btn("✖️ "+i18n.T("Cancel"), cancel)}}}
+	kb := &tgKeyboard{Rows: [][]tgButton{{btn("✅ "+i18n.T("Yes"), yes), btn("✖️ "+i18n.T("Cancel"), cancel)}}}
 	if err := b.api.edit(ctx, b.chat, msgID, text, kb); err != nil {
 		b.api.send(ctx, b.chat, text, kb, 0)
 	}
 }
 
-func (b *Bot) doMerge(ctx context.Context, cq *tgCallback, action string, id int64, back string) {
-	var res engine.Result
-	var err error
-	if action == "dopmerge" {
-		res, err = b.eng.MergePlan(id)
-		if back == "" {
-			back = "plan:" + strconv.FormatInt(id, 10)
-		}
-	} else {
-		res, err = b.eng.MergeTask(id)
-	}
+func (b *Bot) planHasRemote(p store.Plan) bool {
+	proj, err := b.eng.Store.Get(p.ProjectID)
 	if err != nil {
-		b.api.answer(ctx, cq.ID, err.Error())
+		return false
+	}
+	repo, err := launch.RepoRoot(proj.RepoPath)
+	return err == nil && launch.HasRemote(repo)
+}
+
+// pull updates the project's main branch from its remote.
+func (b *Bot) pull(ctx context.Context, cq *tgCallback, projectID int64) {
+	msg, err := b.eng.Pull(projectID)
+	if err != nil {
+		b.api.answer(ctx, cq.ID, "")
 		b.reply(ctx, "⚠️ "+esc(err.Error()))
 		return
 	}
-	b.api.answer(ctx, cq.ID, i18n.T("Merged"))
+	b.api.answer(ctx, cq.ID, msg)
+	b.reply(ctx, "⬇️ "+esc(msg))
+}
+
+func (b *Bot) doMerge(ctx context.Context, cq *tgCallback, action string, id int64, back string) {
+	var res engine.Result
+	var err error
+	switch action {
+	case "dopmerge":
+		res, err = b.eng.MergePlan(id)
+	case "doppr":
+		res, err = b.eng.OpenPlanPR(id)
+	case "dopr":
+		res, err = b.eng.OpenTaskPR(id)
+	default:
+		res, err = b.eng.MergeTask(id)
+	}
+	if (action == "dopmerge" || action == "doppr") && back == "" {
+		back = "plan:" + strconv.FormatInt(id, 10)
+	}
+	if err != nil {
+		b.api.answer(ctx, cq.ID, "")
+		b.reply(ctx, "⚠️ "+esc(err.Error()))
+		if back != "" {
+			b.show(ctx, cq.Message.MessageID, back)
+		}
+		return
+	}
+	b.api.answer(ctx, cq.ID, "")
 	if back != "" {
 		b.show(ctx, cq.Message.MessageID, back)
 	}
-	if len(b.eng.Cfg.Launch.Hooks[launch.HookMerge]) == 0 {
-		b.reply(ctx, "🔀 "+esc(res.Message))
+	if action == "dopr" || action == "doppr" || len(b.eng.Cfg.Launch.Hooks[launch.HookMerge]) == 0 {
+		b.reply(ctx, "✅ "+esc(res.Message))
 	}
 }
