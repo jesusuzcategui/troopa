@@ -35,6 +35,15 @@ func startEng(t *testing.T, hooks map[string][]string) (*mcpsdk.ClientSession, *
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
+	t.Cleanup(func() {
+		// Let detached agents finish before the temp folders go away.
+		runs, _ := s.ListRuns("")
+		var wts []string
+		for _, r := range runs {
+			wts = append(wts, r.Worktree)
+		}
+		launch.WaitAgents(wts, 10*time.Second)
+	})
 	brainDir := filepath.Join(dir, "brain")
 	if err := os.MkdirAll(filepath.Join(brainDir, "projects"), 0o755); err != nil {
 		t.Fatal(err)

@@ -22,6 +22,15 @@ func testEngine(t *testing.T) (*Engine, *store.Store) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
+	t.Cleanup(func() {
+		// Let detached agents finish before the temp folders go away.
+		runs, _ := s.ListRuns("")
+		var wts []string
+		for _, r := range runs {
+			wts = append(wts, r.Worktree)
+		}
+		launch.WaitAgents(wts, 10*time.Second)
+	})
 	cfg := config.Config{WelcomeShown: true, SetupDone: true, BrainRaw: filepath.Join(dir, "brain")}
 	cfg.Launch = config.DefaultLaunch(filepath.Join(dir, "data"))
 	cfg.Launch.Brain = cfg.BrainRaw

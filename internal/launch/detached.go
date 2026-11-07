@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Agents run detached from Troopa: closing the TUI (or the terminal it runs
@@ -74,5 +75,20 @@ func StopAgent(worktree string) {
 	}
 	if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil {
 		stopAgentPID(pid)
+	}
+}
+
+// WaitAgents waits until no agent of these worktrees is running, up to
+// timeout. Tests use it so their temporary folders are not removed while an
+// agent still writes in them.
+func WaitAgents(worktrees []string, timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
+	for _, wt := range worktrees {
+		for time.Now().Before(deadline) {
+			if st, _ := AgentStatus(wt); st != AgentRunning {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 	}
 }
