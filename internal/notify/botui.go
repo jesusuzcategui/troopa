@@ -580,13 +580,7 @@ func (b *Bot) confirmMerge(ctx context.Context, msgID int64, action string, id i
 		}
 		yes = "dopmerge:" + sid
 	} else {
-		run, err := b.eng.Store.GetRun(id)
-		if err != nil {
-			b.reply(ctx, "⚠️ "+esc(err.Error()))
-			return
-		}
-		t, _ := b.eng.Store.GetTask(run.TaskID)
-		text = "🔀 " + esc(i18n.T("Merge #%d “%s” into %s?", t.ID, t.Title, run.Base))
+		text = "🔀 " + esc(b.eng.MergePreview(id))
 		yes = "domerge:" + sid
 	}
 	if back != "" {

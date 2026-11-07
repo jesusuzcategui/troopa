@@ -376,3 +376,38 @@ func TestBotCommentApproveAndMerge(t *testing.T) {
 		t.Fatalf("run state %s", got.State)
 	}
 }
+
+func TestBotMergesTaskApprovedWithoutCommits(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	task, _ := e.Store.CreateTask(store.Task{ProjectID: 1, Title: "Readme", Status: store.StatusBacklog,
+		Priority: store.PriorityMedium, Agent: store.AgentClaude, Mode: store.ModeYolo, Commits: store.CommitsNone, Type: store.TypeFeature})
+	res, err := e.Launch(task)
+	if err != nil {
+		t.Fatal(err)
+	}
+	launch.WaitAgents([]string{res.Run.Worktree}, 10*time.Second)
+	if _, err := e.Finish(res.Run.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Approve(res.Run.ID); err != nil {
+		t.Fatal(err)
+	}
+	rid, tid := itoa(res.Run.ID), itoa(task.ID)
+	b.Handle(ctx, cb("task:"+tid))
+	if edit := fake.last("editMessageText"); !strings.Contains(edit["reply_markup"], "merge:"+rid) {
+		t.Fatalf("a task approved without commits should still offer merge: %s", edit["reply_markup"])
+	}
+	b.Handle(ctx, cb("merge:"+rid+"|task:"+tid))
+	if edit := fake.last("editMessageText"); !strings.Contains(edit["text"], "without committing") {
+		t.Fatalf("the confirmation should say it commits first: %q", edit["text"])
+	}
+	b.Handle(ctx, cb("domerge:"+rid+"|task:"+tid))
+	if got, _ := e.Store.GetRun(res.Run.ID); got.State != store.RunMerged {
+		t.Fatalf("run state %s, note %s", got.State, got.Note)
+	}
+	p, _ := e.Store.Get(1)
+	if out, _ := launch.Git(p.RepoPath, "log", "--oneline", "-1"); !strings.Contains(out, "Readme") {
+		t.Fatalf("main should have the merge: %s", out)
+	}
+}

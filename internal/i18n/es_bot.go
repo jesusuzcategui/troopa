@@ -3,6 +3,8 @@ package i18n
 // Telegram bot and plan PRs.
 func init() {
 	for k, v := range map[string]string{
+		"#%d “%s” was approved without committing. Commit it, push %s and open a PR to %s?": "#%d “%s” se aprobó sin commit. ¿Hago el commit, subo %s y abro un PR a %s?",
+		"#%d “%s” was approved without committing. Commit it and merge it into %s?":         "#%d “%s” se aprobó sin commit. ¿Hago el commit y el merge en %s?",
 		"%d comments waiting to be sent": "%d comentarios esperando para enviarse",
 		"Cancel":                         "Cancelar",
 		"Comment saved. %d waiting: they go to the agent when you request changes.": "Comentario guardado. %d en espera: van al agente cuando pidas cambios.",

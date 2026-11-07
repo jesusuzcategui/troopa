@@ -12,19 +12,22 @@ import (
 
 // MergeBlockReason says why an approved run cannot be merged on its own, or
 // "" when it can: plan steps merge with their plan, and repos with a remote
-// get their PR when the run is approved.
+// get their PR when the run is approved. A run approved without committing
+// can always go on: the merge commits it first (and opens the PR on a remote).
 func MergeBlockReason(run store.Run, task store.Task, sess launch.Session) string {
 	if task.PlanID != 0 {
 		return i18n.T("This task is a plan step: merge the whole plan from its plan (w, then g)")
 	}
-	if run.State != store.RunApproved || task.Commits != store.CommitsAuto {
+	if run.State != store.RunApproved {
 		return i18n.T("Only an approved run without remote can be merged")
 	}
-	repo := sess.Repo
-	if repo == "" {
-		repo = sess.Worktree
+	if task.Commits == store.CommitsNone {
+		return ""
 	}
-	if launch.HasRemote(repo) || (sess.Worktree != "" && launch.HasRemote(sess.Worktree)) {
+	if task.Commits != store.CommitsAuto {
+		return i18n.T("Only an approved run without remote can be merged")
+	}
+	if HasRemote(sess) {
 		return i18n.T("Only an approved run without remote can be merged")
 	}
 	return ""
@@ -69,6 +72,24 @@ func (e *Engine) MergeTask(runID int64) (Result, error) {
 	kind, err := launch.NormalizeMergeStrategy(e.Cfg.Launch.Merge)
 	if err != nil {
 		return Result{}, err
+	}
+	if task.Commits == store.CommitsNone {
+		// Approved without committing: commit now, the way an auto task does.
+		task.Commits = store.CommitsAuto
+		if HasRemote(sess) {
+			msg, err := launch.Approve(sess, task, run.Summary)
+			if err != nil {
+				return Result{}, err
+			}
+			_ = e.Store.UpdateTask(task)
+			run.Note = msg
+			_ = e.Store.UpdateRun(run)
+			return e.result(run, task, sess, msg, false), nil
+		}
+		if err := launch.CommitAll(sess.Worktree, "troopa: "+task.Title); err != nil {
+			return Result{}, err
+		}
+		_ = e.Store.UpdateTask(task)
 	}
 	msg, err := launch.MergeLocal(sess, task, kind)
 	if err != nil {
@@ -190,4 +211,38 @@ func (e *Engine) cleanPlanWorktrees(planID, mergedRun int64, repo string) {
 		run.State = store.RunMerged
 		_ = e.Store.UpdateRun(run)
 	}
+}
+
+// HasRemote reports whether the run's repo pushes somewhere, so merging
+// becomes a PR.
+func HasRemote(sess launch.Session) bool {
+	repo := sess.Repo
+	if repo == "" {
+		repo = sess.Worktree
+	}
+	return launch.HasRemote(repo) || (sess.Worktree != "" && launch.HasRemote(sess.Worktree))
+}
+
+// MergePreview says what merging the run will do, for a confirmation.
+func (e *Engine) MergePreview(runID int64) string {
+	run, err := e.Store.GetRun(runID)
+	if err != nil {
+		return ""
+	}
+	task, err := e.Store.GetTask(run.TaskID)
+	if err != nil {
+		return ""
+	}
+	project, err := e.project(task.ProjectID)
+	if err != nil {
+		return ""
+	}
+	sess := e.sessionFor(run, project)
+	if task.Commits != store.CommitsNone {
+		return i18n.T("Merge #%d “%s” into %s?", task.ID, task.Title, run.Base)
+	}
+	if HasRemote(sess) {
+		return i18n.T("#%d “%s” was approved without committing. Commit it, push %s and open a PR to %s?", task.ID, task.Title, run.Branch, run.Base)
+	}
+	return i18n.T("#%d “%s” was approved without committing. Commit it and merge it into %s?", task.ID, task.Title, run.Base)
 }
