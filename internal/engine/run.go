@@ -122,15 +122,20 @@ func (e *Engine) Finish(runID int64, exitErr error) (Result, error) {
 	}
 	e.closeOpenRound(run, run.State, summary, checksJSON, run.LogPath, price)
 	_ = e.moveTask(run.TaskID, dest)
-	if dest == store.StatusReview {
-		e.fireRunHook(launch.HookReview, task, run, summary, project)
-	} else {
-		e.fireRunHook(launch.HookBlocked, task, run, run.Note, project)
-	}
+	autoApprove := false
 	if dest == store.StatusReview && task.PlanID != 0 {
 		if plan, err := e.Store.GetPlan(task.PlanID); err == nil && plan.State == store.PlanRunning && plan.AutoApprove {
-			return e.Approve(run.ID)
+			autoApprove = true
 		}
+	}
+	switch {
+	case autoApprove:
+		// The approve hook reports it, so review does not fire twice.
+		return e.Approve(run.ID)
+	case dest == store.StatusReview:
+		e.fireRunHook(launch.HookReview, task, run, summary, project)
+	default:
+		e.fireRunHook(launch.HookBlocked, task, run, run.Note, project)
 	}
 	if e.Cfg.Launch.Notify {
 		launch.Notify("Troopa: "+dest, task.Title)

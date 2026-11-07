@@ -38,6 +38,7 @@
       <a href="#accounts" data-i18n="docs.accounts">Accounts</a>
       <a href="#brain" data-i18n="docs.brain">Second brain</a>
       <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
+      <a href="#telegram" data-i18n="docs.telegram">Telegram alerts</a>
       <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
       <a href="#mcp" data-i18n="docs.mcp">MCP and daemon</a>
       <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
@@ -157,6 +158,45 @@ troopa login acme codex</pre>
 review = "notify-send 'Troopa' \"$TROOPA_TASK is ready for review\""
 approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</pre>
           <p>Each hook gets the event as JSON on stdin and in variables: <code>TROOPA_EVENT</code>, <code>TROOPA_PROJECT</code>, <code>TROOPA_REPO</code>, <code>TROOPA_TASK_ID</code>, <code>TROOPA_TASK</code>, <code>TROOPA_STATUS</code>, <code>TROOPA_AGENT</code>, <code>TROOPA_RUN_ID</code>, <code>TROOPA_BRANCH</code>, <code>TROOPA_WORKTREE</code>, <code>TROOPA_PLAN_ID</code>, <code>TROOPA_PLAN</code>. Hooks run in the background (2-minute limit) inside the worktree or the repo, and their output goes to <code>~/.local/share/troopa/hooks.log</code>.</p>
+        </section>
+
+        <section id="telegram">
+          <h2>Recipe: Telegram alerts</h2>
+          <p>Get a message on your phone when a step is ready for review, approves itself, gets blocked or a plan ends: with the agent's summary, the checks, the time, the tokens and the cost. <code>troopa notify telegram</code> builds it from the hook event and the run.</p>
+          <ol>
+            <li>In Telegram, talk to <strong>@BotFather</strong>, send <code>/newbot</code> and keep the <strong>token</strong> it gives you.</li>
+            <li>Send any message to your new bot, then get your <strong>chat id</strong>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>curl -s "https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates" | grep -o '"chat":{"id":-\?[0-9]*'</pre></li>
+            <li>Add the hooks to <code>~/.config/troopa/config.toml</code>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>[hooks]
+review    = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
+blocked   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
+approve   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
+plan_done = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"</pre>
+              To keep the token out of the file, export <code>TROOPA_TELEGRAM_TOKEN</code> and <code>TROOPA_TELEGRAM_CHAT</code> and leave the flags out. If <code>troopa</code> is not on the PATH of the terminal that runs it, write its full path.</li>
+            <li>Try it: <code>troopa notify telegram --test --token … --chat …</code> sends the latest run as a sample; <code>--dry-run</code> prints the message instead.</li>
+          </ol>
+          <p>What a message looks like (the summary opens with a tap):</p>
+          <pre class="cmd">✅ Ready for review
+
+📁 Solar system
+🗺 Moons · step 2 of 5
+📝 Add the outer planets and moons
+🤖 Cursor  ·  ⏱ 12m 34s  ·  🔤 120.5k in · 8.2k out  ·  💰 $0.42
+🌿 feature/add-the-outer-planets-and-moons
+
+Checks
+✅ go vet ./...
+✅ go test ./...
+
+What the agent says
+┃ What changed
+┃ • Added Jupiter and Saturn, and moons that orbit their planet
+┃ How to run
+┃ npm start
+
+👉 In Troopa: y approves, x sends it back with your comments.</pre>
+          <p>Blocked messages show the failing check with its last lines; approve messages name the next step of the plan; with auto-approve on, a step sends one message (approved), not two. Messages follow the Troopa language.</p>
         </section>
 
         <section id="extensions">
@@ -354,6 +394,45 @@ troopa login acme codex</pre>
 review = "notify-send 'Troopa' \"$TROOPA_TASK está lista para revisar\""
 approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</pre>
           <p>Cada hook recibe el evento como JSON por stdin y en variables: <code>TROOPA_EVENT</code>, <code>TROOPA_PROJECT</code>, <code>TROOPA_REPO</code>, <code>TROOPA_TASK_ID</code>, <code>TROOPA_TASK</code>, <code>TROOPA_STATUS</code>, <code>TROOPA_AGENT</code>, <code>TROOPA_RUN_ID</code>, <code>TROOPA_BRANCH</code>, <code>TROOPA_WORKTREE</code>, <code>TROOPA_PLAN_ID</code>, <code>TROOPA_PLAN</code>. Corren en segundo plano (límite de 2 minutos) dentro del worktree o del repo, y su salida va a <code>~/.local/share/troopa/hooks.log</code>.</p>
+        </section>
+
+        <section id="telegram-es">
+          <h2>Receta: avisos por Telegram</h2>
+          <p>Recibe un mensaje en el celular cuando un paso está listo para revisar, se aprueba solo, se bloquea o termina un plan: con el resumen del agente, los checks, el tiempo, los tokens y el costo. <code>troopa notify telegram</code> lo arma con el evento del hook y la ejecución.</p>
+          <ol>
+            <li>En Telegram, habla con <strong>@BotFather</strong>, envía <code>/newbot</code> y guarda el <strong>token</strong> que te da.</li>
+            <li>Mándale cualquier mensaje a tu bot y saca tu <strong>chat id</strong>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>curl -s "https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates" | grep -o '"chat":{"id":-\?[0-9]*'</pre></li>
+            <li>Agrega los hooks a <code>~/.config/troopa/config.toml</code>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>[hooks]
+review    = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
+blocked   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
+approve   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
+plan_done = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"</pre>
+              Para no dejar el token en el archivo, exporta <code>TROOPA_TELEGRAM_TOKEN</code> y <code>TROOPA_TELEGRAM_CHAT</code> y quita los flags. Si <code>troopa</code> no está en el PATH de la terminal que lo ejecuta, escribe su ruta completa.</li>
+            <li>Pruébalo: <code>troopa notify telegram --test --token … --chat …</code> envía la última ejecución como ejemplo; <code>--dry-run</code> imprime el mensaje en vez de enviarlo.</li>
+          </ol>
+          <p>Así se ve un mensaje (el resumen se abre con un toque):</p>
+          <pre class="cmd">✅ Listo para revisar
+
+📁 Solar system
+🗺 Moons · paso 2 de 5
+📝 Add the outer planets and moons
+🤖 Cursor  ·  ⏱ 12m 34s  ·  🔤 120.5k in · 8.2k out  ·  💰 $0.42
+🌿 feature/add-the-outer-planets-and-moons
+
+Checks
+✅ go vet ./...
+✅ go test ./...
+
+Lo que dice el agente
+┃ What changed
+┃ • Added Jupiter and Saturn, and moons that orbit their planet
+┃ How to run
+┃ npm start
+
+👉 En Troopa: y aprueba, x lo devuelve con tus comentarios.</pre>
+          <p>Los mensajes de bloqueo muestran el check que falló con sus últimas líneas; los de aprobación nombran el siguiente paso del plan; con la aprobación automática, cada paso manda un solo mensaje (aprobado), no dos. Los mensajes siguen el idioma de Troopa.</p>
         </section>
 
         <section id="extensions-es">

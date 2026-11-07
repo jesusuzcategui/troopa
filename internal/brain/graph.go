@@ -108,13 +108,25 @@ func BuildGraph(dir string) (*Graph, error) {
 			}
 		}
 	}
+	// The folder layout is a structure too: tasks and guides belong to their
+	// project, projects to projects/INDEX.md, and the root notes to README.
+	index, hasIndex := g.index["projects/INDEX.md"]
+	readme, hasReadme := g.index["README.md"]
 	for i, n := range g.Nodes {
-		if n.Kind != KindTask && n.Kind != KindGuide {
-			continue
-		}
-		parts := strings.Split(n.Rel, "/")
-		if j, ok := g.index[path.Join(parts[0], parts[1], "project.md")]; ok {
-			add(i, j, true)
+		switch n.Kind {
+		case KindTask, KindGuide:
+			parts := strings.Split(n.Rel, "/")
+			if j, ok := g.index[path.Join(parts[0], parts[1], "project.md")]; ok {
+				add(i, j, true)
+			}
+		case KindProject:
+			if hasIndex {
+				add(i, index, true)
+			}
+		case KindInbox, KindToday, KindIndex:
+			if hasReadme {
+				add(i, readme, true)
+			}
 		}
 	}
 	g.Layout(0)
