@@ -196,3 +196,88 @@ func TestKeyboardButtons(t *testing.T) {
 }
 
 func mustJSON(v any) string { raw, _ := json.Marshal(v); return string(raw) }
+
+func (f *fakeTG) last(method string) map[string]string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.calls) - 1; i >= 0; i-- {
+		if f.calls[i]["method"] == method {
+			return f.calls[i]
+		}
+	}
+	return nil
+}
+
+func TestBotButtonsNavigatePlans(t *testing.T) {
+	b, fake, e, run := botFixture(t)
+	ctx := context.Background()
+	b.Handle(ctx, cb("plans"))
+	edit := fake.last("editMessageText")
+	if edit == nil || edit["message_id"] != "7" || !strings.Contains(edit["reply_markup"], `"plan:1"`) {
+		t.Fatalf("plans should redraw the message with a button per plan: %v", edit)
+	}
+	b.Handle(ctx, cb("plan:1"))
+	edit = fake.last("editMessageText")
+	approve := "approve:" + itoa(run.ID) + "|plan:1"
+	for _, want := range []string{approve, "changes:" + itoa(run.ID), "ppause:1", `"plans"`} {
+		if !strings.Contains(edit["reply_markup"], want) {
+			t.Fatalf("plan view lacks %s: %s", want, edit["reply_markup"])
+		}
+	}
+	if !strings.Contains(edit["text"], "1. One") {
+		t.Fatalf("plan text %q", edit["text"])
+	}
+	b.Handle(ctx, cb(approve))
+	if got, _ := e.Store.GetRun(run.ID); got.State != store.RunApproved {
+		t.Fatalf("state %s", got.State)
+	}
+	if edit = fake.last("editMessageText"); !strings.Contains(edit["text"], "✅ 1. One") {
+		t.Fatalf("the plan should redraw after approving: %q", edit["text"])
+	}
+	b.Handle(ctx, cb("ppause:1"))
+	if p, _ := e.Store.GetPlan(1); p.State != store.PlanPaused {
+		t.Fatalf("plan state %s", p.State)
+	}
+	if edit = fake.last("editMessageText"); !strings.Contains(edit["reply_markup"], "pstart:1") {
+		t.Fatalf("a paused plan offers start: %s", edit["reply_markup"])
+	}
+}
+
+func TestBotKeyboardAndTaskFlow(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	b.Handle(ctx, msg("/start", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], `"is_persistent":true`) {
+		t.Fatalf("/start should send the persistent keyboard: %v", m)
+	}
+	b.Handle(ctx, msg("📊 Estado", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "approve:") {
+		t.Fatalf("status from the keyboard should carry review buttons: %v", m)
+	}
+	b.Handle(ctx, msg("➕ New task", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "newtask:1") {
+		t.Fatalf("new task should list projects: %v", m)
+	}
+	b.Handle(ctx, cb("newtask:1"))
+	fake.mu.Lock()
+	promptID := fake.next
+	fake.mu.Unlock()
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "force_reply") {
+		t.Fatalf("title prompt should force a reply: %v", m)
+	}
+	b.Handle(ctx, msg("Dark mode toggle", promptID))
+	tasks, _ := e.Store.ListTasks(1, store.TaskFilter{})
+	found := false
+	for _, tk := range tasks {
+		found = found || tk.Title == "Dark mode toggle"
+	}
+	if !found {
+		t.Fatal("the reply should create the task")
+	}
+	if err := b.api.setCommands(ctx, b.commands()); err != nil {
+		t.Fatal(err)
+	}
+	if c := fake.last("setMyCommands"); !strings.Contains(c["commands"], `"plans"`) {
+		t.Fatalf("menu commands %v", c)
+	}
+}

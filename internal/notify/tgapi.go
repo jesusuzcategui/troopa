@@ -97,15 +97,38 @@ func (c *tgClient) do(req *http.Request) (json.RawMessage, error) {
 	return r.Result, nil
 }
 
+// replyKeyboard is the persistent keyboard under the text box.
+type replyKeyboard struct {
+	Rows       [][]replyButton `json:"keyboard"`
+	Resize     bool            `json:"resize_keyboard"`
+	Persistent bool            `json:"is_persistent"`
+}
+
+type replyButton struct {
+	Text string `json:"text"`
+}
+
+// forceReply makes Telegram open a reply to the message it comes with.
+var forceReply = map[string]any{"force_reply": true, "input_field_placeholder": "…"}
+
+func markupJSON(markup any) string {
+	if markup == nil {
+		return ""
+	}
+	raw, err := json.Marshal(markup)
+	if err != nil || string(raw) == "null" {
+		return ""
+	}
+	return string(raw)
+}
+
 // send posts an HTML message; when the HTML is rejected it retries as plain
-// text. It returns the message id.
-func (c *tgClient) send(ctx context.Context, chat, text string, kb *tgKeyboard, replyTo int64, forceReply bool) (int64, error) {
+// text. markup is an inline keyboard, a reply keyboard, forceReply or nil.
+// It returns the message id.
+func (c *tgClient) send(ctx context.Context, chat, text string, markup any, replyTo int64) (int64, error) {
 	form := url.Values{"chat_id": {chat}, "text": {text}, "parse_mode": {"HTML"}, "disable_web_page_preview": {"true"}}
-	if kb != nil {
-		raw, _ := json.Marshal(kb)
-		form.Set("reply_markup", string(raw))
-	} else if forceReply {
-		form.Set("reply_markup", `{"force_reply":true,"input_field_placeholder":"…"}`)
+	if m := markupJSON(markup); m != "" {
+		form.Set("reply_markup", m)
 	}
 	if replyTo != 0 {
 		form.Set("reply_to_message_id", strconv.FormatInt(replyTo, 10))
@@ -122,6 +145,41 @@ func (c *tgClient) send(ctx context.Context, chat, text string, kb *tgKeyboard, 
 	var m tgMessage
 	_ = json.Unmarshal(res, &m)
 	return m.MessageID, nil
+}
+
+// edit replaces the text and inline keyboard of a message the bot sent, so
+// menus change in place instead of piling up. "not modified" is not an error.
+func (c *tgClient) edit(ctx context.Context, chat string, msgID int64, text string, kb *tgKeyboard) error {
+	form := url.Values{
+		"chat_id": {chat}, "message_id": {strconv.FormatInt(msgID, 10)}, "text": {text},
+		"parse_mode": {"HTML"}, "disable_web_page_preview": {"true"},
+	}
+	if kb == nil {
+		kb = &tgKeyboard{Rows: [][]tgButton{}}
+	}
+	form.Set("reply_markup", markupJSON(kb))
+	_, err := c.call(ctx, "editMessageText", form)
+	if err != nil && strings.Contains(err.Error(), "parse") {
+		form.Del("parse_mode")
+		form.Set("text", stripTags(text))
+		_, err = c.call(ctx, "editMessageText", form)
+	}
+	if err != nil && strings.Contains(err.Error(), "not modified") {
+		return nil
+	}
+	return err
+}
+
+type tgCommand struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+}
+
+// setCommands fills the menu button next to the text box.
+func (c *tgClient) setCommands(ctx context.Context, cmds []tgCommand) error {
+	raw, _ := json.Marshal(cmds)
+	_, err := c.call(ctx, "setMyCommands", url.Values{"commands": {string(raw)}})
+	return err
 }
 
 func (c *tgClient) answer(ctx context.Context, callbackID, text string) {

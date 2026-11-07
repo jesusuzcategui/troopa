@@ -3,8 +3,18 @@ package i18n
 // Telegram bot and plan PRs.
 func init() {
 	for k, v := range map[string]string{
-		"Approve":        "Aprobar",
-		"Diff of run %d": "Diff de la ejecución %d",
+		"Refresh":                            "Actualizar",
+		"Start":                              "Iniciar",
+		"Pause":                              "Pausar",
+		"No projects yet.":                   "Aún no hay proyectos.",
+		"Which project is the new task for?": "¿Para qué proyecto es la nueva tarea?",
+		"Reply with the title of the new task for %s.":                                  "Responde con el título de la nueva tarea para %s.",
+		"Use the keyboard below or the menu: plans, steps and reviews open as buttons.": "Usa el teclado de abajo o el menú: planes, pasos y revisiones se abren como botones.",
+		"the log of a run":  "el log de una ejecución",
+		"the diff of a run": "el diff de una ejecución",
+		"what I can do":     "lo que puedo hacer",
+		"Approve":           "Aprobar",
+		"Diff of run %d":    "Diff de la ejecución %d",
 		"No changes to show (the worktree may be gone).": "No hay cambios para mostrar (puede que el worktree ya no exista).",
 		"No log yet.":   "Aún no hay log.",
 		"No plans yet.": "Aún no hay planes.",

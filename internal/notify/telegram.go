@@ -95,7 +95,7 @@ func Telegram(args []string, stdin io.Reader, stdout, stderr io.Writer, open fun
 	if def.Actions {
 		kb = Keyboard(ev)
 	}
-	if _, err := newTG(*token).send(context.Background(), *chat, msg, kb, 0, false); err != nil {
+	if _, err := newTG(*token).send(context.Background(), *chat, msg, kb, 0); err != nil {
 		fmt.Fprintf(stderr, "troopa notify: %v\n", err)
 		return 1
 	}

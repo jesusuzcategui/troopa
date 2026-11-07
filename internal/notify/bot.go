@@ -28,7 +28,13 @@ type Bot struct {
 	offsetF string
 
 	mu      sync.Mutex
-	pending map[int64]int64 // prompt message id -> run id waiting for feedback
+	pending map[int64]prompt // prompt message id -> what the reply is for
+}
+
+// prompt is a question the bot asked with a forced reply.
+type prompt struct {
+	kind string // "changes" (id = run) or "task" (id = project)
+	id   int64
 }
 
 // NewBot builds the bot. dataDir keeps the last update id between restarts.
@@ -38,13 +44,16 @@ func NewBot(token, chat string, eng *engine.Engine, dataDir string, logger *log.
 	}
 	return &Bot{
 		api: newTG(token), chat: strings.TrimSpace(chat), eng: eng, logger: logger,
-		offsetF: filepath.Join(dataDir, "telegram.offset"), pending: map[int64]int64{},
+		offsetF: filepath.Join(dataDir, "telegram.offset"), pending: map[int64]prompt{},
 	}
 }
 
 // Run polls Telegram until ctx ends.
 func (b *Bot) Run(ctx context.Context) {
 	offset := b.loadOffset()
+	if err := b.api.setCommands(ctx, b.commands()); err != nil {
+		b.logger.Printf("telegram setMyCommands: %v", err)
+	}
 	b.logger.Println("telegram bot listening")
 	for ctx.Err() == nil {
 		ups, err := b.api.updates(ctx, offset, 50)
@@ -106,28 +115,60 @@ func (b *Bot) Handle(ctx context.Context, u tgUpdate) {
 }
 
 func (b *Bot) reply(ctx context.Context, text string) {
-	if _, err := b.api.send(ctx, b.chat, text, nil, 0, false); err != nil {
+	if _, err := b.api.send(ctx, b.chat, text, nil, 0); err != nil {
 		b.logger.Printf("telegram send: %v", err)
 	}
 }
 
 func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
-	action, idText, _ := strings.Cut(cq.Data, ":")
-	runID, err := strconv.ParseInt(idText, 10, 64)
+	data, back, _ := strings.Cut(cq.Data, "|")
+	action, idText, _ := strings.Cut(data, ":")
+	msgID := cq.Message.MessageID
+	switch action {
+	case "status", "plans", "plan", "newtask":
+		if action == "newtask" && idText != "" {
+			b.askTaskTitle(ctx, cq, idText)
+			return
+		}
+		b.api.answer(ctx, cq.ID, "")
+		b.show(ctx, msgID, data)
+		return
+	}
+	id, err := strconv.ParseInt(idText, 10, 64)
 	if err != nil {
 		b.api.answer(ctx, cq.ID, "?")
 		return
 	}
 	switch action {
+	case "pstart", "ppause":
+		var res engine.Result
+		var note string
+		if action == "pstart" {
+			res, err = b.eng.StartPlan(id)
+			note = i18n.T("Plan %s started", res.Plan.Title)
+		} else {
+			res, err = b.eng.PausePlan(id)
+			note = i18n.T("Plan %s paused: the running step finishes, the next one waits.", res.Plan.Title)
+		}
+		if err != nil {
+			b.api.answer(ctx, cq.ID, err.Error())
+			return
+		}
+		b.api.answer(ctx, cq.ID, note)
+		b.show(ctx, msgID, "plan:"+idText)
 	case "approve":
-		res, err := b.eng.Approve(runID)
+		res, err := b.eng.Approve(id)
 		if err != nil {
 			b.api.answer(ctx, cq.ID, err.Error())
 			b.reply(ctx, "⚠️ "+esc(err.Error()))
 			return
 		}
 		b.api.answer(ctx, cq.ID, i18n.T("Approved"))
-		b.api.clearButtons(ctx, b.chat, cq.Message.MessageID)
+		if back != "" {
+			b.show(ctx, msgID, back)
+		} else {
+			b.api.clearButtons(ctx, b.chat, msgID)
+		}
 		if len(b.eng.Cfg.Launch.Hooks[launch.HookApprove]) == 0 {
 			// Without an approve hook nobody else reports it.
 			msg := "👍 <b>" + esc(i18n.T("Approved")) + "</b> · " + esc(res.Task.Title)
@@ -137,46 +178,63 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 			b.reply(ctx, msg)
 		}
 	case "changes":
-		run, err := b.eng.Store.GetRun(runID)
+		run, err := b.eng.Store.GetRun(id)
 		if err != nil {
 			b.api.answer(ctx, cq.ID, err.Error())
 			return
 		}
 		task, _ := b.eng.Store.GetTask(run.TaskID)
 		b.api.answer(ctx, cq.ID, "")
-		prompt := "✏️ " + esc(i18n.T("Reply to this message with what %s should change in “%s”.", launch.AgentName(run.Agent), task.Title))
-		id, err := b.api.send(ctx, b.chat, prompt, nil, cq.Message.MessageID, true)
-		if err != nil {
-			b.logger.Printf("telegram send: %v", err)
-			return
-		}
-		b.mu.Lock()
-		b.pending[id] = runID
-		b.mu.Unlock()
+		text := "✏️ " + esc(i18n.T("Reply to this message with what %s should change in “%s”.", launch.AgentName(run.Agent), task.Title))
+		b.ask(ctx, text, msgID, prompt{kind: "changes", id: id})
 	case "diff":
 		b.api.answer(ctx, cq.ID, "")
-		b.sendDiff(ctx, runID)
+		b.sendDiff(ctx, id)
 	case "log":
 		b.api.answer(ctx, cq.ID, "")
-		b.sendLog(ctx, runID)
+		b.sendLog(ctx, id)
 	default:
 		b.api.answer(ctx, cq.ID, "?")
 	}
+}
+
+// ask sends a question that opens a reply and remembers what it was for.
+func (b *Bot) ask(ctx context.Context, text string, replyTo int64, p prompt) {
+	id, err := b.api.send(ctx, b.chat, text, forceReply, replyTo)
+	if err != nil {
+		b.logger.Printf("telegram send: %v", err)
+		return
+	}
+	b.mu.Lock()
+	b.pending[id] = p
+	b.mu.Unlock()
 }
 
 func (b *Bot) message(ctx context.Context, m *tgMessage) {
 	text := strings.TrimSpace(m.Text)
 	if m.ReplyTo != nil {
 		b.mu.Lock()
-		runID, ok := b.pending[m.ReplyTo.MessageID]
+		p, ok := b.pending[m.ReplyTo.MessageID]
 		if ok {
 			delete(b.pending, m.ReplyTo.MessageID)
 		}
 		b.mu.Unlock()
 		if ok {
-			b.requestChanges(ctx, runID, text)
+			if p.kind == "task" {
+				b.reply(ctx, b.createTask(p.id, text))
+			} else {
+				b.requestChanges(ctx, p.id, text)
+			}
 			return
 		}
+	}
+	if view, ok := keyboardView(text); ok {
+		if view == "help" {
+			b.sendHelp(ctx)
+		} else {
+			b.show(ctx, 0, view)
+		}
+		return
 	}
 	if !strings.HasPrefix(text, "/") {
 		b.reply(ctx, esc(i18n.T("Send /help to see what I can do.")))
@@ -187,14 +245,14 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 	args := fields[1:]
 	switch cmd {
 	case "/start", "/help", "/ayuda":
-		b.reply(ctx, b.help())
+		b.sendHelp(ctx)
 	case "/status", "/estado":
-		b.reply(ctx, b.status())
+		b.show(ctx, 0, "status")
 	case "/plans", "/planes":
-		b.reply(ctx, b.plans())
+		b.show(ctx, 0, "plans")
 	case "/plan":
 		if id, ok := argID(args); ok {
-			b.reply(ctx, b.plan(id))
+			b.show(ctx, 0, "plan:"+strconv.FormatInt(id, 10))
 			return
 		}
 		b.reply(ctx, esc(i18n.T("Usage: /plan <id>")))
@@ -227,6 +285,10 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 		}
 		b.reply(ctx, "⏸ "+esc(i18n.T("Plan %s paused: the running step finishes, the next one waits.", res.Plan.Title)))
 	case "/task", "/tarea":
+		if len(args) == 0 {
+			b.show(ctx, 0, "newtask")
+			return
+		}
 		b.reply(ctx, b.newTask(args))
 	case "/log":
 		if id, ok := argID(args); ok {
@@ -278,91 +340,9 @@ func (b *Bot) help() string {
 		"/log &lt;run&gt; · /diff &lt;run&gt;",
 		"",
 		esc(i18n.T("The buttons under each alert approve, request changes, or show the diff and the log. Merging stays in the TUI.")),
+		esc(i18n.T("Use the keyboard below or the menu: plans, steps and reviews open as buttons.")),
 	}
 	return strings.Join(lines, "\n")
-}
-
-func (b *Bot) status() string {
-	s := b.eng.Store
-	var out []string
-	if runs, err := s.ListRuns(store.RunRunning); err == nil {
-		for _, r := range runs {
-			t, _ := s.GetTask(r.TaskID)
-			out = append(out, fmt.Sprintf("🔄 #%d %s · %s", r.ID, esc(t.Title), esc(launch.AgentName(r.Agent))))
-		}
-	}
-	for _, state := range []string{store.RunReview, store.RunBlocked} {
-		runs, err := s.ListRuns(state)
-		if err != nil {
-			continue
-		}
-		mark := "👀"
-		if state == store.RunBlocked {
-			mark = "⛔"
-		}
-		for i, r := range runs {
-			if i == 5 {
-				break
-			}
-			t, _ := s.GetTask(r.TaskID)
-			if t.Status == store.StatusDone {
-				continue
-			}
-			out = append(out, fmt.Sprintf("%s #%d %s", mark, r.ID, esc(t.Title)))
-		}
-	}
-	if plans, err := s.ListPlans(0); err == nil {
-		for _, p := range plans {
-			if p.State == store.PlanRunning || p.State == store.PlanPaused {
-				done, total, _ := s.PlanProgress(p.ID)
-				out = append(out, fmt.Sprintf("🗺 %s · %d/%d · %s", esc(p.Title), done, total, esc(p.State)))
-			}
-		}
-	}
-	if len(out) == 0 {
-		return esc(i18n.T("Nothing running and nothing waiting for you."))
-	}
-	return strings.Join(out, "\n")
-}
-
-func (b *Bot) plans() string {
-	list, err := b.eng.Store.ListPlans(0)
-	if err != nil || len(list) == 0 {
-		return esc(i18n.T("No plans yet."))
-	}
-	var out []string
-	for i, p := range list {
-		if i == 20 {
-			break
-		}
-		done, total, _ := b.eng.Store.PlanProgress(p.ID)
-		out = append(out, fmt.Sprintf("<b>%d</b> · %s · %d/%d · %s", p.ID, esc(p.Title), done, total, esc(p.State)))
-	}
-	return strings.Join(out, "\n")
-}
-
-func (b *Bot) plan(id int64) string {
-	p, err := b.eng.Store.GetPlan(id)
-	if err != nil {
-		return esc(i18n.T("Plan %d not found", id))
-	}
-	steps, _ := b.eng.Store.PlanSteps(id)
-	out := []string{fmt.Sprintf("🗺 <b>%s</b> · %s", esc(p.Title), esc(p.State))}
-	for _, t := range steps {
-		mark := "○"
-		switch t.Status {
-		case store.StatusDone:
-			mark = "✅"
-		case store.StatusInProgress:
-			mark = "🔄"
-		case store.StatusReview:
-			mark = "👀"
-		case store.StatusBlocked:
-			mark = "⛔"
-		}
-		out = append(out, fmt.Sprintf("%s %d. %s", mark, t.PlanStep, esc(t.Title)))
-	}
-	return strings.Join(out, "\n")
 }
 
 // newTask adds a task: /task <project id or slug> <title…>.
@@ -384,12 +364,28 @@ func (b *Bot) newTask(args []string) string {
 	if proj == nil {
 		return esc(i18n.T("Project %s not found. Use its id or slug.", args[0]))
 	}
+	return b.addTask(*proj, strings.Join(args[1:], " "))
+}
+
+// createTask adds a task to a project picked with the buttons.
+func (b *Bot) createTask(projectID int64, title string) string {
+	if strings.TrimSpace(title) == "" {
+		return esc(i18n.T("The message was empty: nothing was sent."))
+	}
+	p, err := b.eng.Store.Get(projectID)
+	if err != nil {
+		return "⚠️ " + esc(err.Error())
+	}
+	return b.addTask(p, strings.TrimSpace(title))
+}
+
+func (b *Bot) addTask(proj store.Project, title string) string {
 	agent := b.eng.Cfg.DefaultAgent
 	if agent == "" {
 		agent = store.AgentMe
 	}
 	t, err := b.eng.Store.CreateTask(store.Task{
-		ProjectID: proj.ID, Title: strings.Join(args[1:], " "), Status: store.StatusBacklog,
+		ProjectID: proj.ID, Title: title, Status: store.StatusBacklog,
 		Priority: store.PriorityMedium, Agent: agent, Mode: store.ModeYolo, Commits: store.CommitsNone, Type: store.TypeFeature,
 	})
 	if err != nil {

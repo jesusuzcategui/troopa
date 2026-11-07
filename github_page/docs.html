@@ -210,6 +210,12 @@ What the agent says
             <li><strong>📄 Diff</strong> and <strong>📜 Log</strong>: the patch (as a file when it is long) and the last lines of the agent.</li>
             <li><code>/status</code>, <code>/plans</code>, <code>/plan 3</code>, <code>/run 3</code> (start or resume), <code>/pause 3</code>, <code>/task app Dark mode toggle</code>, <code>/log 12</code>, <code>/diff 12</code>, <code>/help</code>.</li>
           </ul>
+          <p>You don't need to type them. The bot fills Telegram's <strong>menu</strong> with its commands, and <code>/start</code> pins a keyboard under the text box: <strong>📊 Status</strong>, <strong>🗺 Plans</strong>, <strong>➕ New task</strong>, <strong>❓ Help</strong>. From there everything is buttons that redraw the same message:</p>
+          <ul>
+            <li><strong>Plans</strong> lists each plan with its progress; tap one to see its steps, with <strong>▶️ Start</strong> or <strong>⏸ Pause</strong>, and approve, request changes or open the diff of the step waiting for review.</li>
+            <li><strong>Status</strong> shows what is running, waiting or blocked, with the same buttons for each run.</li>
+            <li><strong>New task</strong> asks for the project with a button, then for the title as a reply; the task lands in that project's backlog.</li>
+          </ul>
           <p>Merging stays in the TUI on purpose. Use a bot of its own for Troopa: two programs cannot read the same bot's messages at once.</p>
         </section>
 
@@ -459,6 +465,12 @@ Lo que dice el agente
             <li><strong>✏️ Pedir cambios</strong>: el bot te pide que respondas con lo que hay que cambiar y le manda tu respuesta al mismo agente (como <kbd>x</kbd>).</li>
             <li><strong>📄 Diff</strong> y <strong>📜 Log</strong>: el parche (como archivo si es largo) y las últimas líneas del agente.</li>
             <li><code>/status</code>, <code>/plans</code>, <code>/plan 3</code>, <code>/run 3</code> (iniciar o retomar), <code>/pause 3</code>, <code>/task app Modo oscuro</code>, <code>/log 12</code>, <code>/diff 12</code>, <code>/help</code>.</li>
+          </ul>
+          <p>No hace falta escribirlos. El bot llena el <strong>menú</strong> de Telegram con sus comandos, y <code>/start</code> deja fijo un teclado bajo la caja de texto: <strong>📊 Estado</strong>, <strong>🗺 Planes</strong>, <strong>➕ Nueva tarea</strong>, <strong>❓ Ayuda</strong>. De ahí en adelante todo son botones que redibujan el mismo mensaje:</p>
+          <ul>
+            <li><strong>Planes</strong> lista cada plan con su avance; toca uno para ver sus pasos, con <strong>▶️ Iniciar</strong> o <strong>⏸ Pausar</strong>, y aprobar, pedir cambios o abrir el diff del paso que espera revisión.</li>
+            <li><strong>Estado</strong> muestra lo que está corriendo, esperando o bloqueado, con los mismos botones en cada ejecución.</li>
+            <li><strong>Nueva tarea</strong> te pide el proyecto con un botón y luego el título como respuesta; la tarea cae en el backlog de ese proyecto.</li>
           </ul>
           <p>El merge se queda en la TUI a propósito. Usa un bot solo para Troopa: dos programas no pueden leer los mensajes del mismo bot a la vez.</p>
         </section>
