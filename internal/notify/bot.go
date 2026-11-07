@@ -125,13 +125,17 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 	action, idText, _ := strings.Cut(data, ":")
 	msgID := cq.Message.MessageID
 	switch action {
-	case "status", "plans", "plan", "newtask":
+	case "status", "plans", "plan", "newtask", "tasks", "task":
 		if action == "newtask" && idText != "" {
 			b.askTaskTitle(ctx, cq, idText)
 			return
 		}
 		b.api.answer(ctx, cq.ID, "")
 		b.show(ctx, msgID, data)
+		return
+	}
+	if action == "launch" {
+		b.launchTask(ctx, cq, idText)
 		return
 	}
 	id, err := strconv.ParseInt(idText, 10, 64)
@@ -221,7 +225,8 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 		b.mu.Unlock()
 		if ok {
 			if p.kind == "task" {
-				b.reply(ctx, b.createTask(p.id, text))
+				id, msg := b.createTask(p.id, text)
+				b.added(ctx, id, msg)
 			} else {
 				b.requestChanges(ctx, p.id, text)
 			}
@@ -284,12 +289,21 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 			return
 		}
 		b.reply(ctx, "⏸ "+esc(i18n.T("Plan %s paused: the running step finishes, the next one waits.", res.Plan.Title)))
+	case "/tasks", "/tareas":
+		b.show(ctx, 0, "tasks")
+	case "/launch", "/lanzar":
+		if id, ok := argID(args); ok {
+			b.show(ctx, 0, "task:"+strconv.FormatInt(id, 10))
+			return
+		}
+		b.show(ctx, 0, "tasks")
 	case "/task", "/tarea":
 		if len(args) == 0 {
 			b.show(ctx, 0, "newtask")
 			return
 		}
-		b.reply(ctx, b.newTask(args))
+		id, msg := b.newTask(args)
+		b.added(ctx, id, msg)
 	case "/log":
 		if id, ok := argID(args); ok {
 			b.sendLog(ctx, id)
@@ -346,13 +360,13 @@ func (b *Bot) help() string {
 }
 
 // newTask adds a task: /task <project id or slug> <title…>.
-func (b *Bot) newTask(args []string) string {
+func (b *Bot) newTask(args []string) (int64, string) {
 	if len(args) < 2 {
-		return esc(i18n.T("Usage: /task <project> <title>"))
+		return 0, esc(i18n.T("Usage: /task <project> <title>"))
 	}
 	projects, err := b.eng.Store.List(false)
 	if err != nil {
-		return "⚠️ " + esc(err.Error())
+		return 0, "⚠️ " + esc(err.Error())
 	}
 	var proj *store.Project
 	for i, p := range projects {
@@ -362,24 +376,24 @@ func (b *Bot) newTask(args []string) string {
 		}
 	}
 	if proj == nil {
-		return esc(i18n.T("Project %s not found. Use its id or slug.", args[0]))
+		return 0, esc(i18n.T("Project %s not found. Use its id or slug.", args[0]))
 	}
 	return b.addTask(*proj, strings.Join(args[1:], " "))
 }
 
 // createTask adds a task to a project picked with the buttons.
-func (b *Bot) createTask(projectID int64, title string) string {
+func (b *Bot) createTask(projectID int64, title string) (int64, string) {
 	if strings.TrimSpace(title) == "" {
-		return esc(i18n.T("The message was empty: nothing was sent."))
+		return 0, esc(i18n.T("The message was empty: nothing was sent."))
 	}
 	p, err := b.eng.Store.Get(projectID)
 	if err != nil {
-		return "⚠️ " + esc(err.Error())
+		return 0, "⚠️ " + esc(err.Error())
 	}
 	return b.addTask(p, strings.TrimSpace(title))
 }
 
-func (b *Bot) addTask(proj store.Project, title string) string {
+func (b *Bot) addTask(proj store.Project, title string) (int64, string) {
 	agent := b.eng.Cfg.DefaultAgent
 	if agent == "" {
 		agent = store.AgentMe
@@ -389,9 +403,9 @@ func (b *Bot) addTask(proj store.Project, title string) string {
 		Priority: store.PriorityMedium, Agent: agent, Mode: store.ModeYolo, Commits: store.CommitsNone, Type: store.TypeFeature,
 	})
 	if err != nil {
-		return "⚠️ " + esc(err.Error())
+		return 0, "⚠️ " + esc(err.Error())
 	}
-	return "🆕 " + esc(i18n.T("Task #%d added to %s's backlog: %s", t.ID, proj.Name, t.Title))
+	return t.ID, "🆕 " + esc(i18n.T("Task #%d added to %s's backlog: %s", t.ID, proj.Name, t.Title))
 }
 
 func (b *Bot) sendLog(ctx context.Context, runID int64) {

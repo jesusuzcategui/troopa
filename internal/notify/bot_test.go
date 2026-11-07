@@ -281,3 +281,41 @@ func TestBotKeyboardAndTaskFlow(t *testing.T) {
 		t.Fatalf("menu commands %v", c)
 	}
 }
+
+func TestBotPickAndLaunchTask(t *testing.T) {
+	b, fake, e, run := botFixture(t)
+	ctx := context.Background()
+	// The fixture's plan step is in review, so no agent is running.
+	if _, err := e.Store.ActiveRun(); err == nil {
+		t.Fatal("fixture should have no running agent")
+	}
+	b.Handle(ctx, msg("/task app Dark mode toggle", 0))
+	tasks, _ := e.Store.ListTasks(1, store.TaskFilter{})
+	var task store.Task
+	for _, tk := range tasks {
+		if tk.Title == "Dark mode toggle" {
+			task = tk
+		}
+	}
+	launchData := "launch:" + itoa(task.ID) + ":claude"
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], launchData) {
+		t.Fatalf("a new task should offer launch buttons: %v", m)
+	}
+	b.Handle(ctx, msg("/tareas", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["reply_markup"], "task:"+itoa(task.ID)) {
+		t.Fatalf("/tareas should list the task: %v", m)
+	}
+	b.Handle(ctx, msg("📋 Tareas", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "Dark mode toggle") {
+		t.Fatalf("the keyboard button should list tasks: %v", m)
+	}
+	b.Handle(ctx, cb(launchData))
+	got, _ := e.Store.GetTask(task.ID)
+	if got.Status != store.StatusInProgress {
+		t.Fatalf("task should be running, got %s", got.Status)
+	}
+	if edit := fake.last("editMessageText"); !strings.Contains(edit["text"], "Dark mode toggle") || !strings.Contains(edit["reply_markup"], "log:") {
+		t.Fatalf("the launch should redraw the message: %v", edit)
+	}
+	_ = run
+}

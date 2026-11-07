@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -41,6 +42,12 @@ func (b *Bot) view(view string) (string, *tgKeyboard) {
 		}
 	case "newtask":
 		return b.projectsView()
+	case "tasks":
+		return b.tasksView()
+	case "task":
+		if id, err := strconv.ParseInt(idText, 10, 64); err == nil {
+			return b.taskView(id, "")
+		}
 	}
 	return b.plansView()
 }
@@ -49,14 +56,15 @@ func (b *Bot) view(view string) (string, *tgKeyboard) {
 func mainKeyboard() replyKeyboard {
 	return replyKeyboard{Resize: true, Persistent: true, Rows: [][]replyButton{
 		{{Text: "📊 " + i18n.T("Status")}, {Text: "🗺 " + i18n.T("Plans")}},
-		{{Text: "➕ " + i18n.T("New task")}, {Text: "❓ " + i18n.T("Help")}},
+		{{Text: "📋 " + i18n.T("Tasks")}, {Text: "➕ " + i18n.T("New task")}},
+		{{Text: "❓ " + i18n.T("Help")}},
 	}}
 }
 
 // keyboardView maps a tap on the persistent keyboard to a screen, whatever
 // language the keyboard was drawn in.
 func keyboardView(text string) (string, bool) {
-	for prefix, view := range map[string]string{"📊": "status", "🗺": "plans", "➕": "newtask", "❓": "help"} {
+	for prefix, view := range map[string]string{"📊": "status", "🗺": "plans", "📋": "tasks", "➕": "newtask", "❓": "help"} {
 		if strings.HasPrefix(text, prefix) {
 			return view, true
 		}
@@ -75,6 +83,7 @@ func (b *Bot) commands() []tgCommand {
 	return []tgCommand{
 		{"status", i18n.T("what is running, waiting for review or blocked")},
 		{"plans", i18n.T("plans and their progress")},
+		{"tasks", i18n.T("pick a pending task and launch it")},
 		{"task", i18n.T("add a task to a project's backlog")},
 		{"plan", i18n.T("the steps of a plan")},
 		{"run", i18n.T("start or resume a plan")},
@@ -134,7 +143,7 @@ func (b *Bot) statusView() (string, *tgKeyboard) {
 	if len(out) == 0 {
 		out = append(out, esc(i18n.T("Nothing running and nothing waiting for you.")))
 	}
-	kb.Rows = append(kb.Rows, []tgButton{btn("🔄 "+i18n.T("Refresh"), "status"), btn("🗺 "+i18n.T("Plans"), "plans")})
+	kb.Rows = append(kb.Rows, []tgButton{btn("🔄 "+i18n.T("Refresh"), "status"), btn("🗺 "+i18n.T("Plans"), "plans"), btn("📋 "+i18n.T("Tasks"), "tasks")})
 	return "📊 <b>" + esc(i18n.T("Status")) + "</b>\n" + strings.Join(out, "\n"), kb
 }
 
@@ -255,4 +264,164 @@ func (b *Bot) askTaskTitle(ctx context.Context, cq *tgCallback, idText string) {
 	}
 	b.api.answer(ctx, cq.ID, "")
 	b.ask(ctx, "➕ "+esc(i18n.T("Reply with the title of the new task for %s.", p.Name)), cq.Message.MessageID, prompt{kind: "task", id: id})
+}
+
+// added answers a new task with its launch buttons.
+func (b *Bot) added(ctx context.Context, id int64, msg string) {
+	if id == 0 {
+		b.reply(ctx, msg)
+		return
+	}
+	text, kb := b.taskView(id, msg)
+	if _, err := b.api.send(ctx, b.chat, text, kb, 0); err != nil {
+		b.logger.Printf("telegram send: %v", err)
+	}
+}
+
+// pending reports whether a task can be launched from the bot.
+func pending(t store.Task) bool {
+	return t.Status == store.StatusInbox || t.Status == store.StatusBacklog || t.Status == store.StatusReady
+}
+
+// tasksView lists the tasks waiting to start, newest first.
+func (b *Bot) tasksView() (string, *tgKeyboard) {
+	kb := &tgKeyboard{}
+	all, err := b.eng.Store.ListTasks(0, store.TaskFilter{})
+	if err != nil {
+		return "⚠️ " + esc(err.Error()), kb
+	}
+	names := map[int64]string{}
+	if projects, err := b.eng.Store.List(false); err == nil {
+		for _, p := range projects {
+			names[p.ID] = p.Name
+		}
+	}
+	var list []store.Task
+	for _, t := range all {
+		if pending(t) && t.PlanID == 0 {
+			list = append(list, t)
+		}
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].ID > list[j].ID })
+	if len(list) > 12 {
+		list = list[:12]
+	}
+	if len(list) == 0 {
+		kb.Rows = [][]tgButton{{btn("➕ "+i18n.T("New task"), "newtask"), btn("📊 "+i18n.T("Status"), "status")}}
+		return esc(i18n.T("No tasks waiting to start.")), kb
+	}
+	out := []string{"📋 <b>" + esc(i18n.T("Tasks to start")) + "</b>"}
+	for _, t := range list {
+		out = append(out, fmt.Sprintf("#%d %s · <i>%s</i>", t.ID, esc(t.Title), esc(names[t.ProjectID])))
+		kb.Rows = append(kb.Rows, []tgButton{btn(fmt.Sprintf("#%d %s", t.ID, short(t.Title, 44)), "task:"+strconv.FormatInt(t.ID, 10))})
+	}
+	kb.Rows = append(kb.Rows, []tgButton{btn("🔄 "+i18n.T("Refresh"), "tasks"), btn("➕ "+i18n.T("New task"), "newtask")})
+	return strings.Join(out, "\n"), kb
+}
+
+// launchAgents are the installed agents, the task's own first.
+func (b *Bot) launchAgents(first string) []string {
+	var ids []string
+	for id := range b.eng.Cfg.Launch.Agents {
+		if id != store.AgentMe && launch.AgentInstalled(b.eng.Cfg.Launch, id) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		if (ids[i] == first) != (ids[j] == first) {
+			return ids[i] == first
+		}
+		return ids[i] < ids[j]
+	})
+	return ids
+}
+
+// taskView shows one task and, while it waits to start, a button per agent.
+func (b *Bot) taskView(id int64, header string) (string, *tgKeyboard) {
+	back := []tgButton{btn("📋 "+i18n.T("Tasks"), "tasks"), btn("📊 "+i18n.T("Status"), "status")}
+	kb := &tgKeyboard{}
+	t, err := b.eng.Store.GetTask(id)
+	if err != nil {
+		kb.Rows = [][]tgButton{back}
+		return esc(i18n.T("Task %d not found", id)), kb
+	}
+	project := ""
+	if p, err := b.eng.Store.Get(t.ProjectID); err == nil {
+		project = p.Name
+	}
+	var out []string
+	if header != "" {
+		out = append(out, header, "")
+	}
+	out = append(out, fmt.Sprintf("📝 <b>#%d %s</b>", t.ID, esc(t.Title)), fmt.Sprintf("%s · %s", esc(project), esc(t.Status)))
+	if d := strings.TrimSpace(t.Description); d != "" {
+		out = append(out, esc(short(d, 300)))
+	}
+	if pending(t) {
+		agents := b.launchAgents(t.Agent)
+		if len(agents) == 0 {
+			out = append(out, esc(i18n.T("No agents installed: launch it from the TUI.")))
+		} else {
+			out = append(out, "", esc(i18n.T("Launch it with:")))
+			tid := strconv.FormatInt(t.ID, 10)
+			var row []tgButton
+			for _, a := range agents {
+				row = append(row, btn("▶️ "+launch.AgentName(a), "launch:"+tid+":"+a))
+				if len(row) == 2 {
+					kb.Rows = append(kb.Rows, row)
+					row = nil
+				}
+			}
+			if row != nil {
+				kb.Rows = append(kb.Rows, row)
+			}
+		}
+	}
+	kb.Rows = append(kb.Rows, back)
+	return strings.Join(out, "\n"), kb
+}
+
+// launchTask starts a task with the agent picked on its button.
+func (b *Bot) launchTask(ctx context.Context, cq *tgCallback, arg string) {
+	idText, agent, _ := strings.Cut(arg, ":")
+	id, err := strconv.ParseInt(idText, 10, 64)
+	if err != nil || agent == "" {
+		b.api.answer(ctx, cq.ID, "?")
+		return
+	}
+	t, err := b.eng.Store.GetTask(id)
+	if err != nil {
+		b.api.answer(ctx, cq.ID, err.Error())
+		return
+	}
+	if !pending(t) {
+		b.api.answer(ctx, cq.ID, i18n.T("Task #%d already started", id))
+		b.show(ctx, cq.Message.MessageID, "task:"+idText)
+		return
+	}
+	if t.Agent != agent {
+		t.Agent = agent
+		t.Model = ""
+		if err := b.eng.Store.UpdateTask(t); err != nil {
+			b.api.answer(ctx, cq.ID, err.Error())
+			return
+		}
+	}
+	res, err := b.eng.Launch(t)
+	if err != nil {
+		b.api.answer(ctx, cq.ID, err.Error())
+		return
+	}
+	b.api.answer(ctx, cq.ID, i18n.T("Launched"))
+	msg := "🚀 " + esc(i18n.T("%s is working on #%d %s", launch.AgentName(agent), t.ID, t.Title))
+	if res.Run.Branch != "" {
+		msg += "\n<code>" + esc(res.Run.Branch) + "</code>"
+	}
+	if len(b.eng.Cfg.Launch.Hooks[launch.HookReview]) > 0 {
+		msg += "\n" + esc(i18n.T("I'll write here when it is ready for review."))
+	}
+	kb := &tgKeyboard{Rows: [][]tgButton{{btn("📊 "+i18n.T("Status"), "status"), btn("📜 Log", "log:"+strconv.FormatInt(res.Run.ID, 10))}}}
+	if err := b.api.edit(ctx, b.chat, cq.Message.MessageID, msg, kb); err != nil {
+		b.api.send(ctx, b.chat, msg, kb, 0)
+	}
 }
