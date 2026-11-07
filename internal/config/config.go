@@ -69,7 +69,16 @@ type Config struct {
 	Collapsed       []string
 	MaxAttachmentMB int
 	MCP             MCP
+	Telegram        Telegram
 	Launch          Launch
+}
+
+// Telegram holds [telegram] in config.toml: the bot that sends alerts and,
+// with Actions on, takes commands and button presses from ChatID only.
+type Telegram struct {
+	Token   string
+	ChatID  string
+	Actions bool
 }
 
 // MCP holds [mcp] in config.toml. AllowApprove is off unless set.
@@ -103,6 +112,13 @@ type tomlConfig struct {
 	Accounts        map[string]Account    `toml:"accounts"`
 	Hooks           map[string]any        `toml:"hooks"`
 	MCP             mcpTOML               `toml:"mcp"`
+	Telegram        telegramTOML          `toml:"telegram"`
+}
+
+type telegramTOML struct {
+	Token   string `toml:"token"`
+	ChatID  any    `toml:"chat_id"` // a number or a string
+	Actions bool   `toml:"actions"`
 }
 
 type mcpTOML struct {
@@ -275,6 +291,16 @@ func Load(path string) (Config, error) {
 	if t.MCP.AllowApprove != nil {
 		c.MCP.AllowApprove = *t.MCP.AllowApprove
 	}
+	c.Telegram.Token = strings.TrimSpace(t.Telegram.Token)
+	switch v := t.Telegram.ChatID.(type) {
+	case string:
+		c.Telegram.ChatID = strings.TrimSpace(v)
+	case int64:
+		c.Telegram.ChatID = strconv.FormatInt(v, 10)
+	case float64:
+		c.Telegram.ChatID = strconv.FormatInt(int64(v), 10)
+	}
+	c.Telegram.Actions = t.Telegram.Actions
 	for name, price := range t.Prices {
 		if c.Launch.Prices == nil {
 			c.Launch.Prices = map[string]TokenPrice{}

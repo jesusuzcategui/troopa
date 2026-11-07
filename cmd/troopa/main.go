@@ -298,10 +298,12 @@ func runNotify(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: troopa notify telegram [--token T --chat C] [--dry-run] [--test]")
 		return 2
 	}
+	var def notify.Defaults
 	_, configPath, dbPath, err := config.Paths()
 	if err == nil {
 		if cfg, err := config.Load(configPath); err == nil {
 			i18n.Apply(cfg.Language)
+			def = notify.Defaults{Token: cfg.Telegram.Token, Chat: cfg.Telegram.ChatID, Actions: cfg.Telegram.Actions}
 		}
 	}
 	open := func() (*store.Store, error) {
@@ -310,7 +312,7 @@ func runNotify(args []string, stdout, stderr io.Writer) int {
 		}
 		return store.Open(dbPath)
 	}
-	return notify.Telegram(args[1:], os.Stdin, stdout, stderr, open)
+	return notify.Telegram(args[1:], os.Stdin, stdout, stderr, open, def)
 }
 
 // runExtension runs troopa-<name> with the paths Troopa uses.

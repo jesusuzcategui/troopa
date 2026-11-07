@@ -13,6 +13,7 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
+	"github.com/jesusuzcategui/troopa/internal/notify"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -50,6 +51,9 @@ func Run(ctx context.Context) error {
 	i18n.Apply(cfg.Language)
 	eng := engine.New(s, cfg, configPath)
 	logger.Println("started")
+	if tg := cfg.Telegram; tg.Actions && tg.Token != "" && tg.ChatID != "" {
+		go notify.NewBot(tg.Token, tg.ChatID, eng, dataDir, logger).Run(ctx)
+	}
 	defer logger.Println("stopped")
 
 	if err := Tick(eng, logger); err != nil {

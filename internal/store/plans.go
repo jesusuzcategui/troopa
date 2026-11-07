@@ -11,11 +11,12 @@ const (
 	PlanRunning   = "running"   // steps run one after the other
 	PlanPaused    = "paused"    // stopped by the person; resume continues
 	PlanDone      = "done"      // every step approved; ready to merge
+	PlanPROpen    = "pr-open"   // pushed with a pull request; waiting for its merge
 	PlanMerged    = "merged"    // merged into the base branch
 	PlanCancelled = "cancelled" // stopped for good
 )
 
-var PlanStates = []string{PlanDraft, PlanRunning, PlanPaused, PlanDone, PlanMerged, PlanCancelled}
+var PlanStates = []string{PlanDraft, PlanRunning, PlanPaused, PlanDone, PlanPROpen, PlanMerged, PlanCancelled}
 
 // Plan is an ordered list of tasks of one project. Each step starts from the
 // branch of the step before it, so the last branch holds the whole plan.

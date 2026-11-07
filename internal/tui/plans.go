@@ -466,6 +466,24 @@ func (m Model) mergePlan(id int64) (tea.Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
+	if plan.State == store.PlanPROpen {
+		// The PR was merged on the remote: remove the step worktrees.
+		project := m.taskProjectByID(plan.ProjectID)
+		repo, err := launch.RepoRoot(project.RepoPath)
+		if err != nil {
+			m.err = err.Error()
+			return m, nil
+		}
+		m.cleanPlanWorktrees(id, 0, repo)
+		plan.State = store.PlanMerged
+		_ = m.store.UpdatePlan(plan)
+		if m.plans != nil {
+			m.loadPlan(id)
+		}
+		m.err = ""
+		m.status = i18n.T("Plan closed: its worktrees and branches were removed. Pull %s to get the merged PR.", plan.Base)
+		return m, nil
+	}
 	if plan.State != store.PlanDone {
 		m.status = i18n.T("Finish every step before merging the plan")
 		return m, nil
@@ -483,7 +501,9 @@ func (m Model) mergePlan(id int64) (tea.Model, tea.Cmd) {
 	}
 	sess := launch.Session{Repo: repo, Worktree: run.Worktree, Branch: run.Branch, Base: plan.Base, LogPath: run.LogPath}
 	var msg string
+	state := store.PlanMerged
 	if launch.HasRemote(repo) {
+		state = store.PlanPROpen
 		if err := launch.PushBranch(run.Worktree, run.Branch); err != nil {
 			m.err = err.Error()
 			return m, nil
@@ -501,6 +521,7 @@ func (m Model) mergePlan(id int64) (tea.Model, tea.Cmd) {
 		} else {
 			msg = i18n.T("PR opened: ") + url
 		}
+		msg += " · " + i18n.T("merge it on the remote, then press g again to clean up")
 	} else {
 		kind, err := launch.NormalizeMergeStrategy(m.cfg.Launch.Merge)
 		if err != nil {
@@ -514,7 +535,7 @@ func (m Model) mergePlan(id int64) (tea.Model, tea.Cmd) {
 		}
 		m.cleanPlanWorktrees(id, run.ID, repo)
 	}
-	plan.State = store.PlanMerged
+	plan.State = state
 	_ = m.store.UpdatePlan(plan)
 	m.fireHook(launch.HookEvent{Event: launch.HookMerge, PlanID: plan.ID, Plan: plan.Title, Branch: run.Branch, Message: msg}, project)
 	if m.plans != nil {
@@ -645,6 +666,8 @@ func planStateLabel(state string) string {
 		return i18n.T("paused")
 	case store.PlanDone:
 		return i18n.T("done")
+	case store.PlanPROpen:
+		return i18n.T("PR open")
 	case store.PlanMerged:
 		return i18n.T("merged")
 	case store.PlanCancelled:

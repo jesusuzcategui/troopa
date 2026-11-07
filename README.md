@@ -1,8 +1,10 @@
 # Troopa
 
-Your AI agent troop in the terminal.
+Your AI agent troop in the terminal. Hand each task to Claude Code, Codex, Cursor, OpenCode or Pi in its own git worktree, review the diff, and approve or send it back. Plans run their steps one after the other, even with the terminal closed.
 
-Captures: [docs/demo.tape](docs/demo.tape) (`vhs docs/demo.tape` → `docs/demo.gif`) and [docs/demo.cast](docs/demo.cast) (`asciinema play docs/demo.cast`). Re-record with `asciinema rec docs/demo.cast` then `go run ./cmd/troopa`.
+![Troopa: a task goes to an agent, comes back for review, is approved; then the second brain as a graph](docs/demo.gif)
+
+Docs: https://jesusuzcategui.github.io/troopa/docs.html
 
 ## Install
 

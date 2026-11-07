@@ -38,7 +38,7 @@
       <a href="#accounts" data-i18n="docs.accounts">Accounts</a>
       <a href="#brain" data-i18n="docs.brain">Second brain</a>
       <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
-      <a href="#telegram" data-i18n="docs.telegram">Telegram alerts</a>
+      <a href="#telegram" data-i18n="docs.telegram">Telegram</a>
       <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
       <a href="#mcp" data-i18n="docs.mcp">MCP and daemon</a>
       <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
@@ -167,13 +167,18 @@ approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</p
             <li>In Telegram, talk to <strong>@BotFather</strong>, send <code>/newbot</code> and keep the <strong>token</strong> it gives you.</li>
             <li>Send any message to your new bot, then get your <strong>chat id</strong>:
               <pre class="cmd"><button class="copy" type="button">Copy</button>curl -s "https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates" | grep -o '"chat":{"id":-\?[0-9]*'</pre></li>
-            <li>Add the hooks to <code>~/.config/troopa/config.toml</code>:
-              <pre class="cmd"><button class="copy" type="button">Copy</button>[hooks]
-review    = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
-blocked   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
-approve   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
-plan_done = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"</pre>
-              To keep the token out of the file, export <code>TROOPA_TELEGRAM_TOKEN</code> and <code>TROOPA_TELEGRAM_CHAT</code> and leave the flags out. If <code>troopa</code> is not on the PATH of the terminal that runs it, write its full path.</li>
+            <li>Add the bot and the hooks to <code>~/.config/troopa/config.toml</code>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>[telegram]
+token   = "&lt;TOKEN&gt;"
+chat_id = "&lt;CHAT_ID&gt;"
+actions = true            # answer from Telegram (needs troopa daemon)
+
+[hooks]
+review    = "troopa notify telegram"
+blocked   = "troopa notify telegram"
+approve   = "troopa notify telegram"
+plan_done = "troopa notify telegram"</pre>
+              <code>--token</code>/<code>--chat</code> flags or <code>TROOPA_TELEGRAM_TOKEN</code>/<code>TROOPA_TELEGRAM_CHAT</code> override <code>[telegram]</code>. If <code>troopa</code> is not on the PATH of the process that runs the hook, write its full path.</li>
             <li>Try it: <code>troopa notify telegram --test --token … --chat …</code> sends the latest run as a sample; <code>--dry-run</code> prints the message instead.</li>
           </ol>
           <p>What a message looks like (the summary opens with a tap):</p>
@@ -197,6 +202,15 @@ What the agent says
 
 👉 In Troopa: y approves, x sends it back with your comments.</pre>
           <p>Blocked messages show the failing check with its last lines; approve messages name the next step of the plan; with auto-approve on, a step sends one message (approved), not two. Messages follow the Troopa language.</p>
+          <h3>Answer from Telegram</h3>
+          <p>With <code>actions = true</code> and <code>troopa daemon</code> running (<code>troopa daemon install</code> keeps it up), each alert comes with buttons, and the bot takes commands. It polls Telegram, so no public server or open port is needed, and it obeys <code>chat_id</code> only: messages from anyone else are ignored.</p>
+          <ul>
+            <li><strong>✅ Approve</strong>: approves the run; in a plan, the next step starts.</li>
+            <li><strong>✏️ Request changes</strong>: the bot asks you to reply with what to change, and sends your reply to the same agent (like <kbd>x</kbd>).</li>
+            <li><strong>📄 Diff</strong> and <strong>📜 Log</strong>: the patch (as a file when it is long) and the last lines of the agent.</li>
+            <li><code>/status</code>, <code>/plans</code>, <code>/plan 3</code>, <code>/run 3</code> (start or resume), <code>/pause 3</code>, <code>/task app Dark mode toggle</code>, <code>/log 12</code>, <code>/diff 12</code>, <code>/help</code>.</li>
+          </ul>
+          <p>Merging stays in the TUI on purpose. Use a bot of its own for Troopa: two programs cannot read the same bot's messages at once.</p>
         </section>
 
         <section id="extensions">
@@ -220,7 +234,7 @@ troopa daemon status
 troopa daemon install
 troopa daemon uninstall</pre>
           <p><code>daemon install</code> writes a systemd user unit on Linux (<code>~/.config/systemd/user/troopa.service</code>) and a launchd agent on macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), then enables it. <code>uninstall</code> removes that file. Windows is not supported yet. <code>status</code> prints whether it is running and the runs it watches.</p>
-          <p><code>troopa mcp</code> is an MCP server over stdio in the same binary. <code>troopa mcp install</code> registers it: Claude Code runs <code>claude mcp add troopa -- troopa mcp</code>; Codex, OpenCode and Cursor get a TOML or JSON snippet in their config. If the client is not installed, Troopa prints that snippet instead.</p>
+          <p><code>troopa mcp</code> is an MCP server over stdio in the same binary. <code>troopa mcp install</code> registers it: Claude Code runs <code>claude mcp add --scope user troopa -- /full/path/troopa mcp</code>; Codex, OpenCode and Cursor get a TOML or JSON snippet in their config. It writes the full path of the binary, so the client finds it even when <code>troopa</code> is not on its PATH. If the client is not installed, Troopa prints that snippet instead. For the Claude desktop app, add <code>"troopa": {"command": "/full/path/troopa", "args": ["mcp"]}</code> under <code>mcpServers</code> in Settings → Developer → Edit Config.</p>
           <h3>Tools</h3>
           <p>Tools return JSON in the same shapes as the CLI.</p>
           <p>Read: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filters: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (steps with status and latest run), <code>run_show</code> (summary, checks, state, branch, rounds), <code>run_diff</code> (files and size-limited patch text), <code>run_log</code> (log tail), <code>brain_search</code>, <code>brain_read</code> (paths inside the brain only), <code>profiles_list</code>.</p>
@@ -403,13 +417,18 @@ approve = ["./scripts/deploy-staging.sh", "curl -s -X POST $SLACK_URL -d @-"]</p
             <li>En Telegram, habla con <strong>@BotFather</strong>, envía <code>/newbot</code> y guarda el <strong>token</strong> que te da.</li>
             <li>Mándale cualquier mensaje a tu bot y saca tu <strong>chat id</strong>:
               <pre class="cmd"><button class="copy" type="button">Copy</button>curl -s "https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates" | grep -o '"chat":{"id":-\?[0-9]*'</pre></li>
-            <li>Agrega los hooks a <code>~/.config/troopa/config.toml</code>:
-              <pre class="cmd"><button class="copy" type="button">Copy</button>[hooks]
-review    = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
-blocked   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
-approve   = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"
-plan_done = "troopa notify telegram --token &lt;TOKEN&gt; --chat &lt;CHAT_ID&gt;"</pre>
-              Para no dejar el token en el archivo, exporta <code>TROOPA_TELEGRAM_TOKEN</code> y <code>TROOPA_TELEGRAM_CHAT</code> y quita los flags. Si <code>troopa</code> no está en el PATH de la terminal que lo ejecuta, escribe su ruta completa.</li>
+            <li>Agrega el bot y los hooks a <code>~/.config/troopa/config.toml</code>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>[telegram]
+token   = "&lt;TOKEN&gt;"
+chat_id = "&lt;CHAT_ID&gt;"
+actions = true            # responder desde Telegram (requiere troopa daemon)
+
+[hooks]
+review    = "troopa notify telegram"
+blocked   = "troopa notify telegram"
+approve   = "troopa notify telegram"
+plan_done = "troopa notify telegram"</pre>
+              Los flags <code>--token</code>/<code>--chat</code> o <code>TROOPA_TELEGRAM_TOKEN</code>/<code>TROOPA_TELEGRAM_CHAT</code> tienen prioridad sobre <code>[telegram]</code>. Si <code>troopa</code> no está en el PATH del proceso que corre el hook, escribe su ruta completa.</li>
             <li>Pruébalo: <code>troopa notify telegram --test --token … --chat …</code> envía la última ejecución como ejemplo; <code>--dry-run</code> imprime el mensaje en vez de enviarlo.</li>
           </ol>
           <p>Así se ve un mensaje (el resumen se abre con un toque):</p>
@@ -433,6 +452,15 @@ Lo que dice el agente
 
 👉 En Troopa: y aprueba, x lo devuelve con tus comentarios.</pre>
           <p>Los mensajes de bloqueo muestran el check que falló con sus últimas líneas; los de aprobación nombran el siguiente paso del plan; con la aprobación automática, cada paso manda un solo mensaje (aprobado), no dos. Los mensajes siguen el idioma de Troopa.</p>
+          <h3>Responder desde Telegram</h3>
+          <p>Con <code>actions = true</code> y <code>troopa daemon</code> corriendo (<code>troopa daemon install</code> lo deja siempre activo), cada aviso trae botones y el bot acepta comandos. Pregunta a Telegram por mensajes nuevos, así que no necesita servidor público ni abrir puertos, y solo obedece a <code>chat_id</code>: ignora los mensajes de cualquier otra persona.</p>
+          <ul>
+            <li><strong>✅ Aprobar</strong>: aprueba la ejecución; en un plan, arranca el siguiente paso.</li>
+            <li><strong>✏️ Pedir cambios</strong>: el bot te pide que respondas con lo que hay que cambiar y le manda tu respuesta al mismo agente (como <kbd>x</kbd>).</li>
+            <li><strong>📄 Diff</strong> y <strong>📜 Log</strong>: el parche (como archivo si es largo) y las últimas líneas del agente.</li>
+            <li><code>/status</code>, <code>/plans</code>, <code>/plan 3</code>, <code>/run 3</code> (iniciar o retomar), <code>/pause 3</code>, <code>/task app Modo oscuro</code>, <code>/log 12</code>, <code>/diff 12</code>, <code>/help</code>.</li>
+          </ul>
+          <p>El merge se queda en la TUI a propósito. Usa un bot solo para Troopa: dos programas no pueden leer los mensajes del mismo bot a la vez.</p>
         </section>
 
         <section id="extensions-es">
@@ -456,7 +484,7 @@ troopa daemon status
 troopa daemon install
 troopa daemon uninstall</pre>
           <p><code>daemon install</code> escribe una unidad de systemd de usuario en Linux (<code>~/.config/systemd/user/troopa.service</code>) y un agente launchd en macOS (<code>~/Library/LaunchAgents/dev.troopa.plist</code>), y lo activa. <code>uninstall</code> quita ese archivo. Windows aún no está soportado. <code>status</code> dice si está en marcha y qué ejecuciones vigila.</p>
-          <p><code>troopa mcp</code> es un servidor MCP por stdio en el mismo binario. <code>troopa mcp install</code> lo registra: Claude Code corre <code>claude mcp add troopa -- troopa mcp</code>; Codex, OpenCode y Cursor reciben un fragmento TOML o JSON en su config. Si el cliente no está instalado, Troopa imprime ese fragmento.</p>
+          <p><code>troopa mcp</code> es un servidor MCP por stdio en el mismo binario. <code>troopa mcp install</code> lo registra: Claude Code corre <code>claude mcp add --scope user troopa -- /ruta/completa/troopa mcp</code>; Codex, OpenCode y Cursor reciben un fragmento TOML o JSON en su config. Escribe la ruta completa del binario, así el cliente lo encuentra aunque <code>troopa</code> no esté en su PATH. Si el cliente no está instalado, Troopa imprime ese fragmento. Para la app de escritorio de Claude, agrega <code>"troopa": {"command": "/ruta/completa/troopa", "args": ["mcp"]}</code> en <code>mcpServers</code> desde Settings → Developer → Edit Config.</p>
           <h3>Herramientas</h3>
           <p>Las herramientas devuelven JSON con las mismas formas que la CLI.</p>
           <p>Lectura: <code>projects_list</code>, <code>project_show</code>, <code>tasks_list</code> (filtros: project, status, plan), <code>task_show</code>, <code>plans_list</code>, <code>plan_show</code> (pasos con estado y última ejecución), <code>run_show</code> (resumen, checks, estado, rama, rondas), <code>run_diff</code> (archivos y parche con límite de tamaño), <code>run_log</code> (cola del log), <code>brain_search</code>, <code>brain_read</code> (solo rutas dentro del cerebro), <code>profiles_list</code>.</p>

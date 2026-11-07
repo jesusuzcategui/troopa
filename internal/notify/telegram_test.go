@@ -86,7 +86,7 @@ func TestTelegramSends(t *testing.T) {
 	defer func() { TelegramAPI = old }()
 	in := strings.NewReader(`{"event":"review","run_id":` + itoa(run.ID) + `}`)
 	var out, errb bytes.Buffer
-	code := Telegram([]string{"--token", "TOKEN", "--chat", "42"}, in, &out, &errb, func() (*store.Store, error) { return s, nil })
+	code := Telegram([]string{"--token", "TOKEN", "--chat", "42"}, in, &out, &errb, func() (*store.Store, error) { return s, nil }, Defaults{})
 	if code != 0 {
 		t.Fatalf("code %d: %s", code, errb.String())
 	}
@@ -98,7 +98,7 @@ func TestTelegramSends(t *testing.T) {
 func TestDryRunWithoutStore(t *testing.T) {
 	var out, errb bytes.Buffer
 	in := strings.NewReader(`{"event":"blocked","task":"Fix login","project":"App","message":"checks failed"}`)
-	if code := Telegram([]string{"--dry-run"}, in, &out, &errb, nil); code != 0 {
+	if code := Telegram([]string{"--dry-run"}, in, &out, &errb, nil, Defaults{}); code != 0 {
 		t.Fatal(errb.String())
 	}
 	if !strings.Contains(out.String(), "Blocked") || !strings.Contains(out.String(), "Fix login") || !strings.Contains(out.String(), "checks failed") {

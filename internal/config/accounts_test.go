@@ -65,3 +65,15 @@ approve = ["echo one", "echo two"]
 		t.Fatalf("after save %+v", again)
 	}
 }
+
+func TestTelegramConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	_ = os.WriteFile(path, []byte("[telegram]\ntoken = \"123:abc\"\nchat_id = -1001\nactions = true\n"), 0o644)
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Telegram.Token != "123:abc" || c.Telegram.ChatID != "-1001" || !c.Telegram.Actions {
+		t.Fatalf("%+v", c.Telegram)
+	}
+}

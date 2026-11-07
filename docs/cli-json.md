@@ -109,7 +109,7 @@ troopa mcp
 troopa mcp install claude    # or codex, opencode, cursor
 ```
 
-`install` registers the stdio server with that client: Claude Code runs `claude mcp add troopa -- troopa mcp`; Codex writes `[mcp_servers.troopa]` in `~/.codex/config.toml`; OpenCode writes `~/.config/opencode/opencode.json`; Cursor writes `~/.cursor/mcp.json`. If the client binary is not on `PATH`, Troopa prints the snippet instead of writing.
+`install` registers the stdio server with that client: Claude Code runs `claude mcp add --scope user troopa -- <full path of troopa> mcp` (every client gets the absolute path of the binary, so it works when `troopa` is not on its `PATH`); Codex writes `[mcp_servers.troopa]` in `~/.codex/config.toml`; OpenCode writes `~/.config/opencode/opencode.json`; Cursor writes `~/.cursor/mcp.json`. If the client binary is not on `PATH`, Troopa prints the snippet instead of writing.
 
 Read tools: `projects_list`, `project_show`, `tasks_list` (filters: `project`, `status`, `plan`), `task_show`, `plans_list`, `plan_show` (steps with status and latest run), `run_show` (summary, checks, state, branch, rounds), `run_diff` (files and patch text, size-limited), `run_log` (tail of `agent.log`), `brain_search`, `brain_read` (paths inside the brain only), `profiles_list`.
 
@@ -134,4 +134,4 @@ Example output shape (timestamps are RFC 3339 UTC):
 
 ## Notifications
 
-`troopa notify telegram [--token T --chat C] [--dry-run] [--test]` is meant to run as a hook: it reads the hook event (JSON) on stdin, loads the run, task and plan from the database and sends a Telegram message (HTML) with the agent's summary, checks, time, tokens, cost and the next plan step. `TROOPA_TELEGRAM_TOKEN` and `TROOPA_TELEGRAM_CHAT` replace the flags. `--test` sends the latest run as a sample.
+`troopa notify telegram [--token T --chat C] [--dry-run] [--test]` is meant to run as a hook: it reads the hook event (JSON) on stdin, loads the run, task and plan from the database and sends a Telegram message (HTML) with the agent's summary, checks, time, tokens, cost and the next plan step. `TROOPA_TELEGRAM_TOKEN` and `TROOPA_TELEGRAM_CHAT`, or `[telegram] token` and `chat_id` in config.toml, replace the flags. With `[telegram] actions = true` the messages carry buttons (approve, request changes, diff, log) and `troopa daemon` runs a bot that answers them and the commands `/status`, `/plans`, `/plan`, `/run`, `/pause`, `/task`, `/log`, `/diff` from that chat only. `--test` sends the latest run as a sample.

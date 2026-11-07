@@ -13,34 +13,34 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 )
 
-const (
-	claudeSnippet = "claude mcp add troopa -- troopa mcp"
-
-	codexSnippet = `[mcp_servers.troopa]
-command = "troopa"
-args = ["mcp"]
-`
-
-	opencodeSnippet = `{
-  "mcp": {
-    "troopa": {
-      "type": "local",
-      "command": ["troopa", "mcp"]
-    }
-  }
+// binPath is the absolute path of this troopa binary: clients start the
+// server with it, so it works even when troopa is not on their PATH.
+var binPath = func() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "troopa"
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
+	}
+	return exe
 }
-`
 
-	cursorSnippet = `{
-  "mcpServers": {
-    "troopa": {
-      "command": "troopa",
-      "args": ["mcp"]
-    }
-  }
+func claudeSnippet() string {
+	return "claude mcp add --scope user troopa -- " + binPath() + " mcp"
 }
-`
-)
+
+func codexSnippet() string {
+	return fmt.Sprintf("[mcp_servers.troopa]\ncommand = %q\nargs = [\"mcp\"]\n", binPath())
+}
+
+func opencodeSnippet() string {
+	return fmt.Sprintf("{\n  \"mcp\": {\n    \"troopa\": {\n      \"type\": \"local\",\n      \"command\": [%q, \"mcp\"]\n    }\n  }\n}\n", binPath())
+}
+
+func cursorSnippet() string {
+	return fmt.Sprintf("{\n  \"mcpServers\": {\n    \"troopa\": {\n      \"command\": %q,\n      \"args\": [\"mcp\"]\n    }\n  }\n}\n", binPath())
+}
 
 var lookPath = exec.LookPath
 
@@ -76,12 +76,12 @@ func Install(w io.Writer, client string) error {
 
 func installClaude(w io.Writer) error {
 	if _, err := lookPath("claude"); err != nil {
-		printMissing(w, "Claude Code", claudeSnippet)
+		printMissing(w, "Claude Code", claudeSnippet())
 		return nil
 	}
-	if err := runCmd("claude", "mcp", "add", "troopa", "--", "troopa", "mcp"); err != nil {
+	if err := runCmd("claude", "mcp", "add", "--scope", "user", "troopa", "--", binPath(), "mcp"); err != nil {
 		fmt.Fprintln(w, i18n.T("Could not register with Claude Code: %s", err.Error()))
-		printMissing(w, "Claude Code", claudeSnippet)
+		printMissing(w, "Claude Code", claudeSnippet())
 		return err
 	}
 	fmt.Fprintln(w, i18n.T("Registered Troopa MCP with Claude Code."))
@@ -90,7 +90,7 @@ func installClaude(w io.Writer) error {
 
 func installCodex(w io.Writer) error {
 	if _, err := lookPath("codex"); err != nil {
-		printMissing(w, "Codex", strings.TrimSpace(codexSnippet)+"\n# ~/.codex/config.toml")
+		printMissing(w, "Codex", strings.TrimSpace(codexSnippet())+"\n# ~/.codex/config.toml")
 		return nil
 	}
 	home, err := os.UserHomeDir()
@@ -112,7 +112,7 @@ func installCodex(w io.Writer) error {
 
 func installOpenCode(w io.Writer) error {
 	if _, err := lookPath("opencode"); err != nil {
-		printMissing(w, "OpenCode", strings.TrimSpace(opencodeSnippet)+"\n# ~/.config/opencode/opencode.json")
+		printMissing(w, "OpenCode", strings.TrimSpace(opencodeSnippet())+"\n# ~/.config/opencode/opencode.json")
 		return nil
 	}
 	path, err := opencodeConfigPath()
@@ -125,7 +125,7 @@ func installOpenCode(w io.Writer) error {
 	}
 	out, err := mergeJSON(raw, []string{"mcp", "troopa"}, map[string]any{
 		"type":    "local",
-		"command": []any{"troopa", "mcp"},
+		"command": []any{binPath(), "mcp"},
 	})
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func installOpenCode(w io.Writer) error {
 
 func installCursor(w io.Writer) error {
 	if _, err := lookPath("cursor"); err != nil {
-		printMissing(w, "Cursor", strings.TrimSpace(cursorSnippet)+"\n# ~/.cursor/mcp.json")
+		printMissing(w, "Cursor", strings.TrimSpace(cursorSnippet())+"\n# ~/.cursor/mcp.json")
 		return nil
 	}
 	home, err := os.UserHomeDir()
@@ -152,7 +152,7 @@ func installCursor(w io.Writer) error {
 		return err
 	}
 	out, err := mergeJSON(raw, []string{"mcpServers", "troopa"}, map[string]any{
-		"command": "troopa",
+		"command": binPath(),
 		"args":    []any{"mcp"},
 	})
 	if err != nil {
@@ -205,7 +205,7 @@ func upsertCodexTable(text string) string {
 	if text != "" {
 		text += "\n\n"
 	}
-	return text + strings.TrimSpace(codexSnippet) + "\n"
+	return text + strings.TrimSpace(codexSnippet()) + "\n"
 }
 
 func removeTOMLTables(text, name string) string {

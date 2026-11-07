@@ -49,7 +49,7 @@ func TestInstallClaudeMissingPrintsSnippet(t *testing.T) {
 		t.Fatalf("ran %d", ran)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "not installed") || !strings.Contains(out, "claude mcp add troopa -- troopa mcp") {
+	if !strings.Contains(out, "not installed") || !strings.Contains(out, "claude mcp add --scope user troopa -- troopa mcp") {
 		t.Fatalf("out: %q", out)
 	}
 }
@@ -65,7 +65,7 @@ func TestInstallClaudeRunsAdd(t *testing.T) {
 	if err := Install(&buf, "claude"); err != nil {
 		t.Fatal(err)
 	}
-	if got != "claude mcp add troopa -- troopa mcp" {
+	if got != "claude mcp add --scope user troopa -- troopa mcp" {
 		t.Fatalf("cmd: %q", got)
 	}
 	if !strings.Contains(buf.String(), "Claude Code") {
@@ -184,4 +184,9 @@ func assertJSON(t *testing.T, path string, keys []string) {
 	if !ok || len(arr) != 2 || arr[0] != "troopa" || arr[1] != "mcp" {
 		t.Fatalf("command: %v in %s", cur, raw)
 	}
+}
+
+func init() {
+	// Tests expect the plain name; the real binary path differs per machine.
+	binPath = func() string { return "troopa" }
 }

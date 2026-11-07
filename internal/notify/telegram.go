@@ -5,14 +5,12 @@
 package notify
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"html"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -28,13 +26,30 @@ var TelegramAPI = "https://api.telegram.org"
 
 const maxMessage = 4000 // Telegram allows 4096 characters
 
+// Defaults come from [telegram] in config.toml; flags and environment
+// variables win over them.
+type Defaults struct {
+	Token   string
+	Chat    string
+	Actions bool // add buttons (approve, request changes, diff, log)
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // Telegram runs `troopa notify telegram`. open opens the store (nil when
 // there is none, e.g. in --test without a database).
-func Telegram(args []string, stdin io.Reader, stdout, stderr io.Writer, open func() (*store.Store, error)) int {
+func Telegram(args []string, stdin io.Reader, stdout, stderr io.Writer, open func() (*store.Store, error), def Defaults) int {
 	f := flag.NewFlagSet("notify telegram", flag.ContinueOnError)
 	f.SetOutput(stderr)
-	token := f.String("token", os.Getenv("TROOPA_TELEGRAM_TOKEN"), "bot token (or TROOPA_TELEGRAM_TOKEN)")
-	chat := f.String("chat", os.Getenv("TROOPA_TELEGRAM_CHAT"), "chat id (or TROOPA_TELEGRAM_CHAT)")
+	token := f.String("token", firstNonEmpty(os.Getenv("TROOPA_TELEGRAM_TOKEN"), def.Token), "bot token (or TROOPA_TELEGRAM_TOKEN, or [telegram] token)")
+	chat := f.String("chat", firstNonEmpty(os.Getenv("TROOPA_TELEGRAM_CHAT"), def.Chat), "chat id (or TROOPA_TELEGRAM_CHAT, or [telegram] chat_id)")
 	dry := f.Bool("dry-run", false, "print the message instead of sending it")
 	test := f.Bool("test", false, "send a sample message built from the latest run")
 	if err := f.Parse(args); err != nil {
@@ -76,43 +91,34 @@ func Telegram(args []string, stdin io.Reader, stdout, stderr io.Writer, open fun
 		fmt.Fprintln(stderr, "troopa notify: --token and --chat are required (or TROOPA_TELEGRAM_TOKEN and TROOPA_TELEGRAM_CHAT)")
 		return 2
 	}
-	if err := sendTelegram(*token, *chat, msg); err != nil {
+	var kb *tgKeyboard
+	if def.Actions {
+		kb = Keyboard(ev)
+	}
+	if _, err := newTG(*token).send(context.Background(), *chat, msg, kb, 0, false); err != nil {
 		fmt.Fprintf(stderr, "troopa notify: %v\n", err)
 		return 1
 	}
 	return 0
 }
 
-func sendTelegram(token, chat, text string) error {
-	post := func(mode string) (int, string, error) {
-		form := url.Values{"chat_id": {chat}, "text": {text}, "disable_web_page_preview": {"true"}}
-		if mode != "" {
-			form.Set("parse_mode", mode)
-		} else {
-			form.Set("text", stripTags(text))
-		}
-		c := &http.Client{Timeout: 20 * time.Second}
-		resp, err := c.PostForm(TelegramAPI+"/bot"+token+"/sendMessage", form)
-		if err != nil {
-			return 0, "", err
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return resp.StatusCode, string(body), nil
+// Keyboard is the row of buttons a message gets when Telegram actions are
+// on: the daemon's bot answers them.
+func Keyboard(ev launch.HookEvent) *tgKeyboard {
+	if ev.RunID == 0 {
+		return nil
 	}
-	code, body, err := post("HTML")
-	if err != nil {
-		return errors.New(strings.ReplaceAll(err.Error(), token, "<token>"))
-	}
-	if code == http.StatusBadRequest && strings.Contains(body, "parse") {
-		// Something in the summary broke the HTML: send it as plain text.
-		code, body, err = post("")
-		if err != nil {
-			return errors.New(strings.ReplaceAll(err.Error(), token, "<token>"))
-		}
-	}
-	if code != http.StatusOK {
-		return fmt.Errorf("telegram answered %d: %s", code, body)
+	id := fmt.Sprint(ev.RunID)
+	changes := tgButton{"✏️ " + i18n.T("Request changes"), "changes:" + id}
+	diff := tgButton{"📄 Diff", "diff:" + id}
+	logB := tgButton{"📜 Log", "log:" + id}
+	switch ev.Event {
+	case launch.HookReview:
+		return &tgKeyboard{Rows: [][]tgButton{{{"✅ " + i18n.T("Approve"), "approve:" + id}, changes}, {diff, logB}}}
+	case launch.HookBlocked:
+		return &tgKeyboard{Rows: [][]tgButton{{changes, logB}, {diff}}}
+	case launch.HookApprove:
+		return &tgKeyboard{Rows: [][]tgButton{{diff}}}
 	}
 	return nil
 }

@@ -34,7 +34,7 @@ func (e *Engine) StartPlan(id int64) (Result, error) {
 		return Result{}, err
 	}
 	switch plan.State {
-	case store.PlanDone, store.PlanMerged, store.PlanCancelled:
+	case store.PlanDone, store.PlanPROpen, store.PlanMerged, store.PlanCancelled:
 		return Result{Plan: plan, Message: i18n.T("This plan is finished")}, nil
 	}
 	project, err := e.project(plan.ProjectID)
