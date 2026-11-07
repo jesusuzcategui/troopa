@@ -32,7 +32,7 @@ func TestBuildGraph(t *testing.T) {
 	if p < 0 || g.Nodes[p].Kind != KindProject || g.Nodes[p].Label != "app" {
 		t.Fatalf("project node %+v", g.Nodes)
 	}
-	if got := len(g.Neighbors(p)); got != 4 { // inbox [[project]], INDEX, task (folder), guide
+	if got := len(g.Neighbors(p)); got != 4 { // inbox [[project]], INDEX (link and folder), task (folder), guide
 		t.Fatalf("project neighbors %d %v", got, g.Edges)
 	}
 	if g.Nodes[g.Index("projects/app/tasks/1-login.md")].Kind != KindTask {

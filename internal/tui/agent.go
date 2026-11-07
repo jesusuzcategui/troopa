@@ -883,7 +883,7 @@ func (m Model) viewReview() string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(th.Muted.Render(m.reviewBar()))
+	b.WriteString(th.Muted.Width(max(20, m.width-2)).Render(m.reviewBar()))
 	return th.App.Render(b.String())
 }
 

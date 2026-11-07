@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
@@ -932,6 +933,7 @@ func (m Model) View() string {
 	}
 	bar := th.StatusBar.Width(max(0, m.width)).Render(truncate(status, max(0, m.width-2)))
 	innerH := max(1, m.height-1)
+	body = clampLines(body, m.width)
 	body = lipgloss.NewStyle().Width(m.width).Height(innerH).MaxHeight(innerH).Background(th.App.GetBackground()).Render(body)
 	if m.popup != nil {
 		box, x, y := m.popupBox()
@@ -1089,4 +1091,25 @@ func truncate(s string, n int) string {
 		return string(r[:n])
 	}
 	return string(r[:n-1]) + "…"
+}
+
+// clampLines cuts every line to the screen width. A screen whose widest line
+// is wider than the terminal would otherwise get every line padded to that
+// width and then word-wrapped, breaking text at random spaces and hyphens.
+func clampLines(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	changed := false
+	for i, l := range lines {
+		if ansi.StringWidth(l) > width {
+			lines[i] = ansi.Truncate(l, width, "")
+			changed = true
+		}
+	}
+	if !changed {
+		return s
+	}
+	return strings.Join(lines, "\n")
 }
