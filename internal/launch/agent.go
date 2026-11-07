@@ -169,3 +169,26 @@ func HasPlaceholder(args []string) bool {
 	}
 	return false
 }
+
+// AddImages lets the agent see pictures directly when its CLI takes them as
+// flags (Codex: --image right after exec). Others read the paths named in
+// the prompt.
+func AddImages(cmd *exec.Cmd, agent string, images []string) {
+	if agent != "codex" || len(images) == 0 || len(cmd.Args) < 2 {
+		return
+	}
+	at := 1
+	for i, a := range cmd.Args {
+		if a == "exec" {
+			at = i + 1
+			break
+		}
+	}
+	var flags []string
+	for _, img := range images {
+		flags = append(flags, "--image="+img)
+	}
+	args := append([]string{}, cmd.Args[:at]...)
+	args = append(args, flags...)
+	cmd.Args = append(args, cmd.Args[at:]...)
+}

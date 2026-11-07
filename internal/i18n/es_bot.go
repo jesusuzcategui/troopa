@@ -3,6 +3,17 @@ package i18n
 // Telegram bot and plan PRs.
 func init() {
 	for k, v := range map[string]string{
+		"Images":                                 "Imágenes",
+		"This run has no images.":                "Esta ejecución no tiene imágenes.",
+		"You don't have access to that project.": "No tienes acceso a ese proyecto.",
+		"This chat has no access to Troopa yet. Its id is %s: the owner adds it under [[telegram.users]].": "Este chat todavía no tiene acceso a Troopa. Su id es %s: el dueño lo agrega en [[telegram.users]].",
+		"image":                            "imagen",
+		"Which project is this photo for?": "¿Para qué proyecto es esta foto?",
+		"Send the photo again.":            "Envía la foto otra vez.",
+		"Photo from Telegram %s":           "Foto de Telegram %s",
+		"The person sent the attached photo from Telegram. If the request is about the image, save the images you create or edit in the worktree (for example out/); they are sent back to the person.": "La persona envió la foto adjunta desde Telegram. Si el pedido es sobre la imagen, guarda las imágenes que crees o edites en el worktree (por ejemplo en out/); se le envían de vuelta a la persona.",
+		"#%d is in the queue (position %d): it starts as soon as the agent working now finishes.":                                                                                                       "#%d está en cola (posición %d): arranca apenas termine el agente que está trabajando.",
+		"Your turn: %s is working on #%d %s":       "Te toca: %s está trabajando en #%d %s",
 		"%s did not write an answer.":              "%s no escribió una respuesta.",
 		"%s is still answering your last message.": "%s todavía está respondiendo tu último mensaje.",
 		"Chat": "Conversar",

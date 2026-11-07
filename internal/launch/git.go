@@ -172,3 +172,42 @@ func CreatePR(worktree, branch, base, title, body string) (string, error) {
 	}
 	return fields[len(fields)-1], nil
 }
+
+// ChangedImages lists the image files a run added or changed in its worktree
+// (committed on the branch or not), up to max, as absolute paths.
+func ChangedImages(worktree, base string, max int) []string {
+	if worktree == "" {
+		return nil
+	}
+	var names []string
+	if base != "" {
+		if out, err := Git(worktree, "diff", "--name-only", "--diff-filter=AM", base); err == nil {
+			names = append(names, strings.Split(out, "\n")...)
+		}
+	}
+	if out, err := Git(worktree, "ls-files", "--others", "--exclude-standard"); err == nil {
+		names = append(names, strings.Split(out, "\n")...)
+	}
+	seen := map[string]bool{}
+	var res []string
+	for _, n := range names {
+		n = strings.TrimSpace(n)
+		if n == "" || seen[n] || strings.HasPrefix(n, ".troopa/") {
+			continue
+		}
+		seen[n] = true
+		switch strings.ToLower(filepath.Ext(n)) {
+		case ".png", ".jpg", ".jpeg", ".webp", ".gif":
+		default:
+			continue
+		}
+		p := filepath.Join(worktree, n)
+		if _, err := os.Stat(p); err == nil {
+			res = append(res, p)
+			if len(res) == max {
+				break
+			}
+		}
+	}
+	return res
+}

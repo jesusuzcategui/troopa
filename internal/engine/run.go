@@ -44,6 +44,9 @@ func (e *Engine) Launch(task store.Task) (Result, error) {
 		_ = launch.Discard(sess)
 		return Result{}, err
 	}
+	if atts, err := e.Store.ListAttachments(task.ID); err == nil {
+		launch.AddImages(cmd, task.Agent, launch.AttachedImages(sess.Worktree, atts))
+	}
 	run, err := e.Store.CreateRun(store.Run{
 		TaskID:    task.ID,
 		ProjectID: task.ProjectID,

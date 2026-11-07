@@ -10,6 +10,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +44,41 @@ type tgMessage struct {
 	MessageID int64      `json:"message_id"`
 	Chat      tgChat     `json:"chat"`
 	Text      string     `json:"text"`
+	Caption   string     `json:"caption"`
+	Photo     []tgPhoto  `json:"photo"`
+	Document  *tgDoc     `json:"document"`
 	ReplyTo   *tgMessage `json:"reply_to_message"`
+}
+
+// tgPhoto is one size of a photo; Telegram sends several, largest last.
+type tgPhoto struct {
+	FileID   string `json:"file_id"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	FileSize int64  `json:"file_size"`
+}
+
+type tgDoc struct {
+	FileID   string `json:"file_id"`
+	FileName string `json:"file_name"`
+	MimeType string `json:"mime_type"`
+	FileSize int64  `json:"file_size"`
+}
+
+// image returns the file id and a name for the picture in a message: the
+// largest photo size, or a document that is an image.
+func (m *tgMessage) image() (fileID, name string, ok bool) {
+	if n := len(m.Photo); n > 0 {
+		return m.Photo[n-1].FileID, fmt.Sprintf("photo-%d.jpg", m.MessageID), true
+	}
+	if d := m.Document; d != nil && strings.HasPrefix(d.MimeType, "image/") {
+		name := filepath.Base(d.FileName)
+		if name == "" || name == "." {
+			name = fmt.Sprintf("image-%d", m.MessageID)
+		}
+		return d.FileID, name, true
+	}
+	return "", "", false
 }
 
 type tgChat struct {
@@ -223,6 +259,87 @@ func (c *tgClient) document(ctx context.Context, chat, name string, data []byte,
 		return err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, TelegramAPI+"/bot"+c.token+"/sendDocument", &buf)
+	if err != nil {
+		return c.hide(err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	_, err = c.do(req)
+	return err
+}
+
+// MaxDownload caps files received from Telegram (the Bot API serves up to 20 MB).
+const MaxDownload = 20 << 20
+
+// download saves a file sent to the bot into dest.
+func (c *tgClient) download(ctx context.Context, fileID, dest string) error {
+	res, err := c.call(ctx, "getFile", url.Values{"file_id": {fileID}})
+	if err != nil {
+		return err
+	}
+	var f struct {
+		FilePath string `json:"file_path"`
+	}
+	if err := json.Unmarshal(res, &f); err != nil || f.FilePath == "" {
+		return fmt.Errorf("telegram: no file path")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, TelegramAPI+"/file/bot"+c.token+"/"+f.FilePath, nil)
+	if err != nil {
+		return c.hide(err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return c.hide(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("telegram: download %s", resp.Status)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, io.LimitReader(resp.Body, MaxDownload))
+	return err
+}
+
+// imageExts are the files sent back as pictures.
+var imageExts = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".webp": true, ".gif": true}
+
+func isImage(path string) bool { return imageExts[strings.ToLower(filepath.Ext(path))] }
+
+// photo sends an image file; big ones or odd formats go as a document.
+func (c *tgClient) photo(ctx context.Context, chat, path, caption string, kb *tgKeyboard) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	method, field := "sendPhoto", "photo"
+	ext := strings.ToLower(filepath.Ext(path))
+	if len(data) > 10<<20 || ext == ".gif" || ext == ".webp" {
+		method, field = "sendDocument", "document"
+	}
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	_ = w.WriteField("chat_id", chat)
+	if caption != "" {
+		_ = w.WriteField("caption", short(caption, 1000))
+	}
+	if m := markupJSON(kb); m != "" && kb != nil {
+		_ = w.WriteField("reply_markup", m)
+	}
+	part, err := w.CreateFormFile(field, filepath.Base(path))
+	if err != nil {
+		return err
+	}
+	_, _ = part.Write(data)
+	if err := w.Close(); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, TelegramAPI+"/bot"+c.token+"/"+method, &buf)
 	if err != nil {
 		return c.hide(err)
 	}

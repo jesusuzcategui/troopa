@@ -52,7 +52,9 @@ func Run(ctx context.Context) error {
 	eng := engine.New(s, cfg, configPath)
 	logger.Println("started")
 	if tg := cfg.Telegram; tg.Actions && tg.Token != "" && tg.ChatID != "" {
-		go notify.NewBot(tg.Token, tg.ChatID, eng, dataDir, logger).Run(ctx)
+		bot := notify.NewBot(tg.Token, tg.ChatID, eng, dataDir, logger)
+		bot.SetUsers(tg.Users)
+		go bot.Run(ctx)
 	}
 	defer logger.Println("stopped")
 

@@ -30,10 +30,30 @@ type fakeTG struct {
 }
 
 func (f *fakeTG) handler(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
+	if strings.Contains(r.URL.Path, "/file/") {
+		_, _ = io.WriteString(w, "fake image bytes")
+		return
+	}
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/") {
+		_ = r.ParseMultipartForm(32 << 20)
+	} else {
+		_ = r.ParseForm()
+	}
 	m := map[string]string{"method": r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]}
 	for k := range r.PostForm {
 		m[k] = r.PostForm.Get(k)
+	}
+	if r.MultipartForm != nil {
+		for field, files := range r.MultipartForm.File {
+			m[field] = files[0].Filename
+		}
+	}
+	if m["method"] == "getFile" {
+		f.mu.Lock()
+		f.calls = append(f.calls, m)
+		f.mu.Unlock()
+		_, _ = io.WriteString(w, `{"ok":true,"result":{"file_path":"photos/file_1.jpg"}}`)
+		return
 	}
 	f.mu.Lock()
 	f.calls = append(f.calls, m)
@@ -442,7 +462,7 @@ func TestBotConversation(t *testing.T) {
 	if !strings.Contains(m["text"], "<b>todo bien</b>") || !strings.Contains(m["reply_markup"], "chatend") {
 		t.Fatalf("answer not relayed: %v", m)
 	}
-	raw, _ := os.ReadFile(filepath.Join(b.conv.Dir, "transcript.md"))
+	raw, _ := os.ReadFile(filepath.Join(b.convs["42"].Dir, "transcript.md"))
 	if !strings.Contains(string(raw), "¿Qué tal?") || !strings.Contains(string(raw), "todo bien") {
 		t.Fatalf("transcript: %s", raw)
 	}
@@ -458,4 +478,180 @@ func TestBotConversation(t *testing.T) {
 	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "1") {
 		t.Fatalf("close message: %v", m)
 	}
+}
+
+func from(chat int64, u tgUpdate) tgUpdate {
+	if u.Message != nil {
+		u.Message.Chat.ID = chat
+	}
+	if u.CallbackQuery != nil {
+		u.CallbackQuery.Message.Chat.ID = chat
+	}
+	return u
+}
+
+func photoMsg(chat int64, caption string) tgUpdate {
+	return tgUpdate{Message: &tgMessage{MessageID: 500, Chat: tgChat{ID: chat}, Caption: caption,
+		Photo: []tgPhoto{{FileID: "small", Width: 90}, {FileID: "big", Width: 1280}}}}
+}
+
+func (f *fakeTG) count(method string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, c := range f.calls {
+		if c["method"] == method {
+			n++
+		}
+	}
+	return n
+}
+
+func TestBotUsersSeeTheirProjectsOnly(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	crochet, _ := e.Store.Create(store.Project{Name: "Crochet", Slug: "crochet", RepoPath: t.TempDir()})
+	mine, _ := e.Store.CreateTask(store.Task{ProjectID: crochet.ID, Title: "Monedero", Status: store.StatusBacklog, Agent: store.AgentClaude})
+	other, _ := e.Store.CreateTask(store.Task{ProjectID: 1, Title: "Secret code", Status: store.StatusBacklog, Agent: store.AgentClaude})
+	b.SetUsers([]config.TelegramUser{{Name: "Ana", ChatID: "77", Projects: []string{"crochet"}}})
+
+	b.Handle(ctx, from(77, msg("/tareas", 0)))
+	m := fake.last("sendMessage")
+	if m["chat_id"] != "77" || !strings.Contains(m["text"], "Monedero") || strings.Contains(m["text"], "Secret code") {
+		t.Fatalf("the user should see only her tasks: %v", m)
+	}
+	before := fake.count("editMessageText")
+	b.Handle(ctx, from(77, cb("task:"+itoa(other.ID))))
+	if fake.count("editMessageText") != before {
+		t.Fatal("a task of another project must not open")
+	}
+	if a := fake.last("answerCallbackQuery"); !strings.Contains(a["text"], "access") {
+		t.Fatalf("expected a no-access answer: %v", a)
+	}
+	b.Handle(ctx, from(77, msg("/launch "+itoa(other.ID), 0)))
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "access") {
+		t.Fatalf("/launch of another project should be refused: %v", m)
+	}
+	b.Handle(ctx, from(77, cb("task:"+itoa(mine.ID))))
+	if edit := fake.last("editMessageText"); !strings.Contains(edit["text"], "Monedero") {
+		t.Fatalf("her own task should open: %v", edit)
+	}
+	// The owner still sees everything.
+	b.Handle(ctx, msg("/tareas", 0))
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "Secret code") || !strings.Contains(m["text"], "Monedero") {
+		t.Fatalf("owner view: %v", m)
+	}
+	// A stranger learns its chat id and nothing else.
+	b.Handle(ctx, from(99, msg("/start", 0)))
+	if m := fake.last("sendMessage"); m["chat_id"] != "99" || !strings.Contains(m["text"], "99") {
+		t.Fatalf("stranger: %v", m)
+	}
+	b.Handle(ctx, from(99, msg("/tareas", 0)))
+	if m := fake.last("sendMessage"); m["chat_id"] == "99" && strings.Contains(m["text"], "Tasks") {
+		t.Fatal("a stranger must not see tasks")
+	}
+}
+
+func TestBotPhotoBecomesTaskAndQueues(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	repo := filepath.Join(t.TempDir(), "crochet")
+	if err := gitinit.InitRepo(repo, "Crochet"); err != nil {
+		t.Fatal(err)
+	}
+	crochet, _ := e.Store.Create(store.Project{Name: "Crochet", Slug: "crochet", RepoPath: repo})
+	b.SetUsers([]config.TelegramUser{{Name: "Ana", ChatID: "77", Projects: []string{"crochet"}, Agent: "claude"}})
+
+	b.Handle(ctx, photoMsg(77, "Fondo de madera y luz cálida"))
+	tasks, _ := e.Store.ListTasks(crochet.ID, store.TaskFilter{})
+	if len(tasks) != 1 || tasks[0].Title != "Fondo de madera y luz cálida" {
+		t.Fatalf("photo should create a task: %+v", tasks)
+	}
+	first := tasks[0]
+	atts, _ := e.Store.ListAttachments(first.ID)
+	if len(atts) != 1 {
+		t.Fatalf("the photo should be attached: %+v", atts)
+	}
+	if got, _ := e.Store.GetTask(first.ID); got.Status != store.StatusInProgress {
+		t.Fatalf("the task should be running, got %s", got.Status)
+	}
+	// A second photo while the agent works waits in the queue.
+	b.Handle(ctx, photoMsg(77, "Ahora en fondo blanco"))
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "queue") {
+		t.Fatalf("second photo should be queued: %v", m)
+	}
+	q, _ := e.Store.Queue()
+	if len(q) != 1 || q[0].Chat != "77" {
+		t.Fatalf("queue %+v", q)
+	}
+	// When the first run finishes, the queued task starts and she is told.
+	run, _ := e.Store.ActiveRun()
+	launch.WaitAgents([]string{run.Worktree}, 10*time.Second)
+	if _, err := e.Finish(run.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	b.drainQueue(ctx)
+	if q, _ := e.Store.Queue(); len(q) != 0 {
+		t.Fatalf("queue should be empty: %+v", q)
+	}
+	if m := fake.last("sendMessage"); m["chat_id"] != "77" || !strings.Contains(m["text"], "turn") {
+		t.Fatalf("she should be told her task started: %v", m)
+	}
+}
+
+func TestBotConversationWithImages(t *testing.T) {
+	b, fake, e, _ := botFixture(t)
+	ctx := context.Background()
+	bin := filepath.Join(t.TempDir(), "chatbin")
+	_ = os.MkdirAll(bin, 0o755)
+	// Answers in the reply file and copies the image it got into the out folder.
+	script := `#!/bin/sh
+for a in "$@"; do
+  r=$(printf '%s' "$a" | grep -o '/[^ ]*reply-[0-9]*\.md')
+  o=$(printf '%s' "$a" | grep -o '/[^ ]*/out-[0-9]*' | head -1)
+  i=$(printf '%s' "$a" | grep -o '/[^ ]*/in-[^ ]*\.jpg')
+  [ -n "$r" ] && printf 'Listo, aquí está.' > "$r"
+  [ -n "$o" ] && [ -n "$i" ] && cp "$i" "$o/edit.png"
+done
+`
+	_ = os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	b.Handle(ctx, cb("chatp:claude:1"))
+	b.Handle(ctx, photoMsg(42, "Ponle fondo de madera"))
+	b.wg.Wait()
+	if fake.count("sendPhoto") != 1 {
+		t.Fatalf("the edited image should come back as a photo, calls: %d", fake.count("sendPhoto"))
+	}
+	if m := fake.last("sendMessage"); !strings.Contains(m["text"], "Listo") {
+		t.Fatalf("answer: %v", m)
+	}
+	raw, _ := os.ReadFile(filepath.Join(b.convs["42"].Dir, "transcript.md"))
+	if !strings.Contains(string(raw), "Ponle fondo de madera") || !strings.Contains(string(raw), "in-500-photo-500.jpg") {
+		t.Fatalf("transcript should name the image: %s", raw)
+	}
+	_ = e
+}
+
+func TestNotifyRoutesToUsersWithImages(t *testing.T) {
+	_, fake, e, run := botFixture(t)
+	crochet, _ := e.Store.Create(store.Project{Name: "Crochet", Slug: "crochet", RepoPath: t.TempDir()})
+	users := []config.TelegramUser{{Name: "Ana", ChatID: "77", Projects: []string{"crochet"}}}
+	// An event of the owner's project goes to the owner only.
+	ev := launch.HookEvent{Event: launch.HookReview, RunID: run.ID, TaskID: run.TaskID}
+	if got := recipients(e.Store, ev, "42", users); len(got) != 1 || got[0] != "42" {
+		t.Fatalf("recipients %v", got)
+	}
+	task, _ := e.Store.CreateTask(store.Task{ProjectID: crochet.ID, Title: "Monedero", Status: store.StatusReview, Agent: store.AgentClaude})
+	ev.TaskID = task.ID
+	if got := recipients(e.Store, ev, "42", users); len(got) != 2 || got[1] != "77" {
+		t.Fatalf("recipients %v", got)
+	}
+	// A picture the run made is attached to its review alert.
+	_ = os.MkdirAll(filepath.Join(run.Worktree, "out"), 0o755)
+	_ = os.WriteFile(filepath.Join(run.Worktree, "out", "monedero.png"), []byte("png"), 0o644)
+	ev.TaskID = run.TaskID
+	if imgs := eventImages(e.Store, ev); len(imgs) != 1 || !strings.HasSuffix(imgs[0], "out/monedero.png") {
+		t.Fatalf("images %v", imgs)
+	}
+	_ = fake
 }

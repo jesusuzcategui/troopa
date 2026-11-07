@@ -31,26 +31,35 @@ type chatState struct {
 	busy      bool
 }
 
-func (b *Bot) chatFile() string { return filepath.Join(b.dataDir, "telegram.chat.json") }
+func (b *Bot) chatFile(chat string) string {
+	return filepath.Join(b.dataDir, "telegram.chat."+chat+".json")
+}
 
-func (b *Bot) loadChat() {
-	raw, err := os.ReadFile(b.chatFile())
-	if err != nil {
-		return
-	}
-	var c chatState
-	if json.Unmarshal(raw, &c) == nil && c.Agent != "" {
-		b.conv = &c
+// loadChats reopens the conversations that were open when the daemon stopped.
+func (b *Bot) loadChats() {
+	files, _ := filepath.Glob(filepath.Join(b.dataDir, "telegram.chat.*.json"))
+	for _, f := range files {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		var c chatState
+		if json.Unmarshal(raw, &c) == nil && c.Agent != "" {
+			chat := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "telegram.chat."), ".json")
+			b.convs[chat] = &c
+		}
 	}
 }
 
-func (b *Bot) saveChat() {
-	if b.conv == nil {
-		_ = os.Remove(b.chatFile())
+// saveChat persists the conversation of chat; call with b.mu held.
+func (b *Bot) saveChat(chat string) {
+	c := b.convs[chat]
+	if c == nil {
+		_ = os.Remove(b.chatFile(chat))
 		return
 	}
-	raw, _ := json.Marshal(b.conv)
-	_ = os.WriteFile(b.chatFile(), raw, 0o600)
+	raw, _ := json.Marshal(c)
+	_ = os.WriteFile(b.chatFile(chat), raw, 0o600)
 }
 
 func closeButton() *tgKeyboard {
@@ -60,7 +69,11 @@ func closeButton() *tgKeyboard {
 // chatAgentsView picks the agent to talk to.
 func (b *Bot) chatAgentsView() (string, *tgKeyboard) {
 	kb := &tgKeyboard{}
-	agents := b.launchAgents(b.eng.Cfg.DefaultAgent)
+	first := b.eng.Cfg.DefaultAgent
+	if b.user != nil && b.user.Agent != "" {
+		first = b.user.Agent
+	}
+	agents := b.launchAgents(first)
 	if len(agents) == 0 {
 		return esc(i18n.T("No agents installed: launch it from the TUI.")), kb
 	}
@@ -81,8 +94,8 @@ func (b *Bot) chatAgentsView() (string, *tgKeyboard) {
 // chatProjectsView picks the folder the agent works in, "Conversar" first.
 func (b *Bot) chatProjectsView(agent string) (string, *tgKeyboard) {
 	kb := &tgKeyboard{}
-	projects, err := b.eng.Store.List(false)
-	if err != nil || len(projects) == 0 {
+	projects := b.visibleProjects()
+	if len(projects) == 0 {
 		return esc(i18n.T("No projects yet.")), kb
 	}
 	for i, p := range projects {
@@ -120,8 +133,8 @@ func (b *Bot) startChat(ctx context.Context, msgID int64, agent string, projectI
 	header := fmt.Sprintf("# %s · %s\n\n", launch.AgentName(agent), p.Name)
 	_ = os.WriteFile(filepath.Join(dir, "transcript.md"), []byte(header), 0o644)
 	b.mu.Lock()
-	b.conv = &chatState{Agent: agent, ProjectID: projectID, Project: p.Name, Dir: dir}
-	b.saveChat()
+	b.convs[b.chat] = &chatState{Agent: agent, ProjectID: projectID, Project: p.Name, Dir: dir}
+	b.saveChat(b.chat)
 	b.mu.Unlock()
 	text := "💬 " + esc(i18n.T("Talking with %s in %s. Write your message; every answer comes back here.", launch.AgentName(agent), p.Name))
 	if err := b.api.edit(ctx, b.chat, msgID, text, closeButton()); err != nil {
@@ -131,9 +144,9 @@ func (b *Bot) startChat(ctx context.Context, msgID int64, agent string, projectI
 
 func (b *Bot) endChat(ctx context.Context) {
 	b.mu.Lock()
-	c := b.conv
-	b.conv = nil
-	b.saveChat()
+	c := b.convs[b.chat]
+	delete(b.convs, b.chat)
+	b.saveChat(b.chat)
 	b.mu.Unlock()
 	if c == nil {
 		b.reply(ctx, esc(i18n.T("There is no open conversation.")))
@@ -146,13 +159,15 @@ func (b *Bot) endChat(ctx context.Context) {
 func (b *Bot) chatting() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.conv != nil
+	return b.convs[b.chat] != nil
 }
 
-// chatSend runs one turn in the background and relays the answer.
-func (b *Bot) chatSend(ctx context.Context, text string) {
+// chatSend runs one turn in the background and relays the answer. image is
+// a picture the person sent with the message, already saved, or "".
+func (b *Bot) chatSend(ctx context.Context, text, image string) {
+	chat := b.chat
 	b.mu.Lock()
-	c := b.conv
+	c := b.convs[chat]
 	if c == nil {
 		b.mu.Unlock()
 		return
@@ -166,23 +181,37 @@ func (b *Bot) chatSend(ctx context.Context, text string) {
 	c.Turns++
 	turn := c.Turns
 	agent, projectID, dir := c.Agent, c.ProjectID, c.Dir
-	b.saveChat()
+	b.saveChat(chat)
 	b.mu.Unlock()
 
 	transcript := filepath.Join(dir, "transcript.md")
-	appendFile(transcript, "## "+i18n.T("Person")+"\n\n"+text+"\n\n")
+	entry := text
+	if image != "" {
+		entry = strings.TrimSpace(entry + "\n\n[" + i18n.T("image") + ": " + image + "]")
+	}
+	appendFile(transcript, "## "+i18n.T("Person")+"\n\n"+entry+"\n\n")
 	replyPath := filepath.Join(dir, fmt.Sprintf("reply-%d.md", turn))
+	outDir := filepath.Join(dir, fmt.Sprintf("out-%d", turn))
+	_ = os.MkdirAll(outDir, 0o755)
 	prompt := fmt.Sprintf("You are chatting with a person through Telegram; this is a conversation, not a coding task. "+
 		"Read %s: it holds the whole conversation, newest message last. Answer that last message. "+
 		"You are in the folder of the project; read its files only if the question needs them, and do not change anything unless the person explicitly asks. "+
+		"If the person asks for an image, or to change one they sent, make it with your image tools and save every resulting image in %s; they are sent to the person. "+
 		"Write ONLY your answer, in the person's language and in Markdown, to %s. Keep it short enough for a chat (under 3000 characters).",
-		transcript, replyPath)
-	cmd, err := b.eng.ChatCommand(projectID, agent, prompt)
+		transcript, outDir, replyPath)
+	if image != "" {
+		prompt += fmt.Sprintf(" The person attached an image to the last message: %s.", image)
+	}
+	var images []string
+	if image != "" {
+		images = append(images, image)
+	}
+	cmd, err := b.eng.ChatCommand(projectID, agent, prompt, images...)
 	if err != nil {
-		b.finishTurn(ctx, "⚠️ "+esc(err.Error()))
+		b.finishTurn(ctx, chat, "⚠️ "+esc(err.Error()), nil)
 		return
 	}
-	_, _ = b.api.call(ctx, "sendChatAction", map[string][]string{"chat_id": {b.chat}, "action": {"typing"}})
+	b.typing(ctx, chat)
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
@@ -195,7 +224,7 @@ func (b *Bot) chatSend(ctx context.Context, text string) {
 		}
 		done := make(chan error, 1)
 		if err := cmd.Start(); err != nil {
-			b.finishTurn(ctx, "⚠️ "+esc(err.Error()))
+			b.finishTurn(ctx, chat, "⚠️ "+esc(err.Error()), nil)
 			return
 		}
 		go func() { done <- cmd.Wait() }()
@@ -208,7 +237,7 @@ func (b *Bot) chatSend(ctx context.Context, text string) {
 			case runErr = <-done:
 				break wait
 			case <-tick.C:
-				_, _ = b.api.call(ctx, "sendChatAction", map[string][]string{"chat_id": {b.chat}, "action": {"typing"}})
+				b.typing(ctx, chat)
 			case <-tctx.Done():
 				_ = cmd.Process.Kill()
 				runErr = <-done
@@ -218,29 +247,66 @@ func (b *Bot) chatSend(ctx context.Context, text string) {
 				break wait
 			}
 		}
+		pics := imagesIn(outDir, 5)
 		answer, err := os.ReadFile(replyPath)
 		if err != nil || strings.TrimSpace(string(answer)) == "" {
+			if len(pics) > 0 {
+				appendFile(transcript, "## "+launch.AgentName(agent)+"\n\n["+i18n.T("image")+"]\n\n")
+				b.finishTurn(ctx, chat, "", pics)
+				return
+			}
 			msg := "⚠️ " + esc(i18n.T("%s did not write an answer.", launch.AgentName(agent)))
 			if runErr != nil {
 				msg += " " + esc(runErr.Error())
 			}
-			b.finishTurn(ctx, msg)
+			b.finishTurn(ctx, chat, msg, nil)
 			return
 		}
 		appendFile(transcript, "## "+launch.AgentName(agent)+"\n\n"+strings.TrimSpace(string(answer))+"\n\n")
-		b.finishTurn(ctx, limit(markdownToHTML(string(answer))))
+		b.finishTurn(ctx, chat, limit(markdownToHTML(string(answer))), pics)
 	}()
 }
 
-func (b *Bot) finishTurn(ctx context.Context, text string) {
+func (b *Bot) typing(ctx context.Context, chat string) {
+	_, _ = b.api.call(ctx, "sendChatAction", map[string][]string{"chat_id": {chat}, "action": {"typing"}})
+}
+
+// finishTurn sends the images and the answer of a turn to chat.
+func (b *Bot) finishTurn(ctx context.Context, chat, text string, pics []string) {
 	b.mu.Lock()
-	if b.conv != nil {
-		b.conv.busy = false
+	if c := b.convs[chat]; c != nil {
+		c.busy = false
 	}
 	b.mu.Unlock()
-	if _, err := b.api.send(ctx, b.chat, text, closeButton(), 0); err != nil {
+	for _, p := range pics {
+		if err := b.api.photo(ctx, chat, p, "", nil); err != nil {
+			b.logger.Printf("telegram photo: %v", err)
+		}
+	}
+	if text == "" {
+		text = "🖼"
+	}
+	if _, err := b.api.send(ctx, chat, text, closeButton(), 0); err != nil {
 		b.logger.Printf("telegram send: %v", err)
 	}
+}
+
+// imagesIn lists up to max image files in dir (not recursive), sorted.
+func imagesIn(dir string, max int) []string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() && isImage(e.Name()) {
+			out = append(out, filepath.Join(dir, e.Name()))
+			if len(out) == max {
+				break
+			}
+		}
+	}
+	return out
 }
 
 func appendFile(path, text string) {

@@ -79,6 +79,37 @@ type Telegram struct {
 	Token   string
 	ChatID  string
 	Actions bool
+	Users   []TelegramUser
+}
+
+// TelegramUser is someone else who may use the bot, from [[telegram.users]]:
+// they see and act on their projects only, and get the alerts of those.
+type TelegramUser struct {
+	Name     string
+	ChatID   string
+	Projects []string // slugs or names
+	Agent    string   // agent for the tasks they send; empty = the default
+}
+
+// UserFor returns the user of a chat, if it is one of [[telegram.users]].
+func (t Telegram) UserFor(chat string) (TelegramUser, bool) {
+	for _, u := range t.Users {
+		if u.ChatID != "" && u.ChatID == chat {
+			return u, true
+		}
+	}
+	return TelegramUser{}, false
+}
+
+// Allows reports whether the user may see a project (by slug or name).
+func (u TelegramUser) Allows(slug, name string) bool {
+	for _, p := range u.Projects {
+		p = strings.TrimSpace(p)
+		if strings.EqualFold(p, slug) || strings.EqualFold(p, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // MCP holds [mcp] in config.toml. AllowApprove is off unless set.
@@ -116,9 +147,29 @@ type tomlConfig struct {
 }
 
 type telegramTOML struct {
-	Token   string `toml:"token"`
-	ChatID  any    `toml:"chat_id"` // a number or a string
-	Actions bool   `toml:"actions"`
+	Token   string             `toml:"token"`
+	ChatID  any                `toml:"chat_id"` // a number or a string
+	Actions bool               `toml:"actions"`
+	Users   []telegramUserTOML `toml:"users"`
+}
+
+type telegramUserTOML struct {
+	Name     string   `toml:"name"`
+	ChatID   any      `toml:"chat_id"`
+	Projects []string `toml:"projects"`
+	Agent    string   `toml:"agent"`
+}
+
+func chatIDString(v any) string {
+	switch v := v.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case int64:
+		return strconv.FormatInt(v, 10)
+	case float64:
+		return strconv.FormatInt(int64(v), 10)
+	}
+	return ""
 }
 
 type mcpTOML struct {
@@ -292,15 +343,13 @@ func Load(path string) (Config, error) {
 		c.MCP.AllowApprove = *t.MCP.AllowApprove
 	}
 	c.Telegram.Token = strings.TrimSpace(t.Telegram.Token)
-	switch v := t.Telegram.ChatID.(type) {
-	case string:
-		c.Telegram.ChatID = strings.TrimSpace(v)
-	case int64:
-		c.Telegram.ChatID = strconv.FormatInt(v, 10)
-	case float64:
-		c.Telegram.ChatID = strconv.FormatInt(int64(v), 10)
-	}
+	c.Telegram.ChatID = chatIDString(t.Telegram.ChatID)
 	c.Telegram.Actions = t.Telegram.Actions
+	for _, u := range t.Telegram.Users {
+		c.Telegram.Users = append(c.Telegram.Users, TelegramUser{
+			Name: strings.TrimSpace(u.Name), ChatID: chatIDString(u.ChatID), Projects: u.Projects, Agent: strings.TrimSpace(u.Agent),
+		})
+	}
 	for name, price := range t.Prices {
 		if c.Launch.Prices == nil {
 			c.Launch.Prices = map[string]TokenPrice{}

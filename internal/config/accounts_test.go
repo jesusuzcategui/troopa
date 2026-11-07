@@ -77,3 +77,16 @@ func TestTelegramConfig(t *testing.T) {
 		t.Fatalf("%+v", c.Telegram)
 	}
 }
+
+func TestTelegramUsers(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	_ = os.WriteFile(path, []byte("[telegram]\ntoken = \"x\"\nchat_id = 1\n\n[[telegram.users]]\nname = \"Ana\"\nchat_id = 77\nprojects = [\"crochet\"]\nagent = \"codex\"\n"), 0o644)
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, ok := c.Telegram.UserFor("77")
+	if !ok || u.Name != "Ana" || u.Agent != "codex" || !u.Allows("crochet", "Crochet") || u.Allows("app", "App") {
+		t.Fatalf("%+v", c.Telegram.Users)
+	}
+}

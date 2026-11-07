@@ -12,10 +12,12 @@ import (
 	"html"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
@@ -32,6 +34,7 @@ type Defaults struct {
 	Token   string
 	Chat    string
 	Actions bool // add buttons (approve, request changes, diff, log)
+	Users   []config.TelegramUser
 }
 
 func firstNonEmpty(vals ...string) string {
@@ -95,11 +98,63 @@ func Telegram(args []string, stdin io.Reader, stdout, stderr io.Writer, open fun
 	if def.Actions {
 		kb = Keyboard(ev)
 	}
-	if _, err := newTG(*token).send(context.Background(), *chat, msg, kb, 0); err != nil {
-		fmt.Fprintf(stderr, "troopa notify: %v\n", err)
-		return 1
+	api := newTG(*token)
+	ctx := context.Background()
+	images := eventImages(s, ev)
+	code := 0
+	for _, to := range recipients(s, ev, *chat, def.Users) {
+		for _, img := range images {
+			if err := api.photo(ctx, to, img, filepath.Base(img), nil); err != nil {
+				fmt.Fprintf(stderr, "troopa notify: %v\n", err)
+			}
+		}
+		if _, err := api.send(ctx, to, msg, kb, 0); err != nil {
+			fmt.Fprintf(stderr, "troopa notify: %v\n", err)
+			code = 1
+		}
 	}
-	return 0
+	return code
+}
+
+// recipients are the owner plus the users of [[telegram.users]] who have the
+// event's project.
+func recipients(s *store.Store, ev launch.HookEvent, owner string, users []config.TelegramUser) []string {
+	out := []string{owner}
+	if s == nil || len(users) == 0 {
+		return out
+	}
+	var projectID int64
+	if ev.TaskID != 0 {
+		if t, err := s.GetTask(ev.TaskID); err == nil {
+			projectID = t.ProjectID
+		}
+	} else if ev.PlanID != 0 {
+		if p, err := s.GetPlan(ev.PlanID); err == nil {
+			projectID = p.ProjectID
+		}
+	}
+	p, err := s.Get(projectID)
+	if err != nil {
+		return out
+	}
+	for _, u := range users {
+		if u.ChatID != "" && u.ChatID != owner && u.Allows(p.Slug, p.Name) {
+			out = append(out, u.ChatID)
+		}
+	}
+	return out
+}
+
+// eventImages are the pictures a run made, sent with its review or blocked alert.
+func eventImages(s *store.Store, ev launch.HookEvent) []string {
+	if s == nil || ev.RunID == 0 || (ev.Event != launch.HookReview && ev.Event != launch.HookBlocked) {
+		return nil
+	}
+	run, err := s.GetRun(ev.RunID)
+	if err != nil {
+		return nil
+	}
+	return launch.ChangedImages(run.Worktree, run.Base, 5)
 }
 
 // Keyboard is the row of buttons a message gets when Telegram actions are

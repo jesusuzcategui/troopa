@@ -303,7 +303,7 @@ func runNotify(args []string, stdout, stderr io.Writer) int {
 	if err == nil {
 		if cfg, err := config.Load(configPath); err == nil {
 			i18n.Apply(cfg.Language)
-			def = notify.Defaults{Token: cfg.Telegram.Token, Chat: cfg.Telegram.ChatID, Actions: cfg.Telegram.Actions}
+			def = notify.Defaults{Token: cfg.Telegram.Token, Chat: cfg.Telegram.ChatID, Actions: cfg.Telegram.Actions, Users: cfg.Telegram.Users}
 		}
 	}
 	open := func() (*store.Store, error) {

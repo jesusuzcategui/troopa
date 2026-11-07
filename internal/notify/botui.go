@@ -103,8 +103,12 @@ func (b *Bot) statusView() (string, *tgKeyboard) {
 	s := b.eng.Store
 	var out []string
 	kb := &tgKeyboard{}
+	set := b.projectSet()
 	if runs, err := s.ListRuns(store.RunRunning); err == nil {
 		for _, r := range runs {
+			if !inSet(set, r.ProjectID) {
+				continue
+			}
 			t, _ := s.GetTask(r.TaskID)
 			out = append(out, fmt.Sprintf("🔄 #%d %s · %s", r.ID, esc(t.Title), esc(launch.AgentName(r.Agent))))
 		}
@@ -118,6 +122,9 @@ func (b *Bot) statusView() (string, *tgKeyboard) {
 		for _, r := range runs {
 			if shown == 5 {
 				break
+			}
+			if !inSet(set, r.ProjectID) {
+				continue
 			}
 			t, _ := s.GetTask(r.TaskID)
 			if t.Status == store.StatusDone {
@@ -138,7 +145,7 @@ func (b *Bot) statusView() (string, *tgKeyboard) {
 	}
 	if plans, err := s.ListPlans(0); err == nil {
 		for _, p := range plans {
-			if p.State == store.PlanRunning || p.State == store.PlanPaused {
+			if inSet(set, p.ProjectID) && (p.State == store.PlanRunning || p.State == store.PlanPaused) {
 				done, total, _ := s.PlanProgress(p.ID)
 				out = append(out, fmt.Sprintf("🗺 %s · %d/%d · %s", esc(p.Title), done, total, esc(p.State)))
 				kb.Rows = append(kb.Rows, []tgButton{btn("🗺 "+short(p.Title, 40), "plan:"+strconv.FormatInt(p.ID, 10))})
@@ -154,7 +161,14 @@ func (b *Bot) statusView() (string, *tgKeyboard) {
 
 func (b *Bot) plansView() (string, *tgKeyboard) {
 	kb := &tgKeyboard{}
-	list, err := b.eng.Store.ListPlans(0)
+	all, err := b.eng.Store.ListPlans(0)
+	set := b.projectSet()
+	var list []store.Plan
+	for _, p := range all {
+		if inSet(set, p.ProjectID) {
+			list = append(list, p)
+		}
+	}
 	if err != nil || len(list) == 0 {
 		kb.Rows = [][]tgButton{{btn("📊 "+i18n.T("Status"), "status")}}
 		return esc(i18n.T("No plans yet.")), kb
@@ -191,7 +205,7 @@ func planMark(state string) string {
 func (b *Bot) planView(id int64) (string, *tgKeyboard) {
 	back := []tgButton{btn("⬅️ "+i18n.T("Plans"), "plans")}
 	p, err := b.eng.Store.GetPlan(id)
-	if err != nil {
+	if err != nil || !b.canProject(p.ProjectID) {
 		return esc(i18n.T("Plan %d not found", id)), &tgKeyboard{Rows: [][]tgButton{back}}
 	}
 	pid := strconv.FormatInt(id, 10)
@@ -250,8 +264,8 @@ func (b *Bot) planView(id int64) (string, *tgKeyboard) {
 // projectsView asks which project a new task goes to.
 func (b *Bot) projectsView() (string, *tgKeyboard) {
 	kb := &tgKeyboard{}
-	projects, err := b.eng.Store.List(false)
-	if err != nil || len(projects) == 0 {
+	projects := b.visibleProjects()
+	if len(projects) == 0 {
 		return esc(i18n.T("No projects yet.")), kb
 	}
 	for i, p := range projects {
@@ -331,7 +345,11 @@ func (b *Bot) tasksView(filter string) (string, *tgKeyboard) {
 	}
 	counts := map[string]int{}
 	var list []store.Task
+	set := b.projectSet()
 	for _, t := range all {
+		if !inSet(set, t.ProjectID) {
+			continue
+		}
 		for _, f := range taskFilters {
 			if matchesFilter(t, f.key) {
 				counts[f.key]++
@@ -390,7 +408,7 @@ func (b *Bot) taskView(id int64, header string) (string, *tgKeyboard) {
 	back := []tgButton{btn("📋 "+i18n.T("Tasks"), "tasks"), btn("📊 "+i18n.T("Status"), "status")}
 	kb := &tgKeyboard{}
 	t, err := b.eng.Store.GetTask(id)
-	if err != nil {
+	if err != nil || !b.canProject(t.ProjectID) {
 		kb.Rows = [][]tgButton{back}
 		return esc(i18n.T("Task %d not found", id)), kb
 	}
@@ -464,6 +482,12 @@ func (b *Bot) launchTask(ctx context.Context, cq *tgCallback, arg string) {
 			return
 		}
 	}
+	if _, err := b.eng.Store.ActiveRun(); err == nil {
+		b.api.answer(ctx, cq.ID, "")
+		b.api.clearButtons(ctx, b.chat, cq.Message.MessageID)
+		b.startOrQueue(ctx, b.chat, t, "")
+		return
+	}
 	res, err := b.eng.Launch(t)
 	if err != nil {
 		b.api.answer(ctx, cq.ID, err.Error())
@@ -510,6 +534,11 @@ func (b *Bot) runButtons(t store.Task, run store.Run) [][]tgButton {
 	sendRow := func() {
 		if len(pendingComments) > 0 {
 			rows = append(rows, []tgButton{btn("📨 "+i18n.T("Send %d comments", len(pendingComments)), "sendc:"+rid)})
+		}
+	}
+	if run.State == store.RunReview || run.State == store.RunBlocked || run.State == store.RunApproved {
+		if len(launch.ChangedImages(run.Worktree, run.Base, 1)) > 0 {
+			rows = append(rows, []tgButton{btn("🖼 "+i18n.T("Images"), "imgs:"+rid)})
 		}
 	}
 	switch run.State {

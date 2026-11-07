@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
@@ -22,16 +23,20 @@ import (
 // Telegram (no public server needed) and obeys one chat only.
 type Bot struct {
 	api     *tgClient
-	chat    string
+	owner   string                // [telegram] chat_id: sees everything
+	users   []config.TelegramUser // [[telegram.users]]: their projects only
+	chat    string                // chat of the update being handled
+	user    *config.TelegramUser  // its user; nil for the owner
 	eng     *engine.Engine
 	logger  *log.Logger
 	offsetF string
 	dataDir string
 
 	mu      sync.Mutex
-	pending map[int64]prompt // prompt message id -> what the reply is for
-	conv    *chatState       // the open conversation with an agent, if any
-	wg      sync.WaitGroup   // conversation turns in flight
+	pending map[int64]prompt        // prompt message id -> what the reply is for
+	convs   map[string]*chatState   // open conversations, by chat
+	photos  map[string]pendingPhoto // photo waiting for its project, by chat
+	wg      sync.WaitGroup          // conversation turns in flight
 }
 
 // prompt is a question the bot asked with a forced reply.
@@ -46,11 +51,17 @@ func NewBot(token, chat string, eng *engine.Engine, dataDir string, logger *log.
 		logger = log.New(os.Stderr, "", log.LstdFlags)
 	}
 	b := &Bot{
-		api: newTG(token), chat: strings.TrimSpace(chat), eng: eng, logger: logger,
+		api: newTG(token), owner: strings.TrimSpace(chat), chat: strings.TrimSpace(chat), eng: eng, logger: logger,
 		offsetF: filepath.Join(dataDir, "telegram.offset"), dataDir: dataDir, pending: map[int64]prompt{},
+		convs: map[string]*chatState{},
 	}
-	b.loadChat()
+	b.loadChats()
 	return b
+}
+
+// SetUsers lets other people use the bot, each with their projects only.
+func (b *Bot) SetUsers(users []config.TelegramUser) {
+	b.users = users
 }
 
 // Run polls Telegram until ctx ends.
@@ -60,6 +71,18 @@ func (b *Bot) Run(ctx context.Context) {
 		b.logger.Printf("telegram setMyCommands: %v", err)
 	}
 	b.logger.Println("telegram bot listening")
+	go func() {
+		tick := time.NewTicker(5 * time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+				b.drainQueue(ctx)
+			}
+		}
+	}()
 	for ctx.Err() == nil {
 		ups, err := b.api.updates(ctx, offset, 50)
 		if err != nil {
@@ -97,22 +120,44 @@ func (b *Bot) saveOffset(n int64) {
 	_ = os.WriteFile(b.offsetF, []byte(strconv.FormatInt(n, 10)), 0o600)
 }
 
-// allowed is true only for the configured chat.
-func (b *Bot) allowed(chat int64) bool {
-	return b.chat != "" && strconv.FormatInt(chat, 10) == b.chat
+// enter makes chat the one being answered: the owner, a configured user, or
+// nobody (false).
+func (b *Bot) enter(chat int64) bool {
+	id := strconv.FormatInt(chat, 10)
+	if b.owner != "" && id == b.owner {
+		b.chat, b.user = id, nil
+		return true
+	}
+	for i := range b.users {
+		if b.users[i].ChatID == id {
+			b.chat, b.user = id, &b.users[i]
+			return true
+		}
+	}
+	return false
 }
 
-// Handle processes one update (exported for tests).
+// Handle processes one update (exported for tests). Updates are handled one
+// at a time, so b.chat and b.user describe the current one.
 func (b *Bot) Handle(ctx context.Context, u tgUpdate) {
 	switch {
 	case u.CallbackQuery != nil:
 		cq := u.CallbackQuery
-		if cq.Message == nil || !b.allowed(cq.Message.Chat.ID) {
+		if cq.Message == nil || !b.enter(cq.Message.Chat.ID) {
+			return
+		}
+		if !b.callbackAllowed(cq.Data) {
+			b.api.answer(ctx, cq.ID, i18n.T("You don't have access to that project."))
 			return
 		}
 		b.callback(ctx, cq)
 	case u.Message != nil:
-		if !b.allowed(u.Message.Chat.ID) {
+		if !b.enter(u.Message.Chat.ID) {
+			if strings.HasPrefix(strings.TrimSpace(u.Message.Text), "/start") {
+				id := strconv.FormatInt(u.Message.Chat.ID, 10)
+				_, _ = b.api.send(ctx, id, esc(i18n.T("This chat has no access to Troopa yet. Its id is %s: the owner adds it under [[telegram.users]].", id)), nil, 0)
+				b.logger.Printf("telegram: chat %s asked for access", id)
+			}
 			return
 		}
 		b.message(ctx, u.Message)
@@ -156,6 +201,10 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 		agent, pid, _ := strings.Cut(idText, ":")
 		id, _ := strconv.ParseInt(pid, 10, 64)
 		b.startChat(ctx, msgID, agent, id)
+		return
+	case "photop":
+		id, _ := strconv.ParseInt(idText, 10, 64)
+		b.photoProject(ctx, cq, id)
 		return
 	case "chatend":
 		b.api.answer(ctx, cq.ID, "")
@@ -236,6 +285,9 @@ func (b *Bot) callback(ctx context.Context, cq *tgCallback) {
 		b.doMerge(ctx, cq, action, id, back)
 	case "pull":
 		b.pull(ctx, cq, id)
+	case "imgs":
+		b.api.answer(ctx, cq.ID, "")
+		b.sendImages(ctx, id)
 	case "diff":
 		b.api.answer(ctx, cq.ID, "")
 		b.sendDiff(ctx, id)
@@ -289,9 +341,13 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 		}
 		return
 	}
+	if fileID, name, ok := m.image(); ok {
+		b.photoIn(ctx, m, fileID, name)
+		return
+	}
 	if !strings.HasPrefix(text, "/") && b.chatting() {
 		if text != "" {
-			b.chatSend(ctx, text)
+			b.chatSend(ctx, text, "")
 		}
 		return
 	}
@@ -302,6 +358,14 @@ func (b *Bot) message(ctx context.Context, m *tgMessage) {
 	fields := strings.Fields(text)
 	cmd := strings.ToLower(strings.SplitN(fields[0], "@", 2)[0])
 	args := fields[1:]
+	kinds := map[string]string{"/plan": "plan", "/run": "plan", "/iniciar": "plan", "/pause": "plan", "/pausar": "plan",
+		"/launch": "task", "/lanzar": "task", "/log": "run", "/diff": "run"}
+	if kind, ok := kinds[cmd]; ok {
+		if id, ok := argID(args); ok && !b.commandAllowed(kind, id) {
+			b.reply(ctx, esc(i18n.T("You don't have access to that project.")))
+			return
+		}
+	}
 	switch cmd {
 	case "/start", "/help", "/ayuda":
 		b.sendHelp(ctx)
@@ -436,7 +500,7 @@ func (b *Bot) newTask(args []string) (int64, string) {
 			break
 		}
 	}
-	if proj == nil {
+	if proj == nil || !b.canProject(proj.ID) {
 		return 0, esc(i18n.T("Project %s not found. Use its id or slug.", args[0]))
 	}
 	return b.addTask(*proj, strings.Join(args[1:], " "))
@@ -456,6 +520,9 @@ func (b *Bot) createTask(projectID int64, title string) (int64, string) {
 
 func (b *Bot) addTask(proj store.Project, title string) (int64, string) {
 	agent := b.eng.Cfg.DefaultAgent
+	if b.user != nil && b.user.Agent != "" {
+		agent = b.user.Agent
+	}
 	if agent == "" {
 		agent = store.AgentMe
 	}

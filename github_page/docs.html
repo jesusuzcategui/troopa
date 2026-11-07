@@ -221,6 +221,15 @@ What the agent says
             <li><strong>Tasks</strong> (or <code>/tasks</code>) has a tab per status: pending, running, review, blocked and done. Open a task to launch it with the agent you pick, read its summary, approve it, request changes, leave comments (they wait and go to the agent together with your next request for changes), or, once approved, merge it, open a PR, or pull the base branch with separate buttons. A finished plan merges or opens its PR from its own screen.</li>
           </ul>
           <p><strong>Chat</strong> (or <code>/chat</code>) opens a conversation with any installed agent: pick the agent, then the project it works in (a project called <em>Conversar</em> comes first, so keep one just for chatting). Every message you write goes to the agent with the whole conversation so far, and its answer comes back to the chat. Nothing becomes a task, a worktree or a run; the transcript is kept in Troopa's data folder. <strong>🔚 End conversation</strong> (or <code>/end</code>) closes it.</p>
+          <h3>Share the bot</h3>
+          <p>Someone else can use the same bot from their own Telegram, with their projects only. They send <code>/start</code> to the bot, which answers with their chat id; add them to <code>config.toml</code> and restart the daemon:</p>
+          <pre><code>[[telegram.users]]
+name = "Ana"
+chat_id = "123456789"
+projects = ["crochet"]   # slugs or names
+agent = "codex"          # for the tasks they send; optional</code></pre>
+          <p>They see, launch, approve and merge in their projects only, get the alerts of those projects (you still get every alert), and never see the rest.</p>
+          <p><strong>Photos.</strong> A photo with a caption becomes a task in their project, with the photo attached and the caption as the request, and it launches right away. If another agent is working, it waits in a queue and starts when that one finishes; they get a message when it does. Codex receives the photo with <code>--image</code>; other agents read it from the worktree. The images the agent creates or changes come back with the review alert, next to Approve and Changes, and a task's <strong>🖼 Images</strong> button sends them again. Inside a conversation a photo goes to the agent with the message, and the pictures it makes come back in the chat.</p>
           <p>Merge and PR always ask first. The TUI stays in sync: whatever you do from Telegram shows up on the board within a couple of seconds. Use a bot of its own for Troopa: two programs cannot read the same bot's messages at once.</p>
         </section>
 
@@ -482,6 +491,15 @@ Lo que dice el agente
             <li><strong>Tareas</strong> (o <code>/tareas</code>) tiene una pestaña por estado: pendientes, en curso, revisión, bloqueadas y hechas. Abre una tarea para lanzarla con el agente que elijas, leer su resumen, aprobarla, pedir cambios, dejar comentarios (esperan y van al agente junto con tu siguiente pedido de cambios) o, ya aprobada, hacer merge, abrir un PR o hacer pull de la rama base, cada uno con su botón. Un plan terminado hace merge o abre su PR desde su propia pantalla.</li>
           </ul>
           <p><strong>Conversar</strong> (o <code>/conversar</code>) abre una conversación con cualquier agente instalado: eliges el agente y luego el proyecto donde trabaja (un proyecto llamado <em>Conversar</em> sale primero, así que puedes tener uno solo para esto). Cada mensaje que escribes le llega al agente con toda la conversación, y su respuesta vuelve al chat. Nada se vuelve tarea, worktree ni ejecución; la transcripción queda en la carpeta de datos de Troopa. <strong>🔚 Cerrar conversación</strong> (o <code>/cerrar</code>) la termina.</p>
+          <h3>Compartir el bot</h3>
+          <p>Otra persona puede usar el mismo bot desde su Telegram, solo con sus proyectos. Le manda <code>/start</code> al bot, que le responde con el id de su chat; agrégala en <code>config.toml</code> y reinicia el daemon:</p>
+          <pre><code>[[telegram.users]]
+name = "Ana"
+chat_id = "123456789"
+projects = ["crochet"]   # slugs o nombres
+agent = "codex"          # para las tareas que envía; opcional</code></pre>
+          <p>Ve, lanza, aprueba y hace merge solo en sus proyectos, recibe los avisos de esos proyectos (tú sigues recibiendo todos) y nunca ve lo demás.</p>
+          <p><strong>Fotos.</strong> Una foto con texto se vuelve una tarea en su proyecto, con la foto adjunta y el texto como pedido, y arranca de una vez. Si otro agente está trabajando, espera en una cola y arranca cuando ese termine; le llega un mensaje cuando pasa. Codex recibe la foto con <code>--image</code>; los demás agentes la leen del worktree. Las imágenes que el agente crea o cambia llegan con el aviso de revisión, junto a Aprobar y Cambios, y el botón <strong>🖼 Imágenes</strong> de la tarea las vuelve a enviar. Dentro de una conversación, la foto le llega al agente con el mensaje y las imágenes que hace vuelven al chat.</p>
           <p>El merge y el PR siempre piden confirmación. La TUI se mantiene al día: lo que hagas desde Telegram aparece en el tablero en un par de segundos. Usa un bot solo para Troopa: dos programas no pueden leer los mensajes del mismo bot a la vez.</p>
         </section>
 

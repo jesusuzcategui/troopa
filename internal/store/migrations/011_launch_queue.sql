@@ -1,0 +1,6 @@
+CREATE TABLE launch_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    chat TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);

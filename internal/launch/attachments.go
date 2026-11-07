@@ -93,3 +93,19 @@ func isAV(mime string) bool {
 	mime = strings.ToLower(mime)
 	return strings.HasPrefix(mime, "video/") || strings.HasPrefix(mime, "audio/")
 }
+
+// AttachedImages are the image attachments as staged in the worktree.
+func AttachedImages(worktree string, atts []store.Attachment) []string {
+	var out []string
+	for _, a := range atts {
+		name := a.Name
+		if name == "" {
+			name = filepath.Base(a.Path)
+		}
+		switch strings.ToLower(filepath.Ext(name)) {
+		case ".png", ".jpg", ".jpeg", ".webp", ".gif":
+			out = append(out, filepath.Join(worktree, workAttachmentsDir, name))
+		}
+	}
+	return out
+}
