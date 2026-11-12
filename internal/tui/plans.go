@@ -294,6 +294,11 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		_ = m.store.UpdatePlan(ps.plan)
 		m.status = i18n.T("Auto-approve: ") + onOff(ps.plan.AutoApprove)
+		if ps.plan.AutoApprove {
+			if p, err := m.store.Get(ps.plan.ProjectID); err == nil && !launch.ProjectHasChecks(p.RepoPath) {
+				m.status += i18n.T(" · no checks in troopa.toml: steps will wait for your review")
+			}
+		}
 	case "p":
 		res, err := m.eng().PausePlan(ps.plan.ID)
 		if err != nil {

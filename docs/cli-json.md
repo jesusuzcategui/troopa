@@ -75,7 +75,7 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
  troopa brain sync --json
 ```
 
-`plan create` makes a draft; steps are tasks with `plan_id` and `plan_step`. Plans are started, reviewed step by step and merged from the TUI (`w` on the board). `--manual` turns off auto-advance; `--auto-approve` approves each step whose checks pass, so the plan runs alone until a step fails. `plan delete` keeps the steps as ordinary tasks.
+`plan create` makes a draft; steps are tasks with `plan_id` and `plan_step`. Plans are started, reviewed step by step and merged from the TUI (`w` on the board). `--manual` turns off auto-advance; `--auto-approve` approves each step whose checks pass, so the plan runs alone until a step fails. A step with no checks to run (no `checks` in `troopa.toml`) is never approved by itself: it stays in review with a note saying so, and `plan create`/`plan update` return a `warning` field when auto-approve is on in a project without checks. `plan delete` keeps the steps as ordinary tasks.
 
 `profile` stores who the agents work for; the project's profile (or `default_profile` in config.toml) is written into every TASK.md. `--account` on a project picks an `[accounts.NAME]` login from config.toml.
 

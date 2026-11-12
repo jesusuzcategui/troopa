@@ -110,6 +110,18 @@ func (e *Engine) Finish(runID int64, exitErr error) (Result, error) {
 			run.Note = exitErr.Error()
 		}
 	}
+	// Auto-approve trusts the checks; with none configured or run, nothing
+	// vouches for the step, so it stays in review for a person.
+	autoApprove := false
+	if ok && task.PlanID != 0 {
+		if plan, err := e.Store.GetPlan(task.PlanID); err == nil && plan.State == store.PlanRunning && plan.AutoApprove {
+			if len(checks) > 0 {
+				autoApprove = true
+			} else {
+				run.Note = launch.NoChecksNote()
+			}
+		}
+	}
 	price := e.Cfg.Launch.PriceFor(task.Agent)
 	applyRunMetrics(&run, run.LogPath, task.Agent, price)
 	won, err := e.Store.UpdateRunIfState(run, store.RunRunning)
@@ -125,12 +137,6 @@ func (e *Engine) Finish(runID int64, exitErr error) (Result, error) {
 	}
 	e.closeOpenRound(run, run.State, summary, checksJSON, run.LogPath, price)
 	_ = e.moveTask(run.TaskID, dest)
-	autoApprove := false
-	if dest == store.StatusReview && task.PlanID != 0 {
-		if plan, err := e.Store.GetPlan(task.PlanID); err == nil && plan.State == store.PlanRunning && plan.AutoApprove {
-			autoApprove = true
-		}
-	}
 	switch {
 	case autoApprove:
 		// The approve hook reports it, so review does not fire twice.

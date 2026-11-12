@@ -289,6 +289,8 @@ func BuildMessage(s *store.Store, ev launch.HookEvent) string {
 	}
 	note := ""
 	switch {
+	case ev.Event == launch.HookReview && hasRun && hasPlan && plan.AutoApprove && checksEmpty(run.Checks):
+		note = launch.NoChecksNote()
 	case ev.Event == launch.HookBlocked && run.Note != "":
 		note = run.Note
 	case ev.Message != "" && ev.Event != launch.HookReview:
@@ -311,6 +313,12 @@ func BuildMessage(s *store.Store, ev launch.HookEvent) string {
 		b.WriteString("\n👉 " + next)
 	}
 	return limit(b.String())
+}
+
+// checksEmpty is true when a run stored no check results ("", "null", "[]").
+func checksEmpty(raw string) bool {
+	var checks []launch.CheckResult
+	return json.Unmarshal([]byte(raw), &checks) != nil || len(checks) == 0
 }
 
 func eventHeadline(event string) string {

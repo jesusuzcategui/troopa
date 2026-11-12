@@ -82,6 +82,25 @@ func RunChecks(worktree string, cmds []string) []CheckResult {
 	return out
 }
 
+// ProjectHasChecks reports whether the troopa.toml of the repo lists at least
+// one check. Auto-approve needs checks: without them nothing decides.
+func ProjectHasChecks(repo string) bool {
+	if root, err := RepoRoot(repo); err == nil {
+		repo = root
+	}
+	for _, c := range LoadProjectChecks(repo) {
+		if strings.TrimSpace(c) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// NoChecksNote explains why a step of an auto-approve plan waits for review.
+func NoChecksNote() string {
+	return i18n.T("Not auto-approved: no checks ran, so this step needs your review (add checks to troopa.toml).")
+}
+
 func ChecksOK(rs []CheckResult) bool {
 	for _, r := range rs {
 		if !r.OK {

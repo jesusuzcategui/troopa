@@ -29,7 +29,7 @@ From this repo: `make build` (→ `./bin/troopa`) or `go run ./cmd/troopa`.
 
 Data: `$XDG_DATA_HOME/troopa/troopa.db` (default `~/.local/share/troopa/`).
 Config: `$XDG_CONFIG_HOME/troopa/config.toml` (theme, agents, worktrees, terminal and token prices). Troopa only rewrites the keys you change in the setup or in Settings; comments, agents and prices stay as you wrote them.
-Per-project checks: `troopa.toml` at the repo root (`checks = ["go test ./..."]`).
+Per-project checks: `troopa.toml` at the repo root (`checks = ["go test ./..."]`). Plans with auto-approve only approve a step by themselves when checks ran and passed; without checks the step waits in review.
 
 ## First run and settings
 

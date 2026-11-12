@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -9,6 +10,21 @@ type planDetail struct {
 	Done  int          `json:"done"`
 	Total int          `json:"total"`
 	Steps []store.Task `json:"steps"`
+	// Warning is set when auto-approve is on but the project has no checks:
+	// its steps will stay in review instead of approving themselves.
+	Warning string `json:"warning,omitempty"`
+}
+
+const noChecksWarning = "auto-approve is on but the project has no checks in troopa.toml: steps will wait for manual review"
+
+func withChecksWarning(s *store.Store, d planDetail) planDetail {
+	if !d.AutoApprove {
+		return d
+	}
+	if p, err := s.Get(d.ProjectID); err == nil && !launch.ProjectHasChecks(p.RepoPath) {
+		d.Warning = noChecksWarning
+	}
+	return d
 }
 
 func planDetailOf(s *store.Store, p store.Plan) (planDetail, error) {
@@ -111,7 +127,11 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if err := s.UpdatePlan(p); err != nil {
 			return nil, input(err.Error())
 		}
-		return planDetailOf(s, p)
+		d, err := planDetailOf(s, p)
+		if err != nil {
+			return nil, err
+		}
+		return withChecksWarning(s, d), nil
 	case "create":
 		pid, e := id(f, "project")
 		if e != nil {
@@ -124,7 +144,11 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if err != nil {
 			return nil, input(err.Error())
 		}
-		return planDetailOf(s, p)
+		d, err := planDetailOf(s, p)
+		if err != nil {
+			return nil, err
+		}
+		return withChecksWarning(s, d), nil
 	case "add-step":
 		p, e := getPlan()
 		if e != nil {

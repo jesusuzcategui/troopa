@@ -107,3 +107,21 @@ func TestDryRunWithoutStore(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestBuildMessageReviewWithoutChecksOnAutoApprove(t *testing.T) {
+	s, run := fixture(t)
+	task, _ := s.GetTask(run.TaskID)
+	plan, _ := s.GetPlan(task.PlanID)
+	plan.AutoApprove = true
+	if err := s.UpdatePlan(plan); err != nil {
+		t.Fatal(err)
+	}
+	run.Checks = "null"
+	if err := s.UpdateRun(run); err != nil {
+		t.Fatal(err)
+	}
+	msg := BuildMessage(s, launch.HookEvent{Event: launch.HookReview, RunID: run.ID})
+	if !strings.Contains(msg, "Not auto-approved: no checks ran") {
+		t.Fatal(msg)
+	}
+}

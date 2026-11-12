@@ -75,7 +75,7 @@ Crear o editar un proyecto actualiza `INDEX.md` y el frontmatter YAML de `projec
 
 Pulsa `B` en la lista de proyectos, el tablero, el panel de la tarea o la paleta para leer el vault en Troopa. A la izquierda va el árbol (inbox, today, `projects/INDEX`, cada `project.md`, `tasks/` y `guides/`); a la derecha la nota con Glamour. En una terminal angosta, un panel cada vez (`enter` / `esc`). `tab` recorre `[[wiki]]` y enlaces Markdown relativos, `enter` los abre, `esc`/`backspace` vuelven atrás, y cada nota lista backlinks. `/` busca en todas las notas. `o` abre el archivo en tu editor; `i` añade una línea a `inbox.md`. Con `brain_git`, la barra muestra cambios sin commit y `ctrl+s` hace el commit local. El grafo visual no está en la TUI.
 
-Las reglas para todas las tareas de un proyecto van en `troopa.toml`, en la raíz del repo:
+Las reglas para todas las tareas de un proyecto van en `troopa.toml`, en la raíz del repo. Los planes con aprobación automática solo aprueban un paso solos cuando hay checks y pasan; sin checks el paso queda en revisión.
 
 ```toml
 checks = ["python3 -m pytest -q"]
