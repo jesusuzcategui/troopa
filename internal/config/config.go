@@ -233,7 +233,7 @@ func DefaultLaunch(dataDir string) Launch {
 		Agents: map[string]AgentSpec{
 			"claude": {
 				Command: "claude",
-				Args:    []string{"-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json"},
+				Args:    []string{"-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"},
 			},
 			"codex": {
 				Command: "codex",
