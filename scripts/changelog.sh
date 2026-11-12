@@ -27,6 +27,9 @@ section() {
 		case "$type" in
 		test | ci | style | chore) continue ;;
 		esac
+		if [ "${text,,}" = "changelog" ]; then
+			continue
+		fi
 		local line="- ${text^} ([${hash}](${repo_url}/commit/${hash}))"
 		case "$type" in
 		feat) feats+="${line}"$'\n' ;;
