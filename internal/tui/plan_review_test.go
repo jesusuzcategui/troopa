@@ -145,7 +145,7 @@ func TestPlanReviewFullFlow(t *testing.T) {
 		t.Fatalf("need two added lines, got %+v files %+v", plus, m.diffFiles)
 	}
 	m.diffIndex, m.diffCursor = plus[0].file, plus[0].line
-	m = press(t, m, "enter")
+	m = press(t, m, "2", "enter")
 	m.commentInput.SetValue("first line note")
 	next, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
 	m = next.(Model)

@@ -278,6 +278,7 @@ func (s *Store) ChangeStamp() string {
 		(SELECT COUNT(*) || '|' || COALESCE(MAX(updated_at), '') FROM tasks) || '#' ||
 		(SELECT COUNT(*) || '|' || COALESCE(MAX(updated_at), '') FROM runs) || '#' ||
 		(SELECT COUNT(*) || '|' || COALESCE(MAX(updated_at), '') FROM plans) || '#' ||
-		(SELECT COUNT(*) || '|' || COALESCE(SUM(resolved), 0) FROM review_comments)`).Scan(&stamp)
+		(SELECT COUNT(*) || '|' || COALESCE(SUM(resolved), 0) FROM review_comments) || '#' ||
+		(SELECT COUNT(*) || '|' || COALESCE(MAX(finished_at), '') || '|' || COALESCE(SUM(LENGTH(summary)), 0) FROM run_rounds)`).Scan(&stamp)
 	return stamp
 }

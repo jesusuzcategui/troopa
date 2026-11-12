@@ -36,7 +36,7 @@ func (m Model) mainWidth() int {
 }
 
 // contentRows is how many lines fit under the column headers.
-func (m Model) contentRows() int { return max(3, m.height-5) }
+func (m Model) contentRows() int { return max(3, m.height-4-m.hintLines()) }
 
 type colSlot struct {
 	status string
@@ -205,7 +205,8 @@ func (m Model) boardTitle() string {
 func (m Model) viewBoard() string {
 	th := m.theme
 	if m.drawerFocus && !m.drawerVisible() {
-		return m.viewDrawer(m.width, max(3, m.height-1))
+		w, h := m.drawerSize()
+		return m.viewDrawer(w, h)
 	}
 	mainW := m.mainWidth()
 	var body string
@@ -214,7 +215,7 @@ func (m Model) viewBoard() string {
 	} else {
 		body = m.viewKanban(mainW)
 	}
-	hints := th.Muted.Render(truncate(m.boardHints(), max(0, mainW-1)))
+	hints := th.Muted.Width(max(10, mainW-1)).Render(m.boardHints())
 	main := th.App.Width(mainW).Render(truncate(m.boardTitle(), mainW) + "\n\n" + body + "\n" + hints)
 	if !m.drawerVisible() {
 		return main

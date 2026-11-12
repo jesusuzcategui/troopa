@@ -32,7 +32,7 @@ const HelpText = `Shortcuts — projects
   v                  switch between board and list
   n                  create a task (title only)
   e                  edit the whole task
-  enter              edit, or log/review when an agent ran
+  enter              open its run (answer, diff, log), or edit if it never ran
   h / l              board: column · list: fold / unfold the group
   z / Z              fold the status · fold every empty status
   [ / ]  or  H / L   move the task to another status
@@ -75,15 +75,17 @@ const HelpText = `Shortcuts — projects
   click in a popup   pick an option
 
   Yolo agent (ready, not me)
+  tab / 1 2 3        Summary (agent answer), Changes (diff) or Log tab
+  j / k  PgUp/PgDn   scroll the summary or the log
   y / a              approve (auto: commit+push+PR; none: keeps the worktree)
-  x                  request changes (same agent, same worktree)
-  j / k              move the line cursor on the diff
-  n / p              next / previous file
-  enter / click      comment on the line
-  e / D              edit / delete the comment on the line
+  x                  request changes (shows the last answer; same agent, same worktree)
+  j / k              (Changes tab) move the line cursor on the diff
+  n / p              (Changes tab) next / previous file
+  enter / click      (Changes tab) comment on the line
+  e / D              (Changes tab) edit / delete the comment on the line
   C                  list pending comments
   r                  fold or unfold the selected round
-  [ / ] or tab       change round (review and log)
+  [ / ]              change round (review and log)
   g                  merge an approved local branch into the base
   c                  clean worktree, keep the branch
   d                  discard worktree and branch
@@ -160,7 +162,7 @@ const helpTextES = `Atajos — proyectos
   v                  cambiar entre tablero y lista
   n                  crear tarea (solo título)
   e                  editar tarea completa
-  enter              editar, o log/revisión si hay agente
+  enter              abrir su ejecución (respuesta, diff, log), o editar si nunca corrió
   h / l              tablero: columna · lista: plegar / desplegar el grupo
   z / Z              plegar el estado · plegar todos los vacíos
   [ / ]  o  H / L    mover tarea de estado
@@ -203,15 +205,17 @@ const helpTextES = `Atajos — proyectos
   clic en popup      elegir una opción
 
   Agente yolo (ready, no me)
+  tab / 1 2 3        pestaña Resumen (respuesta del agente), Cambios (diff) o Log
+  j / k  RePág/AvPág desplazar el resumen o el log
   y / a              aprobar (auto: commit+push+PR; none: deja el worktree)
-  x                  pedir cambios (mismo agente, mismo worktree)
-  j / k              mover el cursor de línea en el diff
-  n / p              archivo siguiente / anterior
-  enter / clic       comentar la línea
-  e / D              editar / borrar el comentario de la línea
+  x                  pedir cambios (muestra la última respuesta; mismo agente, mismo worktree)
+  j / k              (Cambios) mover el cursor de línea en el diff
+  n / p              (Cambios) archivo siguiente / anterior
+  enter / clic       (Cambios) comentar la línea
+  e / D              (Cambios) editar / borrar el comentario de la línea
   C                  listar comentarios pendientes
   r                  plegar o desplegar la ronda seleccionada
-  [ / ] o tab        cambiar de ronda (revisión y log)
+  [ / ]              cambiar de ronda (revisión y log)
   g                  mergear una rama local aprobada en la base
   c                  limpiar worktree, conservar la rama
   d                  descartar worktree y rama

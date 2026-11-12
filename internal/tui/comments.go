@@ -334,6 +334,7 @@ func (m Model) jumpToComment(c store.ReviewComment) (tea.Model, tea.Cmd) {
 		m.diffOffset = m.diffCursor
 		break
 	}
+	m.runTab = tabDiff
 	m.screen = screenReview
 	m.status = m.reviewBar()
 	return m, nil
@@ -392,7 +393,7 @@ func (m Model) updateCommentListMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) reviewBar() string {
 	n := m.pendingCommentCount()
-	base := reviewHelp(m.run.State)
+	base := runTabHelp(m.runTab, m.run.State)
 	if n == 1 {
 		return i18n.T("1 pending comment") + "  ·  " + base
 	}

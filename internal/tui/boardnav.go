@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
@@ -237,9 +238,14 @@ func (m *Model) moveList(delta int) {
 
 func (m Model) boardHints() string {
 	if m.listMode() {
-		return i18n.T("v board  space/z fold  m status  P priority  A agent  [ ] move  tab panel  n new  e edit  / search  B brain  o editor  ? help")
+		return i18n.T("enter open · n new · e edit · m status · P priority · A agent · [ ] move · tab panel · space/z fold · v board view · w plans · / search · B brain · o editor · ? help")
 	}
-	return i18n.T("v list  z fold  Z fold empty  m status  P priority  A agent  [ ] move  tab panel  n new  e edit  / search  B brain  o editor  ? help")
+	return i18n.T("enter open · n new · e edit · m status · P priority · A agent · [ ] move · tab panel · z fold · Z fold empty · v list view · w plans · / search · B brain · o editor · ? help")
+}
+
+// hintLines is how many lines the wrapped board hints take below the tasks.
+func (m Model) hintLines() int {
+	return lipgloss.Height(m.theme.Muted.Width(max(10, m.mainWidth()-1)).Render(m.boardHints()))
 }
 
 func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -327,6 +333,7 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if t, ok := m.selectedTask(); ok {
+			m.backToPlan = 0
 			return m.openRunView(t)
 		}
 	case "o":
@@ -385,6 +392,14 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "pgup":
 		if m.listMode() {
 			m.moveList(-max(1, m.listVisibleRows()))
+		}
+	case "ctrl+d", "ctrl+u":
+		if t, ok := m.selectedTask(); ok {
+			d := 10
+			if key == "ctrl+u" {
+				d = -10
+			}
+			m.scrollDrawer(t.ID, d)
 		}
 	case "[", "H":
 		return m.shiftTask(-1)

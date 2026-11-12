@@ -131,6 +131,8 @@ type Model struct {
 	popup          *popup
 	drawerFocus    bool
 	drawerField    int
+	drawerTask     int64
+	drawerOffset   int
 
 	taskTitle   textinput.Model
 	taskModelIn textinput.Model
@@ -163,6 +165,9 @@ type Model struct {
 	rounds     []store.Round
 	roundIndex int
 	roundOpen  map[int]bool
+	runTab     int
+	sumOffset  int
+	backToPlan int64 // plan to return to when the run screen closes
 
 	comments        []store.ReviewComment
 	commentInput    textarea.Model

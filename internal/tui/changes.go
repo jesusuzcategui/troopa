@@ -59,10 +59,12 @@ func (m Model) openChanges(from screen) (tea.Model, tea.Cmd) {
 	in.Focus()
 	m.changesInput = in
 	m.changesFrom = from
+	m.sumOffset = 0
+	m.loadRounds()
 	m.loadComments()
 	m.screen = screenChanges
 	m.err = ""
-	m.status = i18n.T("ctrl+s send to the agent · esc cancel")
+	m.status = i18n.T("ctrl+s send to the agent · PgUp/PgDn scroll the answer · esc cancel")
 	return m, textarea.Blink
 }
 
@@ -76,6 +78,12 @@ func (m Model) updateChangesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+s":
 		return m.sendChanges(m.changesInput.Value())
+	case "pgdown", "ctrl+d":
+		m.sumOffset = min(m.sumOffset+max(1, m.changesAnswerHeight()-1), max(0, len(m.lastAnswerLines())-m.changesAnswerHeight()))
+		return m, nil
+	case "pgup", "ctrl+u":
+		m.sumOffset = max(0, m.sumOffset-max(1, m.changesAnswerHeight()-1))
+		return m, nil
 	}
 	var cmd tea.Cmd
 	m.changesInput, cmd = m.changesInput.Update(msg)
@@ -116,6 +124,10 @@ func (m Model) viewChanges() string {
 		b.WriteString(th.Muted.Render(fmt.Sprintf(i18n.T("Rounds so far: %d (in CHANGES.md)"), r)) + "\n\n")
 	}
 	b.WriteString(th.Muted.Render(i18n.T("The agent keeps its work in the same worktree and applies what you write here.")) + "\n\n")
+	if lines := m.lastAnswerLines(); len(lines) > 0 {
+		b.WriteString(th.Title.Render(i18n.T("Last answer from the agent")) + th.Muted.Render("  ·  "+i18n.T("PgUp/PgDn scroll")) + "\n")
+		b.WriteString(m.window(lines, m.sumOffset, m.changesAnswerHeight()) + "\n\n")
+	}
 	if pending := m.pendingComments(); len(pending) > 0 {
 		b.WriteString(th.Title.Render(i18n.T("Pending comments")) + th.Muted.Render(fmt.Sprintf("  ·  %d", len(pending))) + "\n")
 		prev := ""
@@ -131,6 +143,23 @@ func (m Model) viewChanges() string {
 	}
 	b.WriteString(m.changesInput.View())
 	b.WriteString("\n\n")
-	b.WriteString(th.Muted.Render(i18n.T("ctrl+s send to the agent · esc cancel")))
+	b.WriteString(th.Muted.Render(i18n.T("ctrl+s send to the agent · PgUp/PgDn scroll the answer · esc cancel")))
 	return th.App.Render(b.String())
+}
+
+// lastAnswerLines is the latest round's summary, wrapped to the screen.
+func (m Model) lastAnswerLines() []string {
+	for i := len(m.rounds) - 1; i >= 0; i-- {
+		if sum := strings.TrimSpace(m.rounds[i].Summary); sum != "" {
+			return strings.Split(m.renderMarkdownW(sum, max(20, m.width-4)), "\n")
+		}
+	}
+	return nil
+}
+
+// changesAnswerHeight leaves room for the title, notes, comments, the input
+// box and the help line below the agent's answer.
+func (m Model) changesAnswerHeight() int {
+	used := 18 + len(m.pendingComments())*2
+	return max(4, m.height-used)
 }

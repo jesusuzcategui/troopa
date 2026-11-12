@@ -76,7 +76,7 @@ func TestReviewCommentCursorEditListAndRequestChanges(t *testing.T) {
 	line := f.Lines[plus]
 	num, _ := line.CommentTarget()
 
-	got = press(t, got, "enter")
+	got = press(t, got, "2", "enter")
 	if got.screen != screenComment {
 		t.Fatalf("enter should open comment, screen %v", got.screen)
 	}
@@ -169,7 +169,7 @@ func TestReviewCommentDeletePopup(t *testing.T) {
 	}
 	m.screen = screenReview
 	m.width, m.height = 80, 24
-	got := press(t, m, "D")
+	got := press(t, m, "2", "D")
 	if got.popup == nil || got.popup.kind != propConfirmDeleteComment {
 		t.Fatalf("D should confirm delete, popup=%+v", got.popup)
 	}

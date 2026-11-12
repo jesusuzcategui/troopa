@@ -252,6 +252,7 @@ func (m Model) finishPair() (tea.Model, tea.Cmd) {
 	m.diffIndex = 0
 	m.diffOffset = 0
 	m.diffCursor = 0
+	m.runTab, m.sumOffset, m.logOffset = tabSummary, 0, 0
 	m.loadComments()
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(dest)
@@ -359,6 +360,7 @@ func (m Model) applyEngineFinish(res engine.Result, foreground bool) (tea.Model,
 	m.diffIndex = 0
 	m.diffOffset = 0
 	m.diffCursor = 0
+	m.runTab, m.sumOffset, m.logOffset = tabSummary, 0, 0
 	m.loadComments()
 	m.reloadTasks()
 	m.colIndex = indexOfStatus(res.Run.State)
@@ -416,18 +418,22 @@ func (m Model) openRunView(t store.Task) (tea.Model, tea.Cmd) {
 		m.screen = screenLog
 		m.status = i18n.T("Agent running · ") + run.Branch
 		return m, tickLog()
-	case store.RunReview, store.RunBlocked, store.RunApproved:
-		m.diffFiles, _ = launch.WorktreeDiff(run.Worktree, run.Base)
+	default:
+		// review, blocked and approved runs can still be acted on; merged,
+		// cleaned and discarded ones open read-only so their answer stays
+		// visible. Use e on the board to edit the task itself.
+		m.diffFiles = nil
+		if dirExists(run.Worktree) {
+			m.diffFiles, _ = launch.WorktreeDiff(run.Worktree, run.Base)
+		}
 		m.diffIndex = 0
 		m.diffOffset = 0
 		m.diffCursor = 0
+		m.runTab, m.sumOffset, m.logOffset = tabSummary, 0, 0
 		m.loadComments()
 		m.screen = screenReview
 		m.status = m.reviewBar()
 		return m, nil
-	default:
-		m.openTaskForm(t)
-		return m.withTaskFocus()
 	}
 }
 
@@ -692,8 +698,23 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c", "q":
 		return m, tea.Quit
 	case "esc", "b":
-		m.screen = screenBoard
+		return m.leaveRunView()
+	case "tab":
+		m.setRunTab(m.runTab + 1)
 		return m, nil
+	case "shift+tab":
+		m.setRunTab(m.runTab - 1)
+		return m, nil
+	case "1", "2", "3":
+		m.setRunTab(int(msg.String()[0] - '1'))
+		return m, nil
+	case "y", "a", "g", "O", "c", "d":
+		if runIsFinal(m.run.State) {
+			m.status = i18n.T("This run is %s: nothing left to approve or merge", m.run.State)
+			return m, nil
+		}
+	}
+	switch msg.String() {
 	case "y", "a":
 		return m.approveRun()
 	case "g":
@@ -711,12 +732,19 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "[":
 		m.moveRound(-1)
+		m.logOffset = 0
 		return m, nil
-	case "]", "tab":
+	case "]":
 		m.moveRound(1)
+		m.logOffset = 0
 		return m, nil
 	case "o":
 		return m.openEditor(m.runFolder())
+	}
+	if m.runTab != tabDiff {
+		return m.updateRunPaneKey(msg)
+	}
+	switch msg.String() {
 	case "enter":
 		return m.openCommentOnCursor()
 	case "e":
@@ -777,10 +805,22 @@ func (m Model) viewReview() string {
 	} else if n > 1 {
 		b.WriteString(th.Muted.Render("  ·  " + i18n.T("%d pending comments", n)))
 	}
-	b.WriteString("\n\n")
-	rounds, _ := m.renderRounds(inner, false)
-	b.WriteString(rounds)
 	b.WriteString("\n")
+	b.WriteString(m.runTabBar())
+	b.WriteString("\n\n")
+	switch m.runTab {
+	case tabSummary:
+		b.WriteString(m.viewSummaryPane())
+		b.WriteString("\n\n")
+		b.WriteString(th.Muted.Width(max(20, m.width-2)).Render(m.reviewBar()))
+		return th.App.Render(b.String())
+	case tabLog:
+		b.WriteString(m.viewLogPane())
+		b.WriteString("\n\n")
+		b.WriteString(th.Muted.Width(max(20, m.width-2)).Render(m.reviewBar()))
+		return th.App.Render(b.String())
+	}
+	_ = inner
 	if len(m.diffFiles) == 0 {
 		b.WriteString(th.Muted.Render(i18n.T("No diff")))
 	} else {

@@ -43,6 +43,7 @@ type plansState struct {
 	draft     store.Plan
 	confirm   int64
 	prConfirm int64 // plan waiting for a second O before its PR
+	goalOpen  bool  // show the whole goal instead of the first lines
 }
 
 const planFormFields = 6
@@ -81,8 +82,11 @@ func planListHelp() string {
 }
 
 func planDetailHelp() string {
-	return i18n.T("a add step · enter edit step · K/J move · s start · p pause · t auto · A auto-approve · e edit · g merge · O PR · U pull · esc plans")
+	return i18n.T("enter open step · E edit step · a add step · K/J move · s start · p pause · t auto · A auto-approve · e edit plan · v goal · g merge · O PR · U pull · esc plans")
 }
+
+// planGoalLines is how much of a long goal the plan screen shows folded.
+const planGoalLines = 6
 
 func (m *Model) reloadPlans() {
 	list, err := m.store.ListPlans(m.boardProject.ID)
@@ -270,17 +274,23 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		ps.stepCur = min(max(0, ps.stepCur+dir), len(ps.steps)-1)
 		m.loadPlan(ps.plan.ID)
-	case "enter":
+	case "enter", "E":
 		if len(ps.steps) == 0 {
 			return m, nil
 		}
 		t := ps.steps[ps.stepCur]
-		m.plans = nil
-		if run, err := m.store.LatestRun(t.ID); err == nil && run.State != store.RunDiscarded {
-			return m.openRunView(t)
+		if key == "enter" {
+			if run, err := m.store.LatestRun(t.ID); err == nil && run.State != store.RunDiscarded {
+				m.backToPlan = ps.plan.ID
+				m.plans = nil
+				return m.openRunView(t)
+			}
 		}
+		m.plans = nil
 		m.openTaskForm(t)
 		return m.withTaskFocus()
+	case "v":
+		ps.goalOpen = !ps.goalOpen
 	case "e":
 		return m, m.editPlan(ps.plan)
 	case "t":
@@ -532,13 +542,18 @@ func (m Model) viewPlans() string {
 	}
 	p := ps.plan
 	done, total, _ := m.store.PlanProgress(p.ID)
-	b.WriteString(th.Label.Render(p.Title) + th.Muted.Render(fmt.Sprintf("  ·  %s  ·  %d/%d  ·  %s %s  ·  auto %s",
+	b.WriteString(th.Title.Render(p.Title) + "\n")
+	b.WriteString(th.Muted.Render(fmt.Sprintf("%s  ·  %d/%d  ·  %s %s  ·  auto %s",
 		planStateLabel(p.State), done, total, launch.AgentName(p.Agent), p.Model, onOff(p.Auto))) + "\n")
 	if p.AutoApprove {
 		b.WriteString(th.Muted.Render(i18n.T("Auto-approve on: steps whose checks pass are approved without you; the merge stays yours.")) + "\n")
 	}
 	if p.Goal != "" {
-		b.WriteString(th.Muted.Render(truncate(firstLine(p.Goal), max(10, m.width-4))) + "\n")
+		goal := strings.Split(th.Normal.UnsetPadding().Width(max(20, m.width-4)).Render(strings.TrimSpace(p.Goal)), "\n")
+		if limit := planGoalLines; len(goal) > limit && !ps.goalOpen {
+			goal = append(goal[:limit], th.Muted.Render(i18n.T("… v show the whole goal")))
+		}
+		b.WriteString("\n" + strings.Join(goal, "\n") + "\n")
 	}
 	if p.Base != "" {
 		b.WriteString(th.Muted.Render(i18n.T("Base branch: ")+p.Base) + "\n")
@@ -559,7 +574,8 @@ func (m Model) viewPlans() string {
 		case store.StatusBlocked:
 			mark = "✗"
 		}
-		line := fmt.Sprintf(" %s %2d. %-40s %-12s %s", mark, s.PlanStep, truncate(s.Title, 40), s.Status, launch.AgentName(s.Agent))
+		titleW := max(20, m.width-36)
+		line := fmt.Sprintf(" %s %2d. %-*s %-12s %s", mark, s.PlanStep, titleW, truncate(s.Title, titleW), s.Status, launch.AgentName(s.Agent))
 		line = truncate(line, max(10, m.width-4))
 		if i == ps.stepCur {
 			b.WriteString(th.Selected.Render(line) + "\n")

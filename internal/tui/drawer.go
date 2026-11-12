@@ -29,10 +29,55 @@ func (m Model) drawerPropTop(t store.Task, inner int) int {
 	return 1 + lipgloss.Height(m.drawerHead(t, inner))
 }
 
+// drawerSize is the width and height the board gives the drawer.
+func (m Model) drawerSize() (int, int) {
+	if m.drawerFocus && !m.drawerVisible() {
+		return m.width, max(3, m.height-1)
+	}
+	return m.drawerWidth(), max(3, m.height-1)
+}
+
 func (m Model) viewDrawer(w, h int) string {
 	th := m.theme
 	inner := max(10, w-4)
 	t, ok := m.selectedTask()
+	lines := m.drawerLines(t, ok, inner)
+	room := m.drawerRoom(inner, h)
+	if len(lines) > room {
+		off := min(m.drawerOffsetFor(t.ID), drawerMaxOffset(len(lines), room))
+		end := min(len(lines), off+room-1)
+		rest := len(lines) - end
+		lines = lines[off:end]
+		if rest > 0 {
+			lines = append(lines, th.Muted.Render(i18n.T("↓ %d more lines (PgDn)", rest)))
+		} else {
+			lines = append(lines, "")
+		}
+	}
+	return m.drawerFrame(lines, room, inner, w, h)
+}
+
+func (m Model) drawerHint() string {
+	if m.drawerFocus {
+		return i18n.T("j/k field · ←/→ change · J/K attachment · a attach · d remove · o open · e edit all · PgUp/PgDn scroll · esc back")
+	}
+	return i18n.T("m status · P priority · A agent · tab edit fields · ctrl+d/u scroll")
+}
+
+// drawerRoom is how many content lines fit above the wrapped help.
+func (m Model) drawerRoom(inner, h int) int {
+	help := lipgloss.Height(m.theme.Muted.Width(inner).Render(m.drawerHint()))
+	return max(1, h-2-help)
+}
+
+// drawerMaxOffset keeps the last line on screen: the window shows room-1
+// lines plus the "more lines" marker.
+func drawerMaxOffset(total, room int) int {
+	return max(0, total-(room-1))
+}
+
+func (m Model) drawerLines(t store.Task, ok bool, inner int) []string {
+	th := m.theme
 	var b strings.Builder
 	if !ok {
 		b.WriteString(th.Muted.Render(i18n.T("No task selected")))
@@ -121,19 +166,17 @@ func (m Model) viewDrawer(w, h int) string {
 			}
 		}
 	}
-	lines := strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
-	room := max(1, h-3)
-	if len(lines) > room {
-		lines = append(lines[:room-1], th.Muted.Render("…"))
-	}
-	hint := i18n.T("tab panel  m P A change")
-	if m.drawerFocus {
-		hint = i18n.T("j/k field  J/K attach  a attach  p path  d remove  o open  e edit  B brain  esc")
-	}
+	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+}
+
+func (m Model) drawerFrame(lines []string, room, inner, w, h int) string {
+	th := m.theme
+	hint := m.drawerHint()
+	help := strings.Split(th.Muted.Width(inner).Render(hint), "\n")
 	for len(lines) < room {
 		lines = append(lines, "")
 	}
-	lines = append(lines, th.Muted.Render(truncate(hint, inner)))
+	lines = append(lines, help...)
 	border := th.Muted.GetForeground()
 	if m.drawerFocus {
 		border = th.Title.GetForeground()
@@ -167,6 +210,10 @@ func (m Model) updateDrawerKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.drawerField = (m.drawerField + 1) % int(propCount)
 	case "k", "up":
 		m.drawerField = (m.drawerField - 1 + int(propCount)) % int(propCount)
+	case "pgdown", "ctrl+d":
+		m.scrollDrawer(t.ID, 10)
+	case "pgup", "ctrl+u":
+		m.scrollDrawer(t.ID, -10)
 	case "J":
 		m.moveAttachCursor(1)
 	case "K":
@@ -244,6 +291,16 @@ func lastRunBranchLine(repo string, run store.Run) string {
 }
 
 func (m Model) updateDrawerMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if msg.Button == tea.MouseButtonWheelDown || msg.Button == tea.MouseButtonWheelUp {
+		if t, ok := m.selectedTask(); ok {
+			d := 3
+			if msg.Button == tea.MouseButtonWheelUp {
+				d = -3
+			}
+			m.scrollDrawer(t.ID, d)
+		}
+		return m, nil
+	}
 	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft {
 		return m, nil
 	}
@@ -259,4 +316,24 @@ func (m Model) updateDrawerMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 	m.drawerFocus = true
 	return m, nil
+}
+
+// drawerOffsetFor is how far the drawer is scrolled for task id; it starts at
+// the top again whenever another task is selected.
+func (m Model) drawerOffsetFor(id int64) int {
+	if m.drawerTask != id {
+		return 0
+	}
+	return m.drawerOffset
+}
+
+func (m *Model) scrollDrawer(id int64, delta int) {
+	if m.drawerTask != id {
+		m.drawerTask, m.drawerOffset = id, 0
+	}
+	w, h := m.drawerSize()
+	t, ok := m.selectedTask()
+	inner := max(10, w-4)
+	limit := drawerMaxOffset(len(m.drawerLines(t, ok, inner)), m.drawerRoom(inner, h))
+	m.drawerOffset = min(max(0, m.drawerOffset+delta), limit)
 }

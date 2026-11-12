@@ -252,40 +252,70 @@ func (m Model) updateReviewMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.popup != nil {
 		return m.updatePopupMouse(msg)
 	}
+	wheel := 0
 	if msg.Button == tea.MouseButtonWheelDown {
-		m.moveDiffCursor(1)
-		return m, nil
+		wheel = 1
+	} else if msg.Button == tea.MouseButtonWheelUp {
+		wheel = -1
 	}
-	if msg.Button == tea.MouseButtonWheelUp {
-		m.moveDiffCursor(-1)
+	if wheel != 0 {
+		switch m.runTab {
+		case tabSummary:
+			m.scrollSummary(wheel * 3)
+		case tabLog:
+			m.scrollLog(wheel * 3)
+		default:
+			m.moveDiffCursor(wheel)
+		}
 		return m, nil
 	}
 	if msg.Action != tea.MouseActionPress || msg.Button != tea.MouseButtonLeft {
 		return m, nil
 	}
-	inner := max(20, m.width-2)
-	rounds, hits := m.renderRounds(inner, false)
-	y := msg.Y - 2
-	for _, h := range hits {
-		if y >= h.Y0 && y < h.Y1 {
-			m.roundIndex = h.Index
-			m.toggleSelectedRound()
-			return m, nil
+	if msg.Y == 1 {
+		// Tab bar: " 1 Summary   2 Changes   3 Log ".
+		x := 0
+		for t := 0; t < runTabCount; t++ {
+			w := len([]rune(fmt.Sprintf(" %d %s ", t+1, runTabLabel(t)))) + 1
+			if t == tabDiff && len(m.diffFiles) > 0 {
+				w += len(fmt.Sprintf(" (%d)", len(m.diffFiles)))
+			}
+			if msg.X < x+w {
+				m.setRunTab(t)
+				return m, nil
+			}
+			x += w
 		}
+		return m, nil
 	}
-	roundH := lineCount(rounds)
-	diffTop := roundH + 1 // blank line after rounds, then path
+	const top = 3 // title, tab bar, blank line
+	switch m.runTab {
+	case tabSummary:
+		inner := max(20, m.width-2)
+		_, hits := m.renderRounds(inner, false)
+		y := msg.Y - top + m.sumOffset
+		for _, h := range hits {
+			if y == h.Y0 {
+				m.roundIndex = h.Index
+				m.toggleSelectedRound()
+				return m, nil
+			}
+		}
+		return m, nil
+	case tabLog:
+		return m, nil
+	}
 	if len(m.diffFiles) == 0 {
 		return m, nil
 	}
 	f := m.diffFiles[m.diffIndex]
-	lineY := diffTop + 1 // skip path header
+	y := msg.Y
+	lineY := top + 1 // skip the path header
 	start := m.diffOffset
 	if start > len(f.Lines) {
 		start = max(0, len(f.Lines)-1)
 	}
-	usedHeader := 2 + roundH + 1 + 1 // title, blank, rounds, blank, path
-	h := max(4, m.height-usedHeader-3)
+	h := max(4, m.height-(top+1)-3)
 	shown := 0
 	for i := start; i < len(f.Lines); i++ {
 		need := m.diffLineHeight(f.Path, f.Lines[i])
