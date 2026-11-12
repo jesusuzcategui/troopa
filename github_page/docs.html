@@ -17,6 +17,7 @@
       <nav class="top-nav" aria-label="Site">
         <a href="./" data-i18n="nav.home">Home</a>
         <a href="./#install" data-i18n="nav.install">Install</a>
+        <a href="./changelog.html" data-i18n="nav.changelog">Changelog</a>
         <a href="https://github.com/jesusuzcategui/troopa">GitHub</a>
       </nav>
       <div class="top-tools">
@@ -66,6 +67,7 @@
         <section id="board">
           <h2>Projects and board</h2>
           <p>A project is a git repository. Its tasks move through <code>inbox → backlog → ready → in-progress → review → done</code> (plus <code>blocked</code> and <code>pair-paused</code>). Switch between board and list with <kbd>v</kbd>, fold statuses with <kbd>z</kbd>, open the task panel with <kbd>tab</kbd>.</p>
+          <p><kbd>enter</kbd> on a task opens its run (the agent's answer, the diff and the log), even after it was merged; a task that never ran opens its form. <kbd>e</kbd> always edits the task. The side panel shows the whole task and its last run: scroll it with <kbd>ctrl+d</kbd>/<kbd>ctrl+u</kbd> or the mouse wheel; inside it (<kbd>tab</kbd>) <kbd>j</kbd>/<kbd>k</kbd> pick a field, <kbd>←</kbd>/<kbd>→</kbd> change it and <kbd>PgUp</kbd>/<kbd>PgDn</kbd> scroll. <kbd>m</kbd>, <kbd>P</kbd> and <kbd>A</kbd> change status, priority and agent from anywhere on the board.</p>
           <p>Each task has a title, a description in Markdown, acceptance criteria (one per line), priority, agent, model, mode (<em>yolo</em> or <em>pair</em>), commit mode and type. Attach files with <kbd>a</kbd> and reference repo files with <code>@path</code>.</p>
           <p>Clients (<kbd>c</kbd> on the project list) group projects; metrics (<kbd>M</kbd>) compare time, tokens and cost per agent and project.</p>
         </section>
@@ -84,7 +86,13 @@
 
         <section id="review">
           <h2>Review and changes</h2>
-          <p>The review screen shows the summary (it starts with “How to run”), the checks and the diff. Move through the diff with <kbd>j</kbd>/<kbd>k</kbd>, comment a line with <kbd>enter</kbd>, and press <kbd>x</kbd> to send your feedback and comments back to the same agent in the same worktree. Each launch and each request is a round; older rounds fold away.</p>
+          <p>The run screen has three tabs; switch with <kbd>tab</kbd> or <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>:</p>
+          <ul>
+            <li><strong>Summary</strong>: what the agent answered in each round (it starts with “How to run”), your feedback and the checks. Scroll with <kbd>j</kbd>/<kbd>k</kbd>, <kbd>PgUp</kbd>/<kbd>PgDn</kbd>, <kbd>G</kbd> or the wheel; <kbd>r</kbd> folds a round and <kbd>[</kbd>/<kbd>]</kbd> pick one.</li>
+            <li><strong>Changes</strong>: the diff. <kbd>j</kbd>/<kbd>k</kbd> move the line, <kbd>n</kbd>/<kbd>p</kbd> the file, <kbd>enter</kbd> comments the line, <kbd>e</kbd>/<kbd>D</kbd> edit or delete it, <kbd>C</kbd> lists the pending comments.</li>
+            <li><strong>Log</strong>: the agent's raw log for the selected round.</li>
+          </ul>
+          <p><kbd>x</kbd> opens the request-changes screen with the agent's last answer on top (<kbd>PgUp</kbd>/<kbd>PgDn</kbd> scroll it): write what should change and press <kbd>ctrl+s</kbd> to send it, with your line comments, to the same agent in the same worktree. Each launch and each request is a round. The screen follows changes made from the daemon, MCP or Telegram while it is open. Runs that were merged, cleaned or discarded open read-only.</p>
           <ul>
             <li><kbd>y</kbd> approve: with <code>commits = auto</code> it commits, pushes and opens a PR when there is a remote.</li>
             <li><kbd>g</kbd> merge an approved branch into the base on this computer (squash or merge commit). A task approved without committing is committed first.</li>
@@ -99,7 +107,7 @@
           <p>A plan is an ordered list of tasks of a project that run one after the other. Press <kbd>w</kbd> on a board to see its plans.</p>
           <ol>
             <li><kbd>n</kbd> creates a plan: title, goal, default agent and model, and <em>auto-advance</em>.</li>
-            <li>Add the steps in order with <kbd>a</kbd> (<kbd>enter</kbd> adds, <kbd>esc</kbd> ends). Reorder with <kbd>K</kbd>/<kbd>J</kbd>; <kbd>enter</kbd> edits a step like any task.</li>
+            <li>Add the steps in order with <kbd>a</kbd> (<kbd>enter</kbd> adds, <kbd>esc</kbd> ends). Reorder with <kbd>K</kbd>/<kbd>J</kbd>. <kbd>enter</kbd> opens the step's run (<kbd>esc</kbd> comes back to the plan) and <kbd>E</kbd> edits the step like any task. <kbd>v</kbd> shows a long goal in full.</li>
             <li><kbd>s</kbd> starts the plan: the first step that is not done launches.</li>
             <li>Each step goes through the normal review. Approving a step commits it on its branch, and the next step starts <strong>from that branch</strong>, so it builds on the work before it. With auto-advance on, it starts by itself; otherwise press <kbd>s</kbd>.</li>
             <li>When every step is done, open the plan and press <kbd>g</kbd> to merge the last branch (the whole plan) into the branch the plan started from, or <kbd>O</kbd> twice to push it and open a PR. After the PR is merged on the remote, <kbd>g</kbd> removes the step worktrees; <kbd>U</kbd> pulls the base branch.</li>
@@ -296,7 +304,7 @@ brain_git = false
 
 [agents.claude]
 command = "claude"
-args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json"]
+args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"]
 
 [prices.claude]            # USD per million tokens
 input = 3
@@ -337,6 +345,7 @@ merge = "./scripts/deploy-staging.sh"</pre>
         <section id="board-es">
           <h2>Proyectos y tablero</h2>
           <p>Un proyecto es un repositorio git. Sus tareas pasan por <code>inbox → backlog → ready → in-progress → review → done</code> (más <code>blocked</code> y <code>pair-paused</code>). Cambia entre tablero y lista con <kbd>v</kbd>, pliega estados con <kbd>z</kbd> y abre el panel de la tarea con <kbd>tab</kbd>.</p>
+          <p><kbd>enter</kbd> en una tarea abre su ejecución (la respuesta del agente, el diff y el log), incluso después del merge; una tarea que nunca corrió abre su formulario. <kbd>e</kbd> siempre edita la tarea. El panel lateral muestra la tarea completa y su última ejecución: desplázalo con <kbd>ctrl+d</kbd>/<kbd>ctrl+u</kbd> o la rueda del mouse; dentro de él (<kbd>tab</kbd>) <kbd>j</kbd>/<kbd>k</kbd> eligen un campo, <kbd>←</kbd>/<kbd>→</kbd> lo cambian y <kbd>RePág</kbd>/<kbd>AvPág</kbd> desplazan. <kbd>m</kbd>, <kbd>P</kbd> y <kbd>A</kbd> cambian estado, prioridad y agente desde cualquier parte del tablero.</p>
           <p>Cada tarea tiene título, descripción en Markdown, criterios de aceptación (uno por línea), prioridad, agente, modelo, modo (<em>yolo</em> o <em>pair</em>), modo de commits y tipo. Adjunta archivos con <kbd>a</kbd> y referencia archivos del repo con <code>@ruta</code>.</p>
           <p>Los clientes (<kbd>c</kbd> en la lista de proyectos) agrupan proyectos; las métricas (<kbd>M</kbd>) comparan tiempo, tokens y costo por agente y por proyecto.</p>
         </section>
@@ -355,7 +364,13 @@ merge = "./scripts/deploy-staging.sh"</pre>
 
         <section id="review-es">
           <h2>Revisión y cambios</h2>
-          <p>La pantalla de revisión muestra el resumen (empieza con “How to run”), los checks y el diff. Recorre el diff con <kbd>j</kbd>/<kbd>k</kbd>, comenta una línea con <kbd>enter</kbd> y pulsa <kbd>x</kbd> para mandar tus comentarios al mismo agente en el mismo worktree. Cada lanzamiento y cada pedido de cambios es una ronda; las anteriores se pliegan.</p>
+          <p>La pantalla de una ejecución tiene tres pestañas; cambia con <kbd>tab</kbd> o <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>:</p>
+          <ul>
+            <li><strong>Resumen</strong>: lo que respondió el agente en cada ronda (empieza con “How to run”), tus comentarios y los checks. Desplázate con <kbd>j</kbd>/<kbd>k</kbd>, <kbd>RePág</kbd>/<kbd>AvPág</kbd>, <kbd>G</kbd> o la rueda; <kbd>r</kbd> pliega una ronda y <kbd>[</kbd>/<kbd>]</kbd> eligen una.</li>
+            <li><strong>Cambios</strong>: el diff. <kbd>j</kbd>/<kbd>k</kbd> mueven la línea, <kbd>n</kbd>/<kbd>p</kbd> el archivo, <kbd>enter</kbd> comenta la línea, <kbd>e</kbd>/<kbd>D</kbd> la editan o borran, <kbd>C</kbd> lista los comentarios pendientes.</li>
+            <li><strong>Log</strong>: el log del agente de la ronda elegida.</li>
+          </ul>
+          <p><kbd>x</kbd> abre la pantalla de pedir cambios con la última respuesta del agente arriba (<kbd>RePág</kbd>/<kbd>AvPág</kbd> la desplazan): escribe qué debe cambiar y pulsa <kbd>ctrl+s</kbd> para mandarlo, con tus comentarios de línea, al mismo agente en el mismo worktree. Cada lanzamiento y cada pedido es una ronda. La pantalla sigue los cambios hechos desde el daemon, el MCP o Telegram mientras está abierta. Las ejecuciones ya mergeadas, limpiadas o descartadas se abren solo para leer.</p>
           <ul>
             <li><kbd>y</kbd> aprobar: con <code>commits = auto</code> hace commit, push y abre un PR si hay remoto.</li>
             <li><kbd>g</kbd> merge de una rama aprobada en la base, en esta computadora (squash o merge commit). Si la tarea se aprobó sin commit, primero se hace el commit.</li>
@@ -370,7 +385,7 @@ merge = "./scripts/deploy-staging.sh"</pre>
           <p>Un plan es una lista ordenada de tareas de un proyecto que se ejecutan una tras otra. Pulsa <kbd>w</kbd> en un tablero para ver sus planes.</p>
           <ol>
             <li><kbd>n</kbd> crea un plan: título, objetivo, agente y modelo por defecto, y <em>avance automático</em>.</li>
-            <li>Agrega los pasos en orden con <kbd>a</kbd> (<kbd>enter</kbd> agrega, <kbd>esc</kbd> termina). Reordena con <kbd>K</kbd>/<kbd>J</kbd>; <kbd>enter</kbd> edita un paso como cualquier tarea.</li>
+            <li>Agrega los pasos en orden con <kbd>a</kbd> (<kbd>enter</kbd> agrega, <kbd>esc</kbd> termina). Reordena con <kbd>K</kbd>/<kbd>J</kbd>. <kbd>enter</kbd> abre la ejecución del paso (<kbd>esc</kbd> vuelve al plan) y <kbd>E</kbd> edita el paso como cualquier tarea. <kbd>v</kbd> muestra completo un objetivo largo.</li>
             <li><kbd>s</kbd> inicia el plan: se lanza el primer paso que no esté terminado.</li>
             <li>Cada paso pasa por la revisión normal. Al aprobar un paso se hace commit en su rama y el siguiente arranca <strong>desde esa rama</strong>, así construye sobre el trabajo anterior. Con avance automático arranca solo; si no, pulsa <kbd>s</kbd>.</li>
             <li>Cuando todos los pasos están listos, abre el plan y pulsa <kbd>g</kbd> para mergear la última rama (el plan completo) en la rama desde la que empezó el plan, o <kbd>O</kbd> dos veces para subirla y abrir un PR. Cuando el PR se fusiona en el remoto, <kbd>g</kbd> elimina los worktrees de los pasos; <kbd>U</kbd> hace pull de la rama base.</li>
@@ -567,7 +582,7 @@ brain_git = false
 
 [agents.claude]
 command = "claude"
-args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json"]
+args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"]
 
 [prices.claude]            # USD por millón de tokens
 input = 3

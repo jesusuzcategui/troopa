@@ -15,6 +15,7 @@ export default defineConfig({
       input: {
         main: resolve(here, "index.html"),
         docs: resolve(here, "docs.html"),
+        changelog: resolve(here, "changelog.html"),
       },
     },
   },

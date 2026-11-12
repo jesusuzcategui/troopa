@@ -83,7 +83,7 @@ editor = "nvim"            # or "code", "zed", "code --new-window"…
 
 [agents.claude]
 command = "claude"
-args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json"]
+args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose"]
 
 [prices.default]
 input = 3
@@ -97,7 +97,7 @@ Moving a task to **ready** with an agent other than `me` creates a git worktree 
 
 ### Request changes
 
-When the work is not quite right, press `x` in the review (or on the task in the board, the list or the panel) and write what should change. The same agent runs again **in the same worktree**, keeping what it already did, with your feedback in `CHANGES.md` (one round per request; never committed). In the review, `j`/`k` move a line cursor on the diff (`n`/`p` change file); `enter` or a click comments that line (real new-file number from the hunk headers). Lines with comments show a mark and the text under the row; `e` edits, `D` deletes, `C` lists pending comments. Requesting changes includes those comments as `path:line`, the quoted line and the note; general text is optional if there are comments. Sent comments are resolved and shown on that round. Each round is stored separately: the review and the task panel show older rounds folded and the latest open (`r` or click toggles; `[` `]` or `tab` change round). The log can be filtered to one round. Pair tasks reopen the interactive agent with the feedback. The diff is still the whole worktree.
+When the work is not quite right, press `x` in the review (or on the task in the board, the list or the panel) and write what should change. The same agent runs again **in the same worktree**, keeping what it already did, with your feedback in `CHANGES.md` (one round per request; never committed). In the review's Changes tab, `j`/`k` move a line cursor on the diff (`n`/`p` change file); `enter` or a click comments that line (real new-file number from the hunk headers). Lines with comments show a mark and the text under the row; `e` edits, `D` deletes, `C` lists pending comments. Requesting changes includes those comments as `path:line`, the quoted line and the note; general text is optional if there are comments. Sent comments are resolved and shown on that round. Each round is stored separately: the Summary tab and the task panel show older rounds folded and the latest open (`r` or click toggles; `[` `]` change round). The log can be filtered to one round. Pair tasks reopen the interactive agent with the feedback. The diff is still the whole worktree.
 
 Every `TASK.md` asks the agent to start `SUMMARY.md` with a **How to run** section (setup, dependencies, command, how to test), so the review tells you how to try the change. It also includes a **Project context** section with the absolute paths of `project.md` and `INDEX.md` and the Current state / Next / Decisions text. The agent may read the rest of the brain; it must not edit it unless the task says so.
 
@@ -157,11 +157,13 @@ Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · 
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 
-Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `n` quick task · `e` edit · `enter` edit or agent log/review · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `o` editor · panel `a` attach · `esc` back
+Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `ctrl+d`/`ctrl+u` scroll the panel · `n` quick task · `e` edit · `enter` open the run (answer, diff, log) or edit a task that never ran · `w` plans · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `o` editor · panel `a` attach · `esc` back
 
 On a narrow terminal the board scrolls sideways and follows the selected column (`◀ 2` / `▶ 3` show hidden statuses). From 120 columns the task panel sits beside the board; on smaller terminals `tab` opens it full screen. The view and the folded statuses are saved as `board_view` and `collapsed` in `config.toml`.
 
-Review: `y` approve · `x` request changes · `j`/`k` line · `n`/`p` file · `enter` comment · `e` edit · `D` delete · `C` comments · `r` fold round · `[` `]`/`tab` change round · `g` merge · `c` clean worktree · `d` discard · `o` editor
+Run screen: `tab` or `1` `2` `3` switch tabs: **Summary** (the agent's answer; `j`/`k`, `PgUp`/`PgDn`, `G` scroll), **Changes** (the diff: `j`/`k` line · `n`/`p` file · `enter` comment · `e` edit · `D` delete) and **Log** · `C` comments · `r` fold round · `[` `]` change round · `y` approve · `x` request changes (shows the last answer) · `g` merge · `c` clean worktree · `d` discard · `o` editor. Merged, cleaned and discarded runs open read-only.
+
+Plans: `enter` open the step's run (`esc` back to the plan) · `E` edit the step · `a` add · `K`/`J` move · `s` start · `p` pause · `t` auto · `A` auto-approve · `v` whole goal · `g` merge · `O` PR · `U` pull
 
 Pair: `f` finish · `r` reopen agent · `o` editor · `esc` board (session keeps running)
 
@@ -170,6 +172,7 @@ Mouse: click to select, drag a card to another column, wheel to scroll.
 ## Releases and website
 
 - `git tag v0.2.0 && git push origin v0.2.0` runs `.github/workflows/release.yml`: tests, then GoReleaser builds every platform, the Linux packages and `checksums.txt`, and publishes the GitHub release. Try it locally with `goreleaser release --snapshot --clean`.
+- Before tagging, run `scripts/changelog.sh` and commit `CHANGELOG.md`: it lists every version's commits (features, fixes, other) and the website shows it at `/changelog.html`.
 - The website lives in `github_page/` (HTML, CSS and JavaScript built with Vite into `github_page/dist`). `cd github_page && npm install && npm run dev` to work on it; pushing changes to `main` publishes it through `.github/workflows/pages.yml`.
 
 ## License
