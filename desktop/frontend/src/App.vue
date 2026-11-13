@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { Client, Profile, Project } from "../bindings/github.com/jesusuzcategui/troopa/internal/store/models";
 import type { ProjectSummary } from "../bindings/github.com/jesusuzcategui/troopa/internal/app/models";
 import type { Palette } from "../bindings/github.com/jesusuzcategui/troopa/internal/theme/models";
@@ -41,6 +41,13 @@ const lang = ref<Lang>("en");
 const themes = ref<Palette[]>([]);
 const activeTheme = ref("dark");
 const headerMenuOpen = ref(false);
+const header = ref<HTMLElement | null>(null);
+
+function closeHeaderMenuOnOutsideClick(event: PointerEvent) {
+  if (header.value && event.target instanceof Node && !header.value.contains(event.target)) {
+    headerMenuOpen.value = false;
+  }
+}
 
 function applyThemeByName(name: string) {
   const match = findTheme(themes.value, name);
@@ -219,6 +226,7 @@ function lastActivity(value: string) {
 }
 
 onMounted(async () => {
+  document.addEventListener("pointerdown", closeHeaderMenuOnOutsideClick);
   try {
     const [themeList, settings] = await Promise.all([
       AppService.ListThemes(),
@@ -240,11 +248,15 @@ onMounted(async () => {
 
   await loadData();
 });
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", closeHeaderMenuOnOutsideClick);
+});
 </script>
 
 <template>
   <div class="app-shell" :class="{ 'board-mode': !!openProject }">
-    <header class="topbar">
+    <header ref="header" class="topbar">
       <div class="topbar-inner" :class="{ wide: !!openProject }">
         <div class="brand">
           <TroopaLogo />
