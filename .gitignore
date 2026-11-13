@@ -12,3 +12,4 @@
 /build/windows/icon.ico
 /build/windows/nsis/*.exe
 *.syso
+.impeccable/
