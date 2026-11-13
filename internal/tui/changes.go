@@ -77,7 +77,7 @@ func (m Model) openChanges(from screen) (tea.Model, tea.Cmd) {
 }
 
 func changesHelpLine() string {
-	return i18n.T("ctrl+s send · p image path · ctrl+v clipboard · J/K images · D remove · esc cancel")
+	return i18n.T("ctrl+s send · ctrl+o image path · ctrl+v paste image · alt+j/k images · ctrl+x remove · esc cancel")
 }
 
 func (m Model) updateChangesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -102,17 +102,20 @@ func (m Model) updateChangesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "pgup", "ctrl+u":
 		m.sumOffset = max(0, m.sumOffset-max(1, m.changesAnswerHeight()-1))
 		return m, nil
-	case "p":
+	// Shortcuts here use ctrl/alt so every plain letter reaches the text box.
+	case "ctrl+o":
 		return m.openChangesAttachPath()
 	case "ctrl+v":
-		return m.changesPasteClipboard()
-	case "J":
+		if next, cmd, ok := m.changesPasteClipboard(); ok {
+			return next, cmd
+		}
+	case "alt+j", "alt+down":
 		m.moveChangesImgCursor(1)
 		return m, nil
-	case "K":
+	case "alt+k", "alt+up":
 		m.moveChangesImgCursor(-1)
 		return m, nil
-	case "D":
+	case "ctrl+x":
 		return m.removeChangesImage()
 	}
 	var cmd tea.Cmd
@@ -179,13 +182,15 @@ func (m Model) changesAddImage(path string) (Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) changesPasteClipboard() (Model, tea.Cmd) {
+// changesPasteClipboard attaches the clipboard image. ok is false when the
+// clipboard holds no image, so ctrl+v falls through to a normal text paste.
+func (m Model) changesPasteClipboard() (Model, tea.Cmd, bool) {
 	path, err := clipboard.ImageFromClipboard()
 	if err != nil {
-		m.err = err.Error()
-		return m, nil
+		return m, nil, false
 	}
-	return m.changesAddImage(path)
+	next, cmd := m.changesAddImage(path)
+	return next, cmd, true
 }
 
 func (m *Model) moveChangesImgCursor(delta int) {
