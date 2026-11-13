@@ -592,6 +592,8 @@ func run(s *store.Store, cmd string, args []string) (any, error) {
 	}
 	rid := f.String("id", "", "")
 	state := f.String("state", "", "")
+	feedbackFlag := f.String("feedback", "", "")
+	images := collectImageFlags(args)
 	_ = rid
 	if e := f.Parse(args); e != nil {
 		return nil, input(e.Error())
@@ -626,9 +628,34 @@ func run(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		return closeRun(s, n, cmd)
+	case "request-changes":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		app := application(s)
+		res, err := app.RequestRunChangesWithImages(n, strings.TrimSpace(*feedbackFlag), images)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{
+			"run":     res.Run,
+			"message": res.Message,
+			"watch":   res.Watch,
+		}, nil
 	default:
 		return nil, input("unknown run command: " + cmd)
 	}
+}
+
+func collectImageFlags(args []string) []string {
+	var out []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "--image=") {
+			out = append(out, strings.TrimPrefix(a, "--image="))
+		}
+	}
+	return out
 }
 
 func closeRun(s *store.Store, id int64, action string) (any, error) {

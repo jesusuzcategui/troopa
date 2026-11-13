@@ -87,11 +87,7 @@ func (m *Model) scrollSummary(delta int) {
 }
 
 func (m Model) logLines() []string {
-	raw, _ := os.ReadFile(m.run.LogPath)
-	if r, ok := m.selectedRound(); ok {
-		raw = roundLogSlice(raw, r)
-	}
-	return strings.Split(string(raw), "\n")
+	return m.logDisplayLines()
 }
 
 func (m *Model) scrollLog(delta int) {
@@ -141,7 +137,7 @@ func runTabHelp(tab int, state string) string {
 	case tabDiff:
 		pane = i18n.T("j/k line  n/p file  enter comment  e edit  D delete  C comments")
 	case tabLog:
-		pane = i18n.T("j/k scroll  PgUp/PgDn page  [ ] round")
+		pane = i18n.T("j/k scroll  PgUp/PgDn page  [ ] round  R raw  t thinking")
 	default:
 		pane = i18n.T("j/k scroll  PgUp/PgDn page  r fold  [ ] round")
 	}
@@ -163,6 +159,18 @@ func runTabHelp(tab int, state string) string {
 
 // updateRunPaneKey scrolls the summary or the log tab.
 func (m Model) updateRunPaneKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.runTab == tabLog {
+		switch msg.String() {
+		case "R":
+			m.toggleLogFormatted()
+			return m, nil
+		case "t":
+			m.toggleLogThinking()
+			return m, nil
+		case "enter", "o":
+			return m.openLogImageLine()
+		}
+	}
 	page := max(1, m.paneHeight()-2)
 	scroll := m.scrollSummary
 	if m.runTab == tabLog {

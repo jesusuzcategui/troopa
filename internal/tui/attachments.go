@@ -242,13 +242,7 @@ func (m Model) openSelectedAttachment() (tea.Model, tea.Cmd) {
 		m.status = i18n.T("No attachment selected")
 		return m, nil
 	}
-	cmd, err := launch.OpenAttachment(m.cfg.Launch.Editor, path, mime)
-	if err != nil {
-		m.err = err.Error()
-		return m, nil
-	}
-	m.status = i18n.T("Opening: ") + filepath.Base(path)
-	return m, tea.ExecProcess(cmd, func(err error) tea.Msg { return editorClosedMsg{err: err} })
+	return m.openImageOrFile(path, mime)
 }
 
 func (m Model) renderAttachList() string {

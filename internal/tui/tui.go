@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -54,6 +55,8 @@ const (
 	screenBrain
 	screenProfiles
 	screenPlans
+	screenChats
+	screenTranscript
 )
 
 type field int
@@ -155,21 +158,34 @@ type Model struct {
 	mentionCursor  int
 	mentionQuery   string
 
-	run        store.Run
-	runSess    launch.Session
-	runTask    store.Task
-	runPair    launch.PairProc
-	logOffset  int
-	diffFiles  []launch.FileDiff
-	diffIndex  int
-	diffOffset int
-	diffCursor int
-	rounds     []store.Round
-	roundIndex int
-	roundOpen  map[int]bool
-	runTab     int
-	sumOffset  int
-	backToPlan int64 // plan to return to when the run screen closes
+	run               store.Run
+	runSess           launch.Session
+	runTask           store.Task
+	runPair           launch.PairProc
+	logOffset         int
+	logRaw            bool
+	logExpandThinking bool
+	changesImages     []string
+	changesImgCursor  int
+	changesPathOpen   bool
+	changesPath       textinput.Model
+	imageOverlay      *imageOverlay
+	chats             []chatEntry
+	chatCursor        int
+	chatOffset        int
+	chatsFrom         screen
+	transcript        []string
+	transcriptPath    string
+	diffFiles         []launch.FileDiff
+	diffIndex         int
+	diffOffset        int
+	diffCursor        int
+	rounds            []store.Round
+	roundIndex        int
+	roundOpen         map[int]bool
+	runTab            int
+	sumOffset         int
+	backToPlan        int64 // plan to return to when the run screen closes
 
 	comments        []store.ReviewComment
 	commentInput    textarea.Model
@@ -248,6 +264,10 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 	m.attachPath.CharLimit = 512
 	m.attachPath.Width = 56
 	m.attachPath.Prompt = ""
+	m.changesPath = textinput.New()
+	m.changesPath.CharLimit = 512
+	m.changesPath.Width = 56
+	m.changesPath.Prompt = ""
 	m.clientInputs = newClientInputs()
 	m.paletteInput = textinput.New()
 	m.paletteInput.Placeholder = i18n.T("search command")
@@ -374,6 +394,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.attachPathOpen {
 			return m.updateAttachPath(msg)
 		}
+		if m.changesPathOpen {
+			return m.updateChangesAttachPath(msg)
+		}
+		if m.imageOverlay != nil {
+			return m.updateImageOverlayKey(msg)
+		}
 		return m.updateKey(msg)
 	case tea.MouseMsg:
 		return m.updateMouse(msg)
@@ -390,6 +416,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.finishAgent(msg)
 	case pairClosedMsg:
 		return m.handlePairClosed(msg)
+	case imageShownMsg:
+		if msg.err != "" {
+			m.imageOverlay = nil
+			m.err = msg.err
+		} else {
+			m.status = i18n.T("Image") + " · " + filepath.Base(msg.path)
+		}
+		return m, nil
+	case imageClosedMsg:
+		return m, nil
 	case editorClosedMsg:
 		if m.screen == screenBrain && m.brainRel != "" {
 			m.refreshBrainTree()
@@ -541,6 +577,10 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updatePairKey(msg)
 	case screenMetrics:
 		return m.updateMetricsKey(msg)
+	case screenChats:
+		return m.updateChatsKey(msg)
+	case screenTranscript:
+		return m.updateTranscriptKey(msg)
 	case screenBrain:
 		return m.updateBrainKey(msg)
 	default:
@@ -914,6 +954,10 @@ func (m Model) View() string {
 		body = m.viewPair()
 	case screenMetrics:
 		body = m.viewMetrics()
+	case screenChats:
+		body = m.viewChats()
+	case screenTranscript:
+		body = m.viewTranscript()
 	case screenPalette:
 		body = m.viewPalette()
 	case screenTheme:
@@ -962,6 +1006,18 @@ func (m Model) View() string {
 	}
 	if m.attachPathOpen {
 		box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(m.viewAttachPathOverlay())
+		x := max(0, (m.width-lipgloss.Width(box))/2)
+		y := max(0, (innerH-lipgloss.Height(box))/3)
+		body = overlay(body, box, x, y)
+	}
+	if m.changesPathOpen {
+		box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1).Render(m.viewChangesAttachPathOverlay())
+		x := max(0, (m.width-lipgloss.Width(box))/2)
+		y := max(0, (innerH-lipgloss.Height(box))/3)
+		body = overlay(body, box, x, y)
+	}
+	if m.imageOverlay != nil {
+		box := m.viewImageOverlay()
 		x := max(0, (m.width-lipgloss.Width(box))/2)
 		y := max(0, (innerH-lipgloss.Height(box))/3)
 		body = overlay(body, box, x, y)

@@ -5,6 +5,7 @@ package engine
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/i18n"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
+	"github.com/jesusuzcategui/troopa/internal/termimg"
 )
 
 type Engine struct {
@@ -283,4 +285,30 @@ func summaryFrom(sess launch.Session, logPath string) string {
 
 func (e *Engine) result(run store.Run, task store.Task, sess launch.Session, msg string, watch bool) Result {
 	return Result{Run: run, Task: task, Session: sess, Message: msg, Watch: watch, Won: true}
+}
+
+func (e *Engine) attachRoundImages(taskID int64, paths []string) ([]store.Attachment, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	dir, err := config.AttachmentsDir(taskID)
+	if err != nil {
+		return nil, err
+	}
+	var added []store.Attachment
+	for _, src := range paths {
+		src = strings.TrimSpace(src)
+		if src == "" {
+			continue
+		}
+		if !termimg.IsImagePath(src) {
+			return nil, fmt.Errorf("%s", i18n.T("Not an image: %s", src))
+		}
+		a, err := e.Store.AttachFile(taskID, src, dir, e.Cfg.MaxAttachmentBytes())
+		if err != nil {
+			return nil, err
+		}
+		added = append(added, a)
+	}
+	return added, nil
 }

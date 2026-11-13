@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -137,6 +138,8 @@ func TestReviewCommentCursorEditListAndRequestChanges(t *testing.T) {
 	if len(all) != 1 || !all[0].Resolved || all[0].Line != num {
 		t.Fatalf("resolved comment %+v want line %d", all, num)
 	}
+	// Request-changes starts a detached agent; wait so TempDir cleanup is safe.
+	launch.WaitAgents([]string{wt}, 10*time.Second)
 }
 
 func TestReviewCommentDeletePopup(t *testing.T) {

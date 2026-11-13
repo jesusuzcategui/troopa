@@ -1,0 +1,10 @@
+{"type":"system","subtype":"init","model":"claude-sonnet-4","cwd":"/tmp/demo"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"I should read the task file first.\nThen run the tests."},{"type":"text","text":"I will read TASK.md and run the tests."},{"type":"tool_use","id":"tu1","name":"Read","input":{"file_path":"TASK.md"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"# Task\nDo the thing.","is_error":false}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu2","name":"Bash","input":{"command":"go test ./..."}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu2","content":"ok","is_error":false}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu3","name":"Edit","input":{"file_path":"internal/x.go","old_string":"a","new_string":"b"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu3","content":"Applied","is_error":false}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done."}]}}
+{"type":"result","subtype":"success","duration_ms":4200,"num_turns":3,"total_cost_usd":0.0123,"usage":{"input_tokens":1500,"output_tokens":200},"model":"claude-sonnet-4"}
+plain status line

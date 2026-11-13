@@ -328,8 +328,16 @@ func (a *Service) RequestRunChanges(runID int64, feedback string) error {
 	if err != nil {
 		return err
 	}
-	_, err = a.Engine.RequestChanges(runID, feedback, comments)
+	_, err = a.Engine.RequestChanges(runID, feedback, comments, nil)
 	return err
+}
+
+func (a *Service) RequestRunChangesWithImages(runID int64, feedback string, images []string) (engine.Result, error) {
+	comments, err := a.Store.ListPendingComments(runID)
+	if err != nil {
+		return engine.Result{}, err
+	}
+	return a.Engine.RequestChanges(runID, feedback, comments, images)
 }
 
 func (a *Service) MergeRun(runID int64) error {

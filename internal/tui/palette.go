@@ -73,6 +73,7 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "finish-pair", Title: i18n.T("Finish pair"), Keys: "f"},
 		{ID: "reopen-agent", Title: i18n.T("Reopen agent"), Keys: "r"},
 		{ID: "open-editor", Title: i18n.T("Open in editor"), Hint: i18n.T("worktree or project folder"), Keys: "o"},
+		{ID: "chats", Title: i18n.T("Conversations"), Hint: i18n.T("Telegram transcripts"), Keys: ""},
 	}
 }
 
@@ -177,6 +178,8 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 		}
 		m.screen = screenBoard
 		return m.requestChangesFromTask()
+	case "chats":
+		return m.openChats(from)
 	case "comment-line":
 		if from != screenReview && m.screen != screenReview {
 			m.status = i18n.T("No review open")

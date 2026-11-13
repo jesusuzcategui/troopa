@@ -91,6 +91,7 @@ type reviewChangesIn struct {
 	RunID    int64             `json:"run_id" jsonschema:"run id"`
 	Feedback string            `json:"feedback,omitempty" jsonschema:"general notes for the agent"`
 	Comments []reviewCommentIn `json:"comments,omitempty" jsonschema:"line comments with path, line, side, body"`
+	Images   []string          `json:"images,omitempty" jsonschema:"image file paths to attach to this round"`
 }
 
 type reviewApproveIn struct {
@@ -352,7 +353,7 @@ func (h *handler) reviewRequestChanges(_ context.Context, _ *mcpsdk.CallToolRequ
 	for _, c := range in.Comments {
 		comments = append(comments, store.ReviewComment{Path: c.Path, Line: c.Line, Side: c.Side, Body: c.Body})
 	}
-	res, err := h.eng.RequestChanges(in.RunID, in.Feedback, comments)
+	res, err := h.eng.RequestChanges(in.RunID, in.Feedback, comments, in.Images)
 	if err != nil {
 		return fail(err)
 	}

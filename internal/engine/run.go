@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jesusuzcategui/troopa/internal/brain"
@@ -294,7 +295,7 @@ func (e *Engine) Clean(runID int64) (Result, error) {
 	return e.result(run, task, sess, run.Note, false), nil
 }
 
-func (e *Engine) RequestChanges(runID int64, feedback string, comments []store.ReviewComment) (Result, error) {
+func (e *Engine) RequestChanges(runID int64, feedback string, comments []store.ReviewComment, images []string) (Result, error) {
 	run, err := e.Store.GetRun(runID)
 	if err != nil {
 		return Result{}, err
@@ -320,6 +321,19 @@ func (e *Engine) RequestChanges(runID int64, feedback string, comments []store.R
 		return Result{}, fmt.Errorf("%s", i18n.T("The worktree is gone: discard the run and launch the task again"))
 	}
 	body := launch.FormatCommentFeedback(feedback, comments)
+	added, err := e.attachRoundImages(task.ID, images)
+	if err != nil {
+		return Result{}, err
+	}
+	var wtImages []string
+	for _, a := range added {
+		name := a.Name
+		if name == "" {
+			name = filepath.Base(a.Path)
+		}
+		wtImages = append(wtImages, filepath.Join(sess.Worktree, ".troopa/attachments", name))
+	}
+	body = launch.AppendFeedbackImages(body, wtImages)
 	if body == "" {
 		return Result{}, fmt.Errorf("%s", i18n.T("Write what should change"))
 	}
@@ -360,6 +374,9 @@ func (e *Engine) RequestChanges(runID int64, feedback string, comments []store.R
 	cmd, err := launch.AgentCommandPrompt(lc, task.Agent, task.Model, sess.Worktree, launch.ChangesPrompt(sess.Worktree, round))
 	if err != nil {
 		return Result{}, err
+	}
+	if len(wtImages) > 0 {
+		launch.AddImages(cmd, task.Agent, wtImages)
 	}
 	if f, err := os.OpenFile(run.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 		fmt.Fprintf(f, "\n\n── Troopa · %s ──\n%s\n\n", note, body)

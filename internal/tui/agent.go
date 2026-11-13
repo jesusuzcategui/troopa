@@ -673,6 +673,9 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = i18n.T("Agent is still running (it keeps going if you close Troopa)")
 		return m, nil
 	case "o":
+		if nm, cmd := m.openLogImageLine(); nm.imageOverlay != nil || cmd != nil {
+			return nm, cmd
+		}
 		return m.openEditor(m.runFolder())
 	case "[":
 		m.moveRound(-1)
@@ -686,6 +689,12 @@ func (m Model) updateLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.logOffset > 0 {
 			m.logOffset--
 		}
+	case "R":
+		m.toggleLogFormatted()
+	case "t":
+		m.toggleLogThinking()
+	case "enter":
+		return m.openLogImageLine()
 	}
 	return m, nil
 }
@@ -739,6 +748,11 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.logOffset = 0
 		return m, nil
 	case "o":
+		if m.runTab == tabLog {
+			if nm, cmd := m.openLogImageLine(); nm.imageOverlay != nil || cmd != nil {
+				return nm, cmd
+			}
+		}
 		return m.openEditor(m.runFolder())
 	}
 	if m.runTab != tabDiff {
@@ -775,23 +789,14 @@ func (m Model) updateReviewKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) viewLog() string {
 	th := m.theme
-	raw, _ := os.ReadFile(m.run.LogPath)
-	if r, ok := m.selectedRound(); ok {
-		raw = roundLogSlice(raw, r)
-	}
-	lines := strings.Split(string(raw), "\n")
-	h := max(4, m.height-7)
-	off := m.logOffset
-	if off > len(lines) {
-		off = max(0, len(lines)-1)
-	}
-	end := min(len(lines), off+h)
-	body := strings.Join(lines[off:end], "\n")
+	lines := m.logDisplayLines()
 	title := th.Title.Render(i18n.T("Agent")) + th.Muted.Render("  ·  "+m.run.Branch+"  ·  "+m.run.State)
 	if r, ok := m.selectedRound(); ok {
 		title += th.Muted.Render(fmt.Sprintf("  ·  %s %d/%d", i18n.T("Round"), r.Number, len(m.rounds)))
 	}
-	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(i18n.T("j/k scroll  [ ] round  o editor  esc board")))
+	body := m.window(lines, m.logOffset, max(4, m.height-7))
+	help := i18n.T("j/k scroll  [ ] round  R raw  t thinking  o/enter image  esc board")
+	return th.App.Render(title + "\n\n" + body + "\n\n" + th.Muted.Render(help))
 }
 
 func (m Model) viewReview() string {

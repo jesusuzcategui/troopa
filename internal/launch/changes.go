@@ -79,6 +79,27 @@ func FormatCommentFeedback(general string, comments []store.ReviewComment) strin
 	return strings.TrimSpace(b.String())
 }
 
+// AppendFeedbackImages adds worktree image paths to the CHANGES.md body so
+// the agent knows where to read them.
+func AppendFeedbackImages(body string, worktreePaths []string) string {
+	body = strings.TrimSpace(body)
+	if len(worktreePaths) == 0 {
+		return body
+	}
+	var b strings.Builder
+	if body != "" {
+		b.WriteString(body)
+		b.WriteString("\n\n")
+	}
+	b.WriteString("Attached images (in .troopa/attachments):\n")
+	for _, p := range worktreePaths {
+		if p = strings.TrimSpace(p); p != "" {
+			fmt.Fprintf(&b, "- %s\n", p)
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
 // ChangesPrompt asks the agent to apply the newest round on top of its work.
 func ChangesPrompt(worktree string, round int) string {
 	return fmt.Sprintf("Work only inside %s. Read %s for the task, then %s: the person reviewed your work and asked for changes (round %d is the newest). "+

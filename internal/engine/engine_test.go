@@ -247,7 +247,7 @@ func TestApproveRequestChangesDiscard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	again, err := e.RequestChanges(done.Run.ID, "add a test", nil)
+	again, err := e.RequestChanges(done.Run.ID, "add a test", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

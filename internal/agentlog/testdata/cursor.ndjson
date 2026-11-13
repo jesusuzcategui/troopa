@@ -1,0 +1,16 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"/tmp/demo","session_id":"abc","model":"Claude 4 Sonnet","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Read TASK.md"}]},"session_id":"abc"}
+{"type":"thinking","subtype":"delta","text":"Need to open ","session_id":"abc"}
+{"type":"thinking","subtype":"delta","text":"the task file.","session_id":"abc"}
+{"type":"thinking","subtype":"completed","session_id":"abc"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll read TASK.md"}]},"session_id":"abc","timestamp_ms":1000}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":" now."}]},"session_id":"abc","timestamp_ms":1001}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll read TASK.md now."}]},"session_id":"abc","model_call_id":"mc1","timestamp_ms":1002}
+{"type":"tool_call","subtype":"started","call_id":"c1","tool_call":{"readToolCall":{"args":{"path":"TASK.md"}}},"session_id":"abc"}
+{"type":"tool_call","subtype":"completed","call_id":"c1","tool_call":{"readToolCall":{"args":{"path":"TASK.md"},"result":{"success":{"content":"# Task","totalLines":1}}}},"session_id":"abc"}
+{"type":"tool_call","subtype":"started","call_id":"c2","tool_call":{"shellToolCall":{"args":{"command":"go test ./..."}}},"session_id":"abc"}
+{"type":"tool_call","subtype":"completed","call_id":"c2","tool_call":{"shellToolCall":{"args":{"command":"go test ./..."},"result":{"error":"exit 1"}}},"session_id":"abc"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Fixed."}]},"session_id":"abc","timestamp_ms":2000}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Fixed."}]},"session_id":"abc"}
+{"type":"result","subtype":"success","duration_ms":5234,"duration_api_ms":5234,"is_error":false,"result":"I'll read TASK.md now.Fixed.","session_id":"abc"}
+{"type":"mystery_event","foo":1}

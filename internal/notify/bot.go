@@ -476,7 +476,7 @@ func (b *Bot) requestChanges(ctx context.Context, runID int64, feedback string) 
 		b.reply(ctx, esc(i18n.T("The message was empty: nothing was sent.")))
 		return
 	}
-	res, err := b.eng.RequestChanges(runID, feedback, comments)
+	res, err := b.eng.RequestChanges(runID, feedback, comments, nil)
 	if err != nil {
 		b.reply(ctx, "⚠️ "+esc(err.Error()))
 		return

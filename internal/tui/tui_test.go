@@ -4,10 +4,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
 
@@ -18,7 +20,19 @@ func newTestModel(t *testing.T) Model {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = s.Close() })
+	t.Cleanup(func() {
+		// Detached agents (request-changes, launch) may still write the worktree;
+		// wait so TempDir cleanup does not hit "directory not empty".
+		runs, _ := s.ListRuns("")
+		var wts []string
+		for _, r := range runs {
+			if r.Worktree != "" {
+				wts = append(wts, r.Worktree)
+			}
+		}
+		launch.WaitAgents(wts, 10*time.Second)
+		_ = s.Close()
+	})
 	cfg := config.Config{Theme: "dark", WelcomeShown: true, SetupDone: true, BrainRaw: filepath.Join(dir, "brain")}
 	cfg.Launch.Brain = cfg.BrainRaw
 	return New(s, cfg, filepath.Join(dir, "config.toml"))
