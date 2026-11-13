@@ -3,12 +3,18 @@ name: Release
 # Push a version tag to publish binaries for Linux, macOS and Windows, plus
 # .deb/.rpm/.apk/Arch packages and checksums, as a GitHub release:
 #   git tag v0.2.0 && git push origin v0.2.0
+# The desktop application (troopa-desktop) is built on one runner per system
+# and attached to the same release once the CLI release exists.
 on:
   push:
     tags: ["v*"]
 
 permissions:
   contents: write
+
+env:
+  # Keep in sync with github.com/wailsapp/wails/v3 in go.mod.
+  WAILS_VERSION: v3.0.0
 
 jobs:
   release:
@@ -29,3 +35,98 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  # AppImage (runs anywhere) and .deb (Debian and Ubuntu).
+  desktop-linux:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - name: GTK and WebKit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev dpkg-dev file desktop-file-utils
+      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+      - run: scripts/desktop-version.sh "$GITHUB_REF_NAME"
+      - run: wails3 task linux:package
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mv bin/*.AppImage "bin/troopa-desktop_${version}_linux_amd64.AppImage"
+          mv bin/troopa-desktop.deb "bin/troopa-desktop_${version}_linux_amd64.deb"
+          gh release upload "$GITHUB_REF_NAME" \
+            "bin/troopa-desktop_${version}_linux_amd64.AppImage" \
+            "bin/troopa-desktop_${version}_linux_amd64.deb" --clobber
+
+  # One .app bundle for Intel and Apple Silicon, zipped. Ad-hoc signed only:
+  # macOS asks the user to allow it the first time.
+  desktop-macos:
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+      - run: scripts/desktop-version.sh "$GITHUB_REF_NAME"
+      - run: wails3 task darwin:package:universal
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          asset="troopa-desktop_${version}_darwin_universal.app.zip"
+          # ditto keeps the bundle's symlinks and permissions; zip -r does not.
+          ditto -c -k --keepParent bin/troopa-desktop.app "bin/$asset"
+          gh release upload "$GITHUB_REF_NAME" "bin/$asset" --clobber
+
+  # NSIS installer: installs the .exe, a shortcut and the WebView2 runtime.
+  desktop-windows:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+      - name: NSIS
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            choco install nsis -y --no-progress
+            "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+      - shell: bash
+        run: scripts/desktop-version.sh "$GITHUB_REF_NAME"
+      - run: wails3 task windows:package
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          asset="troopa-desktop_${version}_windows_amd64_installer.exe"
+          mv bin/troopa-desktop-amd64-installer.exe "bin/$asset"
+          gh release upload "$GITHUB_REF_NAME" "bin/$asset" --clobber

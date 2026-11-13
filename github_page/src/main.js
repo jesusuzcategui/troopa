@@ -85,3 +85,41 @@ document.querySelectorAll("pre.cmd").forEach((pre) => {
     }
   });
 });
+
+// Download buttons: GitHub's asset names carry the version, so they are asked
+// for at load time. Without an answer (offline, rate limited) the buttons keep
+// pointing at the releases page.
+const DOWNLOADS = {
+  "dl-linux-appimage": "_linux_amd64.AppImage",
+  "dl-linux-deb": "_linux_amd64.deb",
+  "dl-macos": "_darwin_universal.app.zip",
+  "dl-windows": "_windows_amd64_installer.exe",
+};
+
+async function latestRelease() {
+  const api = "https://api.github.com/repos/jesusuzcategui/troopa/releases";
+  // /latest ignores pre-releases, so fall back to the newest release of any kind.
+  for (const url of [`${api}/latest`, `${api}?per_page=1`]) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const body = await res.json();
+      const release = Array.isArray(body) ? body[0] : body;
+      if (release?.assets?.length) return release;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+latestRelease().then((release) => {
+  if (!release) return;
+  for (const [id, suffix] of Object.entries(DOWNLOADS)) {
+    // The prefix matters: the CLI ships assets with the same suffixes.
+    const asset = release.assets.find((a) => a.name.startsWith("troopa-desktop_") && a.name.endsWith(suffix));
+    const el = document.getElementById(id);
+    if (asset && el) el.href = asset.browser_download_url;
+  }
+  document.getElementById("dl-version").textContent = release.tag_name;
+});

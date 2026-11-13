@@ -74,7 +74,7 @@ func (m Model) attachFromPath(src string) (Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, nil
 	}
-	a, err := m.store.AttachFile(id, src, dir, m.cfg.MaxAttachmentBytes())
+	a, err := m.app.AttachFile(id, src, dir, m.cfg.MaxAttachmentBytes())
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
@@ -93,7 +93,7 @@ func (m Model) flushPendingFiles(taskID int64) (Model, error) {
 		if err != nil {
 			return m, err
 		}
-		if _, err := m.store.AttachFile(taskID, src, dir, m.cfg.MaxAttachmentBytes()); err != nil {
+		if _, err := m.app.AttachFile(taskID, src, dir, m.cfg.MaxAttachmentBytes()); err != nil {
 			return m, err
 		}
 	}
@@ -212,7 +212,7 @@ func (m Model) detachConfirmed(id int64) (tea.Model, tea.Cmd) {
 		m.status = i18n.T("Attachment removed")
 		return m, nil
 	}
-	if err := m.store.DeleteAttachment(id); err != nil {
+	if err := m.app.DeleteAttachment(id); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}

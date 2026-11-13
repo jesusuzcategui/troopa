@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jesusuzcategui/troopa/internal/app"
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/daemon"
@@ -27,6 +28,7 @@ const maxLogLines = 2000
 
 type handler struct {
 	store     *store.Store
+	app       *app.Service
 	eng       *engine.Engine
 	brainDir  string
 	ctx       context.Context
@@ -98,7 +100,7 @@ func NewWithContext(ctx context.Context, e *engine.Engine) *mcpsdk.Server {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	h := &handler{store: e.Store, eng: e, brainDir: brain.FromConfig(e.Cfg).Dir, ctx: ctx}
+	h := &handler{store: e.Store, app: &app.Service{Store: e.Store, Engine: e}, eng: e, brainDir: brain.FromConfig(e.Cfg).Dir, ctx: ctx}
 	srv := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "troopa", Version: "dev"}, nil)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "projects_list", Description: "Lists projects. Returns the project JSON array."}, h.projectsList)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "project_show", Description: "Shows one project. Returns the project JSON object."}, h.projectShow)

@@ -66,6 +66,26 @@ approve = ["echo one", "echo two"]
 	}
 }
 
+func TestEnsureAccount(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := EnsureAccount(path, "personal"); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureAccount(path, "personal"); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Launch.AccountNames(); len(got) != 1 || got[0] != "personal" {
+		t.Fatalf("accounts %v", got)
+	}
+	if err := EnsureAccount(path, "bad.name"); err == nil {
+		t.Fatal("invalid name should fail")
+	}
+}
+
 func TestTelegramConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	_ = os.WriteFile(path, []byte("[telegram]\ntoken = \"123:abc\"\nchat_id = -1001\nactions = true\n"), 0o644)

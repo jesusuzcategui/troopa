@@ -270,6 +270,30 @@ func (e *Engine) Discard(runID int64) (Result, error) {
 	return e.result(run, task, sess, i18n.T("Discarded: worktree and branch removed"), false), nil
 }
 
+// Clean removes the approved run's worktree while keeping its branch.
+func (e *Engine) Clean(runID int64) (Result, error) {
+	run, task, sess, err := e.runContext(runID)
+	if err != nil {
+		return Result{}, err
+	}
+	if run.State != store.RunApproved {
+		return Result{}, fmt.Errorf("%s", i18n.T("This task has no approved run to clean"))
+	}
+	if err := launch.CleanWorktree(sess); err != nil {
+		return Result{}, err
+	}
+	run.State = store.RunCleaned
+	run.Note = launch.CleanedNote(sess.Branch)
+	if err := e.Store.UpdateRun(run); err != nil {
+		return Result{}, err
+	}
+	_ = e.moveTask(run.TaskID, store.StatusDone)
+	if fresh, err := e.Store.GetTask(task.ID); err == nil {
+		task = fresh
+	}
+	return e.result(run, task, sess, run.Note, false), nil
+}
+
 func (e *Engine) RequestChanges(runID int64, feedback string, comments []store.ReviewComment) (Result, error) {
 	run, err := e.Store.GetRun(runID)
 	if err != nil {

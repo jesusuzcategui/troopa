@@ -210,7 +210,7 @@ func (m Model) saveComment(body string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		c.Body = body
-		if err := m.store.UpdateComment(c); err != nil {
+		if err := m.app.UpdateComment(c); err != nil {
 			m.err = err.Error()
 			return m, nil
 		}
@@ -222,7 +222,7 @@ func (m Model) saveComment(body string) (tea.Model, tea.Cmd) {
 		}
 		line := f.Lines[m.diffCursor]
 		num, side := line.CommentTarget()
-		if _, err := m.store.CreateComment(store.ReviewComment{
+		if _, err := m.app.CreateComment(store.ReviewComment{
 			RunID: m.run.ID,
 			Round: m.currentReviewRound(),
 			Path:  f.Path,
@@ -247,7 +247,7 @@ func (m Model) deleteComment(id int64) (tea.Model, tea.Cmd) {
 	if id == 0 {
 		return m, nil
 	}
-	if err := m.store.DeleteComment(id); err != nil {
+	if err := m.app.DeleteComment(id); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}

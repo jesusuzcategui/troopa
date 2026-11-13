@@ -31,6 +31,7 @@
     <nav class="toc" aria-label="Contents">
       <p class="toc-title" data-i18n="docs.contents">Contents</p>
       <a href="#start" data-i18n="docs.start">Getting started</a>
+      <a href="#desktop" data-i18n="docs.desktop">Desktop app</a>
       <a href="#board" data-i18n="docs.board">Projects and board</a>
       <a href="#agents" data-i18n="docs.agents">Agents and runs</a>
       <a href="#review" data-i18n="docs.review">Review and changes</a>
@@ -62,7 +63,24 @@
             <li>Press <kbd>enter</kbd> to open its board, <kbd>n</kbd> to add a task, and move it to <em>ready</em> to launch its agent.</li>
           </ol>
           <p>Press <kbd>?</kbd> anywhere for the shortcuts of that screen and <kbd>Ctrl+K</kbd> for the command palette.</p>
+          <p>If you also install the optional desktop app (<code>troopa-desktop</code>), run <code>troopa gui</code> to open it on the same SQLite store. On first opening, its short assistant finds installed agents, lets you choose a language and worktrees folder, and helps you set up an account. You can sign in in a terminal or paste an API key; the key goes to your operating system’s secure keyring, never <code>config.toml</code>. Settings lets you revisit these choices, profiles and accounts. Open a project for a mouse-driven Kanban board (create, edit, drag to move, priority, agent, delete with confirmation, attachments and a detail panel). Click a task with a run to review its rounds, agent response, per-file diff with line comments, and live log; approve it, request changes, merge, open a PR, clean, discard, or open its worktree in an editor. It stays in sync with the TUI via the same change stamp, so updates appear within a couple of seconds.</p>
           <p>The whole flow, at a glance: a task joins a <a href="#plans">plan</a>, gets its own worktree and agent, passes its checks and waits for your review in the TUI or on <a href="#telegram">Telegram</a>. Changes go back to the same agent; an approved step starts the next one, and the plan merges once or opens a PR. <a href="./#map">See it animated on the home page →</a></p>
+        </section>
+
+        <section id="desktop">
+          <h2>Desktop app</h2>
+          <p><code>troopa-desktop</code> is an optional window over the same <code>troopa.db</code> and <code>config.toml</code> as the terminal. Everything you do in one shows up in the other within a couple of seconds. Install it only if you want it: the CLI is the whole of Troopa.</p>
+          <p>Every release attaches one build per system (<a href="./#download">download buttons</a>):</p>
+          <ul>
+            <li><strong>Linux · AppImage</strong> — <code>troopa-desktop_&lt;version&gt;_linux_amd64.AppImage</code>. No installation: <code>chmod +x</code> it and run it. It carries the GTK and WebKit libraries it needs, so it works on any distribution.</li>
+            <li><strong>Linux · .deb</strong> — <code>troopa-desktop_&lt;version&gt;_linux_amd64.deb</code> for Debian and Ubuntu: <code>sudo apt install ./troopa-desktop_*_linux_amd64.deb</code>. It puts <code>troopa-desktop</code> in <code>/usr/bin</code> and adds Troopa to your application menu. It needs the system GTK 4 and WebKitGTK 6.0 packages, which apt installs with it.</li>
+            <li><strong>macOS</strong> — <code>troopa-desktop_&lt;version&gt;_darwin_universal.app.zip</code>, one bundle for Intel and Apple Silicon. Unzip it and move <code>troopa-desktop.app</code> to Applications.</li>
+            <li><strong>Windows</strong> — <code>troopa-desktop_&lt;version&gt;_windows_amd64_installer.exe</code>. The installer creates the shortcuts and installs the Microsoft WebView2 runtime if your system does not have it yet.</li>
+          </ul>
+          <p>The app is signed ad-hoc, not with a paid certificate, so the first launch needs your permission: on macOS, open it once and allow it in System Settings → Privacy &amp; Security; on Windows, choose <em>More info → Run anyway</em> in the SmartScreen dialog.</p>
+          <p>With <code>troopa-desktop</code> on your <code>PATH</code> (the .deb and the Windows installer do that for you), <code>troopa gui</code> opens it from the terminal. If it is not there, <code>troopa gui</code> prints where to get it.</p>
+          <p>What the window gives you: a first-run assistant that finds installed agents and sets up language, worktrees folder and account; a mouse-driven Kanban board per project (create, edit, drag between statuses, priority, agent, delete with confirmation, attachments and a detail panel); an execution view for reviewing rounds, agent responses, live logs and per-file diffs with line comments, then approving, requesting changes, merging, opening a PR, cleaning, discarding or opening the worktree in an editor; and settings for profiles and accounts. API keys go to your operating system's keyring, never to <code>config.toml</code>. Plans, the second brain and the graph still live in the terminal.</p>
+          <p>Building it yourself needs Go, Node and the Wails v3 CLI: <code>go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0</code>, then <code>wails3 task build</code> for your system, or <code>wails3 task linux:package</code>, <code>wails3 task darwin:package:universal</code> and <code>wails3 task windows:package</code> for the same artifacts the release workflow attaches.</p>
         </section>
 
         <section id="board">
@@ -141,11 +159,14 @@ default_account = ""          # "" = the agents' normal login
 
 [accounts.acme]
 # dir = "~/.troopa-accounts/acme"   # optional; default ~/.config/troopa/accounts/acme
-# env = { ANTHROPIC_API_KEY = "…" }  # optional extra variables</pre>
+# env = { ANTHROPIC_API_KEY = "keyring:" }  # secret in the OS keyring, not in this file</pre>
           <p>Sign each agent in once, then pick the account in the project form (<em>Account</em>):</p>
           <pre class="cmd"><button class="copy" type="button">Copy</button>troopa login acme claude
 troopa login acme codex</pre>
           <p>Troopa sets <code>CLAUDE_CONFIG_DIR</code> (Claude Code), <code>CODEX_HOME</code> (Codex), <code>XDG_DATA_HOME</code> (OpenCode) and <code>PI_CODING_AGENT_DIR</code> (Pi) to the account folder. If your agent reads another variable, set it in <code>env</code>.</p>
+          <p>For API keys, prefer the OS keyring. Put the marker <code>keyring:</code> in <code>env</code>, then store the secret (read from stdin, no echo). Common variables: <code>ANTHROPIC_API_KEY</code>, <code>OPENROUTER_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>OPENAI_API_KEY</code>. The secret never appears in <code>config.toml</code>, logs, <code>TASK.md</code> or CLI output.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa account key set acme ANTHROPIC_API_KEY
+troopa account key rm acme ANTHROPIC_API_KEY</pre>
         </section>
 
         <section id="brain">
@@ -383,7 +404,24 @@ merge = "./scripts/deploy-staging.sh"</pre>
             <li>Pulsa <kbd>enter</kbd> para abrir su tablero, <kbd>n</kbd> para agregar una tarea y muévela a <em>ready</em> para lanzar su agente.</li>
           </ol>
           <p>Pulsa <kbd>?</kbd> en cualquier pantalla para ver sus atajos y <kbd>Ctrl+K</kbd> para la paleta de comandos.</p>
+          <p>Si también instalas la app de escritorio opcional (<code>troopa-desktop</code>), ejecuta <code>troopa gui</code> para abrirla sobre la misma base SQLite. Al abrirla por primera vez, un asistente corto detecta agentes instalados, permite elegir idioma y carpeta de worktrees, y ayuda a configurar una cuenta. Puedes iniciar sesión en una terminal o pegar una clave API; la clave va al llavero seguro del sistema operativo, nunca a <code>config.toml</code>. Ajustes permite volver a estas opciones, perfiles y cuentas. Abre un proyecto para el tablero Kanban con el mouse (crear, editar, arrastrar para mover, prioridad, agente, borrar con confirmación, adjuntos y panel de detalle). Haz clic en una tarea con ejecución para revisar sus rondas, respuesta del agente, diff por archivo con comentarios por línea y log en vivo; desde ahí puedes aprobar, pedir cambios, hacer merge, abrir un PR, limpiar, descartar o abrir su worktree en un editor. Se mantiene al día con la TUI gracias al mismo sello de cambios, así que las actualizaciones aparecen en un par de segundos.</p>
           <p>El flujo completo, de un vistazo: una tarea entra a un <a href="#plans-es">plan</a>, recibe su propio worktree y su agente, pasa sus checks y espera tu revisión en la TUI o en <a href="#telegram-es">Telegram</a>. Los cambios vuelven al mismo agente; un paso aprobado arranca el siguiente, y el plan hace un solo merge o abre un PR. <a href="./#map">Míralo animado en la página de inicio →</a></p>
+        </section>
+
+        <section id="desktop-es">
+          <h2>App de escritorio</h2>
+          <p><code>troopa-desktop</code> es una ventana opcional sobre el mismo <code>troopa.db</code> y <code>config.toml</code> que la terminal. Lo que haces en una aparece en la otra en un par de segundos. Instálala solo si la quieres: la CLI es Troopa completo.</p>
+          <p>Cada versión adjunta una compilación por sistema (<a href="./#download">botones de descarga</a>):</p>
+          <ul>
+            <li><strong>Linux · AppImage</strong> — <code>troopa-desktop_&lt;versión&gt;_linux_amd64.AppImage</code>. Sin instalar nada: dale <code>chmod +x</code> y ejecútalo. Lleva dentro las librerías de GTK y WebKit que necesita, así que funciona en cualquier distribución.</li>
+            <li><strong>Linux · .deb</strong> — <code>troopa-desktop_&lt;versión&gt;_linux_amd64.deb</code> para Debian y Ubuntu: <code>sudo apt install ./troopa-desktop_*_linux_amd64.deb</code>. Deja <code>troopa-desktop</code> en <code>/usr/bin</code> y agrega Troopa al menú de aplicaciones. Necesita los paquetes de GTK 4 y WebKitGTK 6.0 del sistema, que apt instala con él.</li>
+            <li><strong>macOS</strong> — <code>troopa-desktop_&lt;versión&gt;_darwin_universal.app.zip</code>, un solo bundle para Intel y Apple Silicon. Descomprímelo y mueve <code>troopa-desktop.app</code> a Aplicaciones.</li>
+            <li><strong>Windows</strong> — <code>troopa-desktop_&lt;versión&gt;_windows_amd64_installer.exe</code>. El instalador crea los accesos directos e instala el runtime WebView2 de Microsoft si tu sistema todavía no lo tiene.</li>
+          </ul>
+          <p>La app está firmada ad-hoc, no con un certificado pago, así que el primer arranque necesita tu permiso: en macOS, ábrela una vez y permítela en Configuración del Sistema → Privacidad y seguridad; en Windows, elige <em>Más información → Ejecutar de todas formas</em> en el aviso de SmartScreen.</p>
+          <p>Con <code>troopa-desktop</code> en el <code>PATH</code> (el .deb y el instalador de Windows lo hacen por ti), <code>troopa gui</code> la abre desde la terminal. Si no está, <code>troopa gui</code> dice dónde conseguirla.</p>
+          <p>Qué te da la ventana: un asistente de primer arranque que detecta agentes instalados y configura idioma, carpeta de worktrees y cuenta; un tablero Kanban con el mouse por proyecto (crear, editar, arrastrar entre estados, prioridad, agente, borrar con confirmación, adjuntos y panel de detalle); una pantalla de ejecución para revisar rondas, respuestas del agente, logs en vivo y diffs por archivo con comentarios por línea, y luego aprobar, pedir cambios, hacer merge, abrir un PR, limpiar, descartar o abrir el worktree en un editor; y ajustes para perfiles y cuentas. Las claves API van al llavero del sistema operativo, nunca a <code>config.toml</code>. Los planes, el segundo cerebro y el grafo siguen viviendo en la terminal.</p>
+          <p>Para compilarla tú mismo necesitas Go, Node y la CLI de Wails v3: <code>go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0</code> y luego <code>wails3 task build</code> para tu sistema, o <code>wails3 task linux:package</code>, <code>wails3 task darwin:package:universal</code> y <code>wails3 task windows:package</code> para los mismos artefactos que adjunta el workflow de release.</p>
         </section>
 
         <section id="board-es">
@@ -462,11 +500,14 @@ default_account = ""          # "" = el login normal de los agentes
 
 [accounts.acme]
 # dir = "~/.troopa-accounts/acme"   # opcional; por defecto ~/.config/troopa/accounts/acme
-# env = { ANTHROPIC_API_KEY = "…" }  # variables extra opcionales</pre>
+# env = { ANTHROPIC_API_KEY = "keyring:" }  # el secreto va al keyring del sistema, no a este archivo</pre>
           <p>Inicia sesión una vez con cada agente y elige la cuenta en el formulario del proyecto (<em>Cuenta</em>):</p>
           <pre class="cmd"><button class="copy" type="button">Copy</button>troopa login acme claude
 troopa login acme codex</pre>
           <p>Troopa apunta <code>CLAUDE_CONFIG_DIR</code> (Claude Code), <code>CODEX_HOME</code> (Codex), <code>XDG_DATA_HOME</code> (OpenCode) y <code>PI_CODING_AGENT_DIR</code> (Pi) a la carpeta de la cuenta. Si tu agente usa otra variable, ponla en <code>env</code>.</p>
+          <p>Para API keys, usa el keyring del sistema. Pon el marcador <code>keyring:</code> en <code>env</code> y guarda el secreto (stdin, sin eco). Variables habituales: <code>ANTHROPIC_API_KEY</code>, <code>OPENROUTER_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>OPENAI_API_KEY</code>. La clave nunca aparece en <code>config.toml</code>, logs, <code>TASK.md</code> ni en la salida de la CLI.</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>troopa account key set acme ANTHROPIC_API_KEY
+troopa account key rm acme ANTHROPIC_API_KEY</pre>
         </section>
 
         <section id="brain-es">

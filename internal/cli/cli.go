@@ -9,12 +9,24 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jesusuzcategui/troopa/internal/app"
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
-	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
+
+func application(s *store.Store) *app.Service {
+	_, path, _, err := config.Paths()
+	if err != nil {
+		return app.New(s, config.Config{}, "")
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		return app.New(s, config.Config{}, path)
+	}
+	return app.New(s, cfg, path)
+}
 
 const SchemaVersion = 1
 
@@ -205,10 +217,7 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		p, err := s.Create(store.Project{Name: *name, Slug: *slug, RepoPath: *repo, Stack: *stack, Description: *desc, ClientID: cid, Account: *account, ProfileID: prof})
-		if err == nil {
-			rememberProject(s, p)
-		}
+		p, err := application(s).CreateProject(store.Project{Name: *name, Slug: *slug, RepoPath: *repo, Stack: *stack, Description: *desc, ClientID: cid, Account: *account, ProfileID: prof})
 		return p, err
 	case "update":
 		n, e := id(f, "id")
@@ -220,21 +229,17 @@ func project(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		patchProject(&p, f)
-		if e = s.Update(p); e != nil {
+		if e = application(s).UpdateProject(p); e != nil {
 			return nil, e
 		}
-		rememberProject(s, p)
 		return getProject(s, n)
 	case "archive":
 		n, e := id(f, "id")
 		if e != nil {
 			return nil, e
 		}
-		if e = s.Archive(n); e != nil {
+		if e = application(s).ArchiveProject(n); e != nil {
 			return nil, normalize(e, "project")
-		}
-		if p, err := s.Get(n); err == nil {
-			rememberProject(s, p)
 		}
 		return map[string]any{"id": n, "archived": true}, nil
 	default:
@@ -305,7 +310,7 @@ func client(s *store.Store, cmd string, args []string) (any, error) {
 		}
 		return getClient(s, n)
 	case "create":
-		return s.CreateClient(store.Client{Name: *name, Contact: *contact, Notes: *notes})
+		return application(s).CreateClient(store.Client{Name: *name, Contact: *contact, Notes: *notes})
 	case "update":
 		n, e := id(f, "id")
 		if e != nil {
@@ -324,7 +329,7 @@ func client(s *store.Store, cmd string, args []string) (any, error) {
 		if seen(f, "notes") {
 			c.Notes = *notes
 		}
-		if e = s.UpdateClient(c); e != nil {
+		if e = application(s).UpdateClient(c); e != nil {
 			return nil, e
 		}
 		return getClient(s, n)
@@ -383,10 +388,7 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		t, err := s.CreateTask(store.Task{ProjectID: p, Title: *title, Description: *desc, AcceptanceCriteria: *criteria, Status: *status, Priority: *priority, Agent: *agent, Model: *model, Mode: *mode, Commits: *commits, Type: *typ})
-		if err == nil {
-			rememberTask(s, t)
-		}
+		t, err := application(s).CreateTask(store.Task{ProjectID: p, Title: *title, Description: *desc, AcceptanceCriteria: *criteria, Status: *status, Priority: *priority, Agent: *agent, Model: *model, Mode: *mode, Commits: *commits, Type: *typ})
 		return t, err
 	case "update":
 		n, e := id(f, "id")
@@ -398,10 +400,9 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		patchTask(&t, f)
-		if e = s.UpdateTask(t); e != nil {
+		if e = application(s).UpdateTask(t); e != nil {
 			return nil, e
 		}
-		rememberTask(s, t)
 		return getTask(s, n)
 	case "move", "launch":
 		n, e := id(f, "id")
@@ -415,13 +416,10 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if dest == "" {
 			return nil, input("--status is required")
 		}
-		if e = s.MoveTask(n, dest); e != nil {
+		if e = application(s).MoveTask(n, dest); e != nil {
 			return nil, normalize(e, "task")
 		}
 		t, e := getTask(s, n)
-		if e == nil {
-			rememberTask(s, t)
-		}
 		return t, e
 	case "approve", "discard":
 		n, e := id(f, "id")
@@ -437,7 +435,7 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if _, e := getTask(s, n); e != nil {
 			return nil, e
 		}
-		if e = engine.New(s, config.Config{}, "").DeleteTask(n); e != nil {
+		if e = application(s).DeleteTask(n); e != nil {
 			if strings.Contains(e.Error(), "agent running") {
 				return nil, invalidState(e.Error())
 			}
@@ -462,7 +460,7 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return s.AttachFile(n, *file, dir, attachmentLimit())
+		return application(s).AttachFile(n, *file, dir, attachmentLimit())
 	case "attachments":
 		n, e := id(f, "id")
 		if e != nil {
@@ -492,7 +490,7 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 		if a.TaskID != n {
 			return nil, notFound("attachment")
 		}
-		if e = s.DeleteAttachment(aid); e != nil {
+		if e = application(s).DeleteAttachment(aid); e != nil {
 			return nil, notFound("attachment")
 		}
 		return struct {

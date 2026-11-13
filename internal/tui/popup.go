@@ -358,11 +358,10 @@ func (m Model) setTaskProp(t store.Task, p prop, value string) (tea.Model, tea.C
 	case propType:
 		t.Type = value
 	}
-	if err := m.store.UpdateTask(t); err != nil {
+	if err := m.app.UpdateTask(t); err != nil {
 		m.err = err.Error()
 		return m, nil
 	}
-	m.rememberTask(t)
 	m.err = ""
 	m.reloadTasks()
 	m.selectTaskID(t.ID)

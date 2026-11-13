@@ -124,7 +124,7 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if seen(f, "auto-approve") {
 			p.AutoApprove = *autoApprove
 		}
-		if err := s.UpdatePlan(p); err != nil {
+		if err := application(s).UpdatePlan(p); err != nil {
 			return nil, input(err.Error())
 		}
 		d, err := planDetailOf(s, p)
@@ -140,7 +140,7 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if _, err := getProject(s, pid); err != nil {
 			return nil, err
 		}
-		p, err := s.CreatePlan(store.Plan{ProjectID: pid, Title: *title, Goal: *goal, Agent: *agent, Model: *model, Auto: !*manual, AutoApprove: *autoApprove})
+		p, err := application(s).CreatePlan(store.Plan{ProjectID: pid, Title: *title, Goal: *goal, Agent: *agent, Model: *model, Auto: !*manual, AutoApprove: *autoApprove})
 		if err != nil {
 			return nil, input(err.Error())
 		}
@@ -154,18 +154,17 @@ func planCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		t, err := s.AddPlanStep(p.ID, store.Task{Title: *title, Description: *desc, AcceptanceCriteria: *crit, Agent: *agent, Model: *model})
+		t, err := application(s).AddPlanStep(p.ID, store.Task{Title: *title, Description: *desc, AcceptanceCriteria: *crit, Agent: *agent, Model: *model})
 		if err != nil {
 			return nil, input(err.Error())
 		}
-		rememberTask(s, t)
 		return t, nil
 	case "delete":
 		p, e := getPlan()
 		if e != nil {
 			return nil, e
 		}
-		if err := s.DeletePlan(p.ID); err != nil {
+		if err := application(s).DeletePlan(p.ID); err != nil {
 			return nil, err
 		}
 		return map[string]any{"id": p.ID, "deleted": true}, nil
@@ -212,7 +211,7 @@ func profileCmd(s *store.Store, cmd string, args []string) (any, error) {
 	case "show":
 		return get()
 	case "create":
-		p, err := s.CreateProfile(store.Profile{Name: *name, Profession: *prof, About: *about, Instructions: *instr})
+		p, err := application(s).CreateProfile(store.Profile{Name: *name, Profession: *prof, About: *about, Instructions: *instr})
 		if err != nil {
 			return nil, input(err.Error())
 		}
@@ -234,7 +233,7 @@ func profileCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if seen(f, "instructions") {
 			p.Instructions = *instr
 		}
-		if err := s.UpdateProfile(p); err != nil {
+		if err := application(s).UpdateProfile(p); err != nil {
 			return nil, input(err.Error())
 		}
 		return s.GetProfile(p.ID)
@@ -243,7 +242,7 @@ func profileCmd(s *store.Store, cmd string, args []string) (any, error) {
 		if e != nil {
 			return nil, e
 		}
-		if err := s.DeleteProfile(p.ID); err != nil {
+		if err := application(s).DeleteProfile(p.ID); err != nil {
 			return nil, err
 		}
 		return map[string]any{"id": p.ID, "deleted": true}, nil

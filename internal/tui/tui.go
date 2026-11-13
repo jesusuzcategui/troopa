@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/jesusuzcategui/troopa/internal/app"
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/engine"
@@ -72,6 +73,7 @@ const (
 type Model struct {
 	stamp       string // last store.ChangeStamp seen, see sync.go
 	store       *store.Store
+	app         *app.Service
 	cfg         config.Config
 	configPath  string
 	theme       Theme
@@ -280,6 +282,7 @@ func New(s *store.Store, cfg config.Config, configPath string) Model {
 	if m.cfg.Launch.Brain == "" {
 		m.cfg.Launch.Brain = config.ResolveBrain(m.cfg.BrainRaw)
 	}
+	m.app = app.New(s, m.cfg, configPath)
 	m.reload()
 	m.status = listStatus()
 	return m
@@ -346,7 +349,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) eng() *engine.Engine {
-	return engine.New(m.store, m.cfg, m.configPath)
+	// Tests and settings can change the model configuration after construction.
+	// Keep the service's engine in sync before a lifecycle operation.
+	m.app.Engine = engine.New(m.store, m.cfg, m.configPath)
+	return m.app.Engine
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -480,7 +486,7 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case screenConfirmArchive:
 		switch msg.String() {
 		case "y", "enter":
-			if err := m.store.Archive(m.pending.ID); err != nil {
+			if err := m.app.ArchiveProject(m.pending.ID); err != nil {
 				m.err = err.Error()
 			} else {
 				m.pending.Archived = true
@@ -694,16 +700,14 @@ func (m Model) savePending() (tea.Model, tea.Cmd) {
 	var err error
 	if m.pending.ID == 0 {
 		var created store.Project
-		created, err = m.store.Create(m.pending)
+		created, err = m.app.CreateProject(m.pending)
 		if err == nil {
 			m.pending = created
-			m.rememberProject(created)
 			m.status = i18n.T("Created: ") + created.Name
 		}
 	} else {
-		err = m.store.Update(m.pending)
+		err = m.app.UpdateProject(m.pending)
 		if err == nil {
-			m.rememberProject(m.pending)
 			m.status = i18n.T("Saved: ") + m.pending.Name
 		}
 	}

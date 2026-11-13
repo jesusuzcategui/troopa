@@ -52,11 +52,7 @@ func (m *Model) rememberMerge(p store.Project, t store.Task, run store.Run) {
 }
 
 func (m *Model) moveTask(id int64, status string) error {
-	if err := m.store.MoveTask(id, status); err != nil {
-		return err
-	}
-	m.rememberTaskID(id)
-	return nil
+	return m.app.MoveTask(id, status)
 }
 
 func (m *Model) ensureBrain() {

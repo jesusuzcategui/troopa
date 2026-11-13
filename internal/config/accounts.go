@@ -31,6 +31,42 @@ func (l Launch) AccountNames() []string {
 	return names
 }
 
+// EnsureAccount adds an empty account section when it does not exist yet.
+// It is used before an interface stores a key or opens that account's login.
+func EnsureAccount(path, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("invalid account name %q", name)
+	}
+	for _, r := range name {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-') {
+			return fmt.Errorf("invalid account name %q", name)
+		}
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		return err
+	}
+	if _, ok := cfg.Launch.Accounts[name]; ok {
+		return nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	text := string(raw)
+	if text != "" && !strings.HasSuffix(text, "\n") {
+		text += "\n"
+	}
+	if strings.TrimSpace(text) != "" {
+		text += "\n"
+	}
+	return os.WriteFile(path, []byte(text+"[accounts."+name+"]\n"), 0o644)
+}
+
 // AccountDir is the folder that holds the logins of an account.
 func AccountDir(configPath, name string, acc Account) string {
 	if d := strings.TrimSpace(acc.Dir); d != "" {
@@ -56,7 +92,11 @@ func (l Launch) AccountEnv(configPath, name, agent string) (map[string]string, e
 		env[v] = dir
 	}
 	for k, v := range acc.Env {
-		env[k] = expandHome(v)
+		resolved, err := resolveEnvValue(name, k, v)
+		if err != nil {
+			return nil, err
+		}
+		env[k] = resolved
 	}
 	return env, nil
 }

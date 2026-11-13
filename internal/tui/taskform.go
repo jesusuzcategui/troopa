@@ -238,17 +238,15 @@ func (m Model) saveTaskForm() (tea.Model, tea.Cmd) {
 	var err error
 	if t.ID == 0 {
 		var created store.Task
-		created, err = m.store.CreateTask(t)
+		created, err = m.app.CreateTask(t)
 		if err == nil {
 			t = created
-			m.rememberTask(t)
 			m.fireTaskHook(launch.HookTaskCreated, t)
 			m.status = i18n.T("Created: ") + created.Title
 		}
 	} else {
-		err = m.store.UpdateTask(t)
+		err = m.app.UpdateTask(t)
 		if err == nil {
-			m.rememberTask(t)
 			m.status = i18n.T("Saved: ") + t.Title
 		}
 	}

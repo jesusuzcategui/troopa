@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Troopa
+Comment=Your AI agent troop
+Exec=troopa-desktop
+Icon=troopa-desktop
+Terminal=false
+Categories=Development;
+StartupWMClass=troopa-desktop

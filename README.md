@@ -89,6 +89,17 @@ args = ["-p", "{{prompt}}", "--dangerously-skip-permissions", "--output-format",
 input = 3
 output = 15
 cache = 0.3
+
+# Optional: separate agent logins per project (see docs § Accounts)
+# [accounts.acme]
+# env = { ANTHROPIC_API_KEY = "keyring:" }  # secret in the OS keyring, not here
+```
+
+Store API keys in the OS keyring instead of plain text in `config.toml`. Put the marker `keyring:` in the account `env`, then set the secret once (stdin, no echo). Common variables: `ANTHROPIC_API_KEY` (Claude Code), `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`. The secret never appears in config, logs, TASK.md or CLI output.
+
+```bash
+troopa account key set acme ANTHROPIC_API_KEY
+troopa account key rm acme ANTHROPIC_API_KEY
 ```
 
 On the task form and the task panel, `a` opens a file picker (project repo, or home) and `p` accepts a pasted path. Files are copied to `$XDG_DATA_HOME/troopa/attachments/<task-id>/` so the task does not depend on the original (limit `max_attachment_mb`, default 50). The list shows name, type and size; `d` removes with confirmation; `o` opens text in the editor and other files with `xdg-open`/`open`. In the description and criteria, `@` autocompletes tracked files (`git ls-files`; tab/enter completes as `@path`). Launch (and request changes) copies attachments to `.troopa/attachments/` in the worktree (git-excluded, out of the review diff) and lists them in `TASK.md` with `@` references.

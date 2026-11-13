@@ -127,14 +127,13 @@ func (h *handler) taskCreate(_ context.Context, _ *mcpsdk.CallToolRequest, in ta
 	if _, err := h.store.Get(in.Project); err != nil {
 		return fail(errors.New("project not found"))
 	}
-	t, err := h.store.CreateTask(store.Task{
+	t, err := h.app.CreateTask(store.Task{
 		ProjectID: in.Project, Title: in.Title, Description: in.Description, AcceptanceCriteria: in.Criteria,
 		Status: in.Status, Priority: in.Priority, Agent: in.Agent, Model: in.Model, Mode: in.Mode, Commits: in.Commits, Type: in.Type,
 	})
 	if err != nil {
 		return fail(err)
 	}
-	h.rememberTask(t)
 	h.eng.FireTaskHook(launch.HookTaskCreated, t)
 	return jsonOut(t)
 }
@@ -174,14 +173,13 @@ func (h *handler) taskUpdate(_ context.Context, _ *mcpsdk.CallToolRequest, in ta
 	if in.Type != "" {
 		t.Type = in.Type
 	}
-	if err := h.store.UpdateTask(t); err != nil {
+	if err := h.app.UpdateTask(t); err != nil {
 		return fail(err)
 	}
 	t, err = h.store.GetTask(t.ID)
 	if err != nil {
 		return fail(err)
 	}
-	h.rememberTask(t)
 	return jsonOut(t)
 }
 
@@ -189,14 +187,13 @@ func (h *handler) taskMove(_ context.Context, _ *mcpsdk.CallToolRequest, in task
 	if err := requireID(in.ID); err != nil {
 		return fail(err)
 	}
-	if err := h.store.MoveTask(in.ID, in.Status); err != nil {
+	if err := h.app.MoveTask(in.ID, in.Status); err != nil {
 		return fail(err)
 	}
 	t, err := h.store.GetTask(in.ID)
 	if err != nil {
 		return fail(err)
 	}
-	h.rememberTask(t)
 	return jsonOut(t)
 }
 
@@ -204,7 +201,7 @@ func (h *handler) taskDelete(_ context.Context, _ *mcpsdk.CallToolRequest, in ta
 	if _, err := h.getTask(in.ID); err != nil {
 		return fail(err)
 	}
-	if err := h.eng.DeleteTask(in.ID); err != nil {
+	if err := h.app.DeleteTask(in.ID); err != nil {
 		return fail(err)
 	}
 	return jsonOut(map[string]any{"id": in.ID, "deleted": true})
@@ -221,20 +218,19 @@ func (h *handler) planCreate(_ context.Context, _ *mcpsdk.CallToolRequest, in pl
 	if in.Auto != nil {
 		auto = *in.Auto
 	}
-	p, err := h.store.CreatePlan(store.Plan{
+	p, err := h.app.CreatePlan(store.Plan{
 		ProjectID: in.Project, Title: in.Title, Goal: in.Goal, Agent: in.Agent, Model: in.Model, Auto: auto,
 	})
 	if err != nil {
 		return fail(err)
 	}
 	for _, step := range in.Steps {
-		t, err := h.store.AddPlanStep(p.ID, store.Task{
+		t, err := h.app.AddPlanStep(p.ID, store.Task{
 			Title: step.Title, Description: step.Description, AcceptanceCriteria: step.Criteria,
 		})
 		if err != nil {
 			return fail(err)
 		}
-		h.rememberTask(t)
 		h.eng.FireTaskHook(launch.HookTaskCreated, t)
 	}
 	d, err := h.planDetail(p, true)
@@ -251,13 +247,12 @@ func (h *handler) planAddStep(_ context.Context, _ *mcpsdk.CallToolRequest, in p
 	if _, err := h.store.GetPlan(in.ID); err != nil {
 		return fail(errors.New("plan not found"))
 	}
-	t, err := h.store.AddPlanStep(in.ID, store.Task{
+	t, err := h.app.AddPlanStep(in.ID, store.Task{
 		Title: in.Title, Description: in.Description, AcceptanceCriteria: in.Criteria, Agent: in.Agent, Model: in.Model,
 	})
 	if err != nil {
 		return fail(err)
 	}
-	h.rememberTask(t)
 	h.eng.FireTaskHook(launch.HookTaskCreated, t)
 	return jsonOut(t)
 }
@@ -285,7 +280,7 @@ func (h *handler) planUpdate(_ context.Context, _ *mcpsdk.CallToolRequest, in pl
 	if in.Auto != nil {
 		p.Auto = *in.Auto
 	}
-	if err := h.store.UpdatePlan(p); err != nil {
+	if err := h.app.UpdatePlan(p); err != nil {
 		return fail(err)
 	}
 	p, err = h.store.GetPlan(in.ID)

@@ -1,6 +1,14 @@
 /bin/
 /dist/
+.task/
 *.exe
 *.test
 *.out
 .DS_Store
+
+# Generated while packaging the desktop application.
+/build/linux/appimage/
+/build/darwin/icons.icns
+/build/windows/icon.ico
+/build/windows/nsis/*.exe
+*.syso

@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0409": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "Troopa",
+			"FileDescription": "Your AI agent troop",
+			"LegalCopyright": "MIT License",
+			"ProductName": "Troopa",
+			"Comments": "Troopa Desktop"
+		}
+	}
+}

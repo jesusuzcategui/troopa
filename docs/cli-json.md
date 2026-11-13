@@ -80,6 +80,17 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
 
 `profile` stores who the agents work for; the project's profile (or `default_profile` in config.toml) is written into every TASK.md. `--account` on a project picks an `[accounts.NAME]` login from config.toml.
 
+## Account keys (OS keyring)
+
+`troopa account key` stores API keys in the OS keyring. It does not use `--json`. In `config.toml`, set the account env value to the marker `keyring:`; Troopa resolves it when launching an agent. The secret is never printed.
+
+```sh
+troopa account key set <account> <VAR>   # reads the key from stdin (no echo on a TTY)
+troopa account key rm <account> <VAR>    # deletes the keyring entry and the env marker
+```
+
+Common variables: `ANTHROPIC_API_KEY` (Claude Code), `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`. `set` also writes `env = { … VAR = "keyring:" … }` under `[accounts.<account>]`.
+
 `task launch` queues a task in `ready` by default (or moves it to an explicit status). The TUI and CLI observe the same SQLite-backed store. `approve` and `discard` update the latest run and task state through the shared store layer.
 
 `task delete` removes the task for good: its runs, rounds, review comments, attachments (rows and files) and, when the latest run still has them, its worktree and branch. A plan step is removed from its plan and the remaining steps are renumbered. A task with an agent running is refused (`invalid_state`). It returns `{"id": N, "deleted": true}`.
@@ -135,6 +146,13 @@ Example output shape (timestamps are RFC 3339 UTC):
 {"schema_version":1,"data":{"id":1,"name":"API","slug":"api","repo_path":"/home/me/src/api","archived":false}}
 ```
 
+## Desktop app
+
+`troopa gui` launches the optional `troopa-desktop` Wails v3 application if it is on your `PATH` (otherwise it prints installation and `wails3 build` instructions). It does not use `--json` and reads/writes the same `troopa.db` and `config.toml` as the TUI and CLI. On its first opening, a short assistant scans for installed agents, lets you choose the language and worktrees folder, and sets up an account. You can sign in in a terminal or paste an API key; the key is stored in the OS keyring and never in `config.toml`. Settings lets you change these choices, add a profile, or scan agents again. Open a project to use the Kanban task board (create, edit, drag between statuses, priority, agent, delete with confirmation, attachments and a detail side panel). Clicking a task with a run opens its execution view: agent rounds and responses, per-file diff with line comments, and a live log; from there you can approve, request changes, merge, open a PR, clean, discard, or open its worktree in an editor. The board polls the same `ChangeStamp` signal as the TUI, so edits from the TUI, daemon, CLI or MCP show up within about two seconds without reloading.
+
+Every release attaches a build of the desktop app to the same GitHub release as the CLI: `troopa-desktop_<version>_linux_amd64.AppImage`, `troopa-desktop_<version>_linux_amd64.deb`, `troopa-desktop_<version>_darwin_universal.app.zip` and `troopa-desktop_<version>_windows_amd64_installer.exe`. The [Download section of the site](https://jesusuzcategui.github.io/troopa/#download) links to the latest of each. `install.sh` installs the CLI only. To build the same artifacts yourself: `wails3 task linux:package`, `wails3 task darwin:package:universal` or `wails3 task windows:package`.
+
 ## Notifications
+
 
 `troopa notify telegram [--token T --chat C] [--dry-run] [--test]` is meant to run as a hook: it reads the hook event (JSON) on stdin, loads the run, task and plan from the database and sends a Telegram message (HTML) with the agent's summary, checks, time, tokens, cost and the next plan step. `TROOPA_TELEGRAM_TOKEN` and `TROOPA_TELEGRAM_CHAT`, or `[telegram] token` and `chat_id` in config.toml, replace the flags. With `[telegram] actions = true` the messages carry buttons (approve, request changes, diff, log) and `troopa daemon` runs a bot that answers them and the commands `/status`, `/plans`, `/plan`, `/run`, `/pause`, `/task`, `/log`, `/diff` from that chat only. The bot also sets Telegram's command menu and, on `/start`, a persistent keyboard (status, plans, tasks, new task, help); tasks are grouped by status and can be launched, approved, commented, sent back or merged (merge asks first); plans, steps and reviews are inline buttons that edit the same message. `--test` sends the latest run as a sample.

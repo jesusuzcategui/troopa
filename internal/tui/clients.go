@@ -142,7 +142,7 @@ func (m *Model) openClientBoard(c store.Client) {
 func (m Model) updateConfirmArchiveClient(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "y", "enter":
-		if err := m.store.ArchiveClient(m.pendingClient.ID); err != nil {
+		if err := m.app.ArchiveClient(m.pendingClient.ID); err != nil {
 			m.err = err.Error()
 		} else {
 			m.status = i18n.T("Archived: ") + m.pendingClient.Name
@@ -197,12 +197,12 @@ func (m Model) submitClientForm() (tea.Model, tea.Cmd) {
 	var err error
 	if c.ID == 0 {
 		var created store.Client
-		created, err = m.store.CreateClient(c)
+		created, err = m.app.CreateClient(c)
 		if err == nil {
 			m.status = i18n.T("Created: ") + created.Name
 		}
 	} else {
-		err = m.store.UpdateClient(c)
+		err = m.app.UpdateClient(c)
 		if err == nil {
 			m.status = i18n.T("Saved: ") + c.Name
 		}

@@ -1,0 +1,56 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the desktop application for Linux
+    deps:
+      - task: common:build:frontend
+        vars:
+          OBFUSCATED:
+            ref: .OBFUSCATED
+          DEV:
+            ref: .DEV
+    preconditions:
+      - sh: 'wails3 tool has "gcc|clang"'
+        msg: "A C compiler (gcc or clang) is required to build troopa-desktop on Linux."
+    cmds:
+      - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}" ./cmd/troopa-desktop
+    vars:
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+    env:
+      GOOS: linux
+      CGO_ENABLED: 1
+      GOARCH: '{{.ARCH | default ARCH}}'
+
+  package:
+    summary: Builds the AppImage and the .deb for Linux
+    cmds:
+      - task: create:appimage
+      - task: create:deb
+
+  create:appimage:
+    summary: Creates an AppImage with the GTK and WebKit libraries it needs
+    deps:
+      - task: build
+      - task: common:generate:icons
+    cmds:
+      - mkdir -p build/linux/appimage
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "build/linux/appimage/{{.APP_NAME}}"
+      - cp build/appicon.png "build/linux/appimage/{{.APP_NAME}}.png"
+      - wails3 generate appimage -binary "build/linux/appimage/{{.APP_NAME}}" -icon "build/linux/appimage/{{.APP_NAME}}.png" -desktopfile "build/linux/{{.APP_NAME}}.desktop" -outputdir "{{.BIN_DIR}}" -builddir build/linux/appimage/build
+
+  create:deb:
+    summary: Creates a .deb package
+    deps:
+      - task: build
+    cmds:
+      - wails3 tool package -name "{{.APP_NAME}}" -format deb -config ./build/linux/nfpm/nfpm.yaml -out "{{.ROOT_DIR}}/{{.BIN_DIR}}"
+
+  run:
+    cmds:
+      - '"./{{.BIN_DIR}}/{{.APP_NAME}}"'

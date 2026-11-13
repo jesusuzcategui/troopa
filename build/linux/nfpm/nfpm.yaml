@@ -1,0 +1,34 @@
+# Package definition for the Troopa desktop application (.deb).
+# `scripts/desktop-version.sh` writes the version of the release being built.
+# See https://nfpm.goreleaser.com for every field.
+name: "troopa-desktop"
+arch: ${GOARCH}
+platform: "linux"
+version: "0.1.0"
+section: "devel"
+priority: "optional"
+maintainer: Jesús Uzcátegui <jesusuzcategui@users.noreply.github.com>
+description: "Your AI agent troop, as a desktop application."
+vendor: "Troopa"
+homepage: https://jesusuzcategui.github.io/troopa/
+license: "MIT"
+release: "1"
+
+contents:
+  - src: "./bin/troopa-desktop"
+    dst: "/usr/bin/troopa-desktop"
+  - src: "./build/appicon.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/troopa-desktop.png"
+  - src: "./build/linux/troopa-desktop.desktop"
+    dst: "/usr/share/applications/troopa-desktop.desktop"
+
+# The GTK4 + WebKitGTK 6.0 stack the application is built against.
+depends:
+  - libgtk-4-1
+  - libwebkitgtk-6.0-4
+
+recommends:
+  - git
+
+scripts:
+  postinstall: "./build/linux/nfpm/scripts/postinstall.sh"

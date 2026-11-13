@@ -11,6 +11,8 @@ import (
 	"runtime/debug"
 	"syscall"
 
+	"golang.org/x/term"
+
 	"github.com/jesusuzcategui/troopa/internal/cli"
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/daemon"
@@ -43,6 +45,8 @@ Usage:
   troopa                              open the interactive TUI
   troopa setup                        run the first-run setup again
   troopa login <account> <agent>      sign an agent in to an account
+  troopa account key set <account> <VAR>   store an API key in the OS keyring (stdin, no echo)
+  troopa account key rm <account> <VAR>    remove a key from the keyring and config
   troopa notify telegram [flags]      send a hook event to Telegram (see the docs)
   troopa extensions                   list troopa-* extensions on the PATH
   troopa <extension> [args]           run troopa-<extension>
@@ -52,6 +56,7 @@ Usage:
   troopa daemon uninstall             remove the user service
   troopa mcp                          MCP server over stdio (read and write tools)
   troopa mcp install <client>         register with claude, codex, opencode or cursor
+  troopa gui                          open the desktop app (requires troopa-desktop)
   troopa <resource> <command> --json  run a non-interactive command
   troopa help | -h | --help           show this help
   troopa version | -v | --version     show the version
@@ -100,10 +105,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "login":
 		return runLogin(args[1:], stdout, stderr)
+	case "account":
+		return runAccount(args[1:], stdout, stderr)
 	case "daemon":
 		return runDaemon(args[1:], stdout, stderr)
 	case "mcp":
 		return runMCP(args[1:], stdout, stderr)
+	case "gui":
+		return runGUI(args[1:], stdout, stderr)
 	case "notify":
 		return runNotify(args[1:], stdout, stderr)
 	case "extensions":
@@ -257,6 +266,71 @@ func runTUI(forceSetup bool) error {
 	return tui.Run(s, cfg, configPath, tui.Options{Version: buildVersion(), ForceSetup: forceSetup})
 }
 
+// runAccount handles troopa account key set|rm.
+func runAccount(args []string, stdout, stderr io.Writer) int {
+	applyConfigLang()
+	usage := i18n.T("usage: troopa account key set|rm <account> <VAR>")
+	if len(args) == 0 || args[0] != "key" {
+		fmt.Fprintln(stderr, usage)
+		return 2
+	}
+	if len(args) < 2 {
+		fmt.Fprintln(stderr, usage)
+		return 2
+	}
+	switch args[1] {
+	case "set":
+		if len(args) != 4 {
+			fmt.Fprintln(stderr, usage)
+			return 2
+		}
+		_, configPath, _, err := config.Paths()
+		if err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			fmt.Fprint(stderr, i18n.T("Enter API key (input is hidden): "))
+		}
+		secret, err := config.ReadSecret(os.Stdin)
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			fmt.Fprintln(stderr)
+		}
+		if err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		if err := config.SetAccountKey(configPath, args[2], args[3], secret); err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, i18n.T("Saved %s for account %q in the keyring.", args[3], args[2]))
+		return 0
+	case "rm":
+		if len(args) != 4 {
+			fmt.Fprintln(stderr, usage)
+			return 2
+		}
+		_, configPath, _, err := config.Paths()
+		if err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		if err := config.RemoveAccountKey(configPath, args[2], args[3]); err != nil {
+			fmt.Fprintf(stderr, "troopa: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, i18n.T("Removed %s for account %q from the keyring.", args[3], args[2]))
+		return 0
+	case "help", "-h", "--help":
+		fmt.Fprintln(stdout, usage)
+		return 0
+	default:
+		fmt.Fprintln(stderr, usage)
+		return 2
+	}
+}
+
 // runLogin opens an agent CLI with the logins of an account
 // ([accounts.<name>] in config.toml) so the person signs in once.
 func runLogin(args []string, stdout, stderr io.Writer) int {
@@ -313,6 +387,35 @@ func runNotify(args []string, stdout, stderr io.Writer) int {
 		return store.Open(dbPath)
 	}
 	return notify.Telegram(args[1:], os.Stdin, stdout, stderr, open, def)
+}
+
+func runGUI(args []string, stdout, stderr io.Writer) int {
+	applyConfigLang()
+	usage := i18n.T("usage: troopa gui")
+	if len(args) == 1 && (args[0] == "help" || args[0] == "-h" || args[0] == "--help") {
+		fmt.Fprintln(stdout, usage)
+		return 0
+	}
+	if len(args) > 0 {
+		fmt.Fprintln(stderr, usage)
+		return 2
+	}
+	bin, err := exec.LookPath("troopa-desktop")
+	if err != nil {
+		fmt.Fprintln(stderr, i18n.T("troopa-desktop is not on your PATH."))
+		fmt.Fprintln(stderr, i18n.T("Install troopa-desktop from the latest release and place it on your PATH, or build it from source with: wails3 build"))
+		return 1
+	}
+	cmd := exec.Command(bin)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, stdout, stderr
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return ee.ExitCode()
+		}
+		fmt.Fprintf(stderr, "troopa: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 // runExtension runs troopa-<name> with the paths Troopa uses.

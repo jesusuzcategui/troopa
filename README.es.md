@@ -36,7 +36,9 @@ Vienen quince paletas. Oscuras: `dark`, `tropic`, `nord`, `dracula`, `gruvbox`, 
 
 ## Agentes
 
-Ejemplo de `config.toml` en el README en inglés (`max_attachment_mb = 50`). En el formulario y el panel, `a` abre el selector de archivos y `p` pega una ruta. Los archivos se copian a `$XDG_DATA_HOME/troopa/attachments/<id>/`. `@` en la descripción autocompleta archivos del repo. Al lanzar, los adjuntos van a `.troopa/attachments/` del worktree (fuera de git y del diff) y `TASK.md` los lista con las referencias `@`.
+Ejemplo de `config.toml` en el README en inglés (`max_attachment_mb = 50`). Las API keys de una cuenta pueden vivir en el keyring del sistema: en `config.toml` usa el marcador `keyring:` (`env = { ANTHROPIC_API_KEY = "keyring:" }`) y guarda el secreto con `troopa account key set <cuenta> <VAR>` (stdin, sin eco). Variables habituales: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`. La clave nunca aparece en config, logs, TASK.md ni en la salida de la CLI. `troopa account key rm` la quita del keyring y del `env`.
+
+En el formulario y el panel, `a` abre el selector de archivos y `p` pega una ruta. Los archivos se copian a `$XDG_DATA_HOME/troopa/attachments/<id>/`. `@` en la descripción autocompleta archivos del repo. Al lanzar, los adjuntos van a `.troopa/attachments/` del worktree (fuera de git y del diff) y `TASK.md` los lista con las referencias `@`.
 
 Al pasar a **ready** con un agente distinto de `me` se crea un worktree y `TASK.md`. Yolo corre sin interacción; pair abre el CLI interactivo. Finish pair (`f`) corre checks.
 

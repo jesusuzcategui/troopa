@@ -199,7 +199,7 @@ func (m Model) updateProfilesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		ps.confirm = 0
-		if err := m.store.DeleteProfile(p.ID); err != nil {
+		if err := m.app.DeleteProfile(p.ID); err != nil {
 			m.err = err.Error()
 			return m, nil
 		}
@@ -222,14 +222,14 @@ func (m Model) saveProfile() (tea.Model, tea.Cmd) {
 	p.Instructions = ps.instr.Value()
 	var err error
 	if p.ID == 0 {
-		p, err = m.store.CreateProfile(p)
+		p, err = m.app.CreateProfile(p)
 		if err == nil && m.cfg.DefaultProfile == 0 {
 			// The first profile becomes the default.
 			m.cfg.DefaultProfile = p.ID
 			_ = m.saveConfig()
 		}
 	} else {
-		err = m.store.UpdateProfile(p)
+		err = m.app.UpdateProfile(p)
 	}
 	if err != nil {
 		m.err = i18n.T(err.Error())

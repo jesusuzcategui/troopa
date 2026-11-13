@@ -173,7 +173,7 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				ps.view = planDetail
 				return m, nil
 			}
-			t, err := m.store.AddPlanStep(ps.plan.ID, store.Task{Title: title, Priority: store.PriorityMedium, Commits: store.CommitsNone, Type: store.TypeFeature})
+			t, err := m.app.AddPlanStep(ps.plan.ID, store.Task{Title: title, Priority: store.PriorityMedium, Commits: store.CommitsNone, Type: store.TypeFeature})
 			if err != nil {
 				m.err = err.Error()
 				return m, nil
@@ -230,7 +230,7 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			ps.confirm = 0
-			if err := m.store.DeletePlan(p.ID); err != nil {
+			if err := m.app.DeletePlan(p.ID); err != nil {
 				m.err = err.Error()
 				return m, nil
 			}
@@ -268,7 +268,7 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if key == "K" {
 			dir = -1
 		}
-		if err := m.store.MovePlanStep(ps.steps[ps.stepCur].ID, dir); err != nil {
+		if err := m.app.MovePlanStep(ps.steps[ps.stepCur].ID, dir); err != nil {
 			m.err = err.Error()
 			return m, nil
 		}
@@ -295,14 +295,14 @@ func (m Model) updatePlansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.editPlan(ps.plan)
 	case "t":
 		ps.plan.Auto = !ps.plan.Auto
-		_ = m.store.UpdatePlan(ps.plan)
+		_ = m.app.UpdatePlan(ps.plan)
 		m.status = i18n.T("Auto-advance: ") + onOff(ps.plan.Auto)
 	case "A":
 		ps.plan.AutoApprove = !ps.plan.AutoApprove
 		if ps.plan.AutoApprove {
 			ps.plan.Auto = true
 		}
-		_ = m.store.UpdatePlan(ps.plan)
+		_ = m.app.UpdatePlan(ps.plan)
 		m.status = i18n.T("Auto-approve: ") + onOff(ps.plan.AutoApprove)
 		if ps.plan.AutoApprove {
 			if p, err := m.store.Get(ps.plan.ProjectID); err == nil && !launch.ProjectHasChecks(p.RepoPath) {
@@ -423,9 +423,9 @@ func (m Model) savePlan() (tea.Model, tea.Cmd) {
 	p.Model = strings.TrimSpace(ps.model.Value())
 	var err error
 	if p.ID == 0 {
-		p, err = m.store.CreatePlan(p)
+		p, err = m.app.CreatePlan(p)
 	} else {
-		err = m.store.UpdatePlan(p)
+		err = m.app.UpdatePlan(p)
 	}
 	if err != nil {
 		m.err = i18n.T(err.Error())
