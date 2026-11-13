@@ -20,7 +20,7 @@ The TUI is `go run ./cmd/troopa`. Data: `$XDG_DATA_HOME/troopa/` (default `~/.lo
 
 ## Themes
 
-Bundled palettes live in `internal/tui/themes/*.toml`. User palettes go in `$XDG_CONFIG_HOME/troopa/themes/`. Keep the `[colors]` keys listed in the README.
+Bundled palettes live in `internal/theme/themes/*.toml`. User palettes go in `$XDG_CONFIG_HOME/troopa/themes/`. Keep the `[colors]` keys listed in the README.
 
 ## Release snapshots
 

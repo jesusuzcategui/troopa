@@ -8,5 +8,6 @@ export {
 
 export type {
     DiffLine,
-    FileDiff
+    FileDiff,
+    ProjectSummary
 } from "./models.js";

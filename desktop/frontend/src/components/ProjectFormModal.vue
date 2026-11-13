@@ -17,7 +17,21 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
   saved: [project: Project, isNew: boolean];
+  newClient: [];
 }>();
+
+function chooseClient() {
+  if (clientId.value === -1) {
+    clientId.value = 0;
+    emit("newClient");
+  }
+}
+
+function selectClient(id: number) {
+  clientId.value = id;
+}
+
+defineExpose({ selectClient });
 
 const name = ref("");
 const slug = ref("");
@@ -193,8 +207,9 @@ async function submit(initMissing = false) {
           </div>
           <div class="field">
             <label for="proj-client">{{ t(lang, "Client") }}</label>
-            <select id="proj-client" v-model.number="clientId">
+            <select id="proj-client" v-model.number="clientId" @change="chooseClient">
               <option :value="0">{{ t(lang, "None") }}</option>
+              <option :value="-1">{{ t(lang, "New client") }}</option>
               <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>

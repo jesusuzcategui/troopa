@@ -15,6 +15,7 @@ import (
 // Settings exposes the desktop UI defaults derived from Troopa's configuration.
 type Settings struct {
 	Language       string  `json:"language"`
+	Theme          string  `json:"theme"`
 	ThemeMode      string  `json:"theme_mode"`
 	DefaultAccount string  `json:"default_account"`
 	DefaultProfile int64   `json:"default_profile"`
@@ -61,14 +62,20 @@ func NewDesktopService(wailsApp *application.App, cfg config.Config, configPath 
 
 func (d *DesktopService) GetSettings() Settings {
 	d.reloadConfig()
+	// Prefer config.toml (and TROOPA_LANG via Apply) so the desktop UI matches the TUI.
+	if d.configPath != "" || strings.TrimSpace(d.cfg.Language) != "" {
+		i18n.Apply(d.cfg.Language)
+	}
 	agents := launch.DetectAgents(d.cfg.Launch)
 	items := make([]Agent, len(agents))
 	for i, agent := range agents {
 		items[i] = Agent{ID: agent.ID, Name: agent.Name, Command: agent.Command, Version: agent.Version, Installed: agent.Installed}
 	}
+	themeName := d.cfg.NormalizedTheme()
 	return Settings{
 		Language:       i18n.Lang(),
-		ThemeMode:      themeModeFromConfig(d.cfg.NormalizedTheme()),
+		Theme:          themeName,
+		ThemeMode:      themeModeFromConfig(themeName),
 		DefaultAccount: d.cfg.DefaultAccount,
 		DefaultProfile: d.cfg.DefaultProfile,
 		DefaultAgent:   d.cfg.DefaultAgent,

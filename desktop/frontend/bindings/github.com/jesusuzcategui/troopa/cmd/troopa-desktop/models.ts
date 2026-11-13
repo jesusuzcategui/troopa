@@ -17,6 +17,7 @@ export interface Agent {
  */
 export interface Settings {
     "language": string;
+    "theme": string;
     "theme_mode": string;
     "default_account": string;
     "default_profile": number;

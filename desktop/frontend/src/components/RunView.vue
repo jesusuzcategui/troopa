@@ -8,7 +8,7 @@ import { t, type Lang } from "../i18n";
 type DiffLine = { kind: string; text: string; old: number; new: number };
 type FileDiff = { path: string; lines: DiffLine[] };
 
-const props = defineProps<{ runId: number; taskTitle: string; lang: Lang }>();
+const props = defineProps<{ runId: number; taskTitle: string; lang: Lang; embedded?: boolean }>();
 const emit = defineEmits<{ back: []; notice: [message: string]; error: [message: string] }>();
 
 const run = ref<Run | null>(null);
@@ -122,12 +122,12 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
 
 <template>
   <section class="run-view" :aria-label="t(lang, 'Run')">
-    <header class="run-head">
+    <header v-if="!embedded" class="run-head">
       <div>
         <button class="btn sm ghost" type="button" @click="emit('back')">← {{ t(lang, 'Task board') }}</button>
         <h1 class="page-title">{{ taskTitle }}</h1>
         <p class="page-subtitle">
-          <span class="badge accent">{{ run?.state ?? t(lang, 'Loading run…') }}</span>
+          <span class="badge accent">{{ run ? t(lang, run.state) : t(lang, 'Loading run…') }}</span>
           <span v-if="run?.branch">{{ run.branch }}</span>
         </p>
       </div>
@@ -150,7 +150,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
     <div v-if="loading" class="empty-state"><p>{{ t(lang, 'Loading run…') }}</p></div>
     <div v-else-if="tab === 'summary'" class="run-pane">
       <article v-for="round in rounds" :key="round.id || round.number" class="round-item">
-        <header><strong>{{ t(lang, 'Round') }} {{ round.number }}</strong><span class="badge">{{ round.state }}</span></header>
+        <header><strong>{{ t(lang, 'Round') }} {{ round.number }}</strong><span class="badge">{{ t(lang, round.state) }}</span></header>
         <p v-if="round.feedback" class="round-feedback">{{ round.feedback }}</p>
         <pre v-if="round.summary" class="run-copy">{{ round.summary }}</pre>
         <p v-else class="panel-muted">{{ t(lang, 'Waiting for the agent response…') }}</p>

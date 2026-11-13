@@ -1,15 +1,31 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { Profile } from "../../bindings/github.com/jesusuzcategui/troopa/internal/store/models";
+import type { Palette } from "../../bindings/github.com/jesusuzcategui/troopa/internal/theme/models";
 import type { Settings } from "../../bindings/github.com/jesusuzcategui/troopa/cmd/troopa-desktop/models";
 import * as AppService from "../../bindings/github.com/jesusuzcategui/troopa/internal/app/service";
 import * as DesktopService from "../../bindings/github.com/jesusuzcategui/troopa/cmd/troopa-desktop/desktopservice";
 import { t, type Lang } from "../i18n";
+import { findTheme, themeVars } from "../theme";
 
-const props = defineProps<{ open: boolean; firstRun: boolean; settings: Settings | null; profiles: Profile[]; lang: Lang }>();
-const emit = defineEmits<{ close: []; saved: [settings: Settings] }>();
+const props = defineProps<{
+  open: boolean;
+  firstRun: boolean;
+  settings: Settings | null;
+  themes: Palette[];
+  currentTheme: string;
+  profiles: Profile[];
+  lang: Lang;
+}>();
+const emit = defineEmits<{
+  close: [];
+  saved: [settings: Settings];
+  previewTheme: [name: string];
+}>();
 
 const language = ref<Lang>("en");
+const selectedTheme = ref("dark");
+const initialTheme = ref("dark");
 const agent = ref("me");
 const worktrees = ref("");
 const terminal = ref("");
@@ -25,18 +41,27 @@ const step = ref(0);
 
 const usableAgents = computed(() => props.settings?.agents || []);
 const selectedAgent = computed(() => usableAgents.value.find((item) => item.id === agent.value));
+const previewPalette = computed(() => findTheme(props.themes, selectedTheme.value));
+const previewStyle = computed(() => (previewPalette.value ? themeVars(previewPalette.value) : {}));
 
-watch(() => [props.open, props.settings] as const, ([open, settings]) => {
-  if (!open || !settings) return;
-  language.value = settings.language === "es" ? "es" : "en";
-  agent.value = settings.default_agent || (settings.agents || []).find((item) => item.installed)?.id || "me";
-  worktrees.value = settings.worktrees || "";
-  terminal.value = settings.terminal || "";
-  step.value = 0;
-  error.value = "";
-  notice.value = "";
-  secret.value = "";
-}, { immediate: true });
+watch(
+  () => [props.open, props.settings] as const,
+  ([open, settings]) => {
+    if (!open || !settings) return;
+    language.value = settings.language === "es" ? "es" : "en";
+    const themeName = settings.theme || props.currentTheme || "dark";
+    initialTheme.value = themeName;
+    selectedTheme.value = themeName;
+    agent.value = settings.default_agent || (settings.agents || []).find((item) => item.installed)?.id || "me";
+    worktrees.value = settings.worktrees || "";
+    terminal.value = settings.terminal || "";
+    step.value = 0;
+    error.value = "";
+    notice.value = "";
+    secret.value = "";
+  },
+  { immediate: true }
+);
 
 function keyVariableForAgent() {
   if (agent.value === "claude") return "ANTHROPIC_API_KEY";
@@ -44,10 +69,35 @@ function keyVariableForAgent() {
   return "OPENAI_API_KEY";
 }
 
-watch(agent, () => { variable.value = keyVariableForAgent(); });
+watch(agent, () => {
+  variable.value = keyVariableForAgent();
+});
+
+function selectTheme(name: string) {
+  selectedTheme.value = name;
+  emit("previewTheme", name);
+}
+
+function cancel() {
+  if (props.firstRun) return;
+  if (selectedTheme.value !== initialTheme.value) {
+    emit("previewTheme", initialTheme.value);
+  }
+  emit("close");
+}
 
 async function saveSettings(done: boolean) {
-  await DesktopService.SaveSettings({ language: language.value, default_agent: agent.value, worktrees: worktrees.value.trim(), terminal: terminal.value.trim(), setup_done: done });
+  if (selectedTheme.value) {
+    await AppService.SetTheme(selectedTheme.value);
+    initialTheme.value = selectedTheme.value;
+  }
+  await DesktopService.SaveSettings({
+    language: language.value,
+    default_agent: agent.value,
+    worktrees: worktrees.value.trim(),
+    terminal: terminal.value.trim(),
+    setup_done: done,
+  });
   const fresh = await DesktopService.GetSettings();
   emit("saved", fresh);
   return fresh;
@@ -88,7 +138,15 @@ async function finish() {
       }
     }
     if (profileName.value.trim()) {
-      await AppService.CreateProfile({ id: 0, name: profileName.value.trim(), profession: "", about: "", instructions: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      await AppService.CreateProfile({
+        id: 0,
+        name: profileName.value.trim(),
+        profession: "",
+        about: "",
+        instructions: "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     }
     emit("close");
   } catch (err) {
@@ -106,35 +164,172 @@ async function rescan() {
 </script>
 
 <template>
-  <div v-if="open" class="modal-backdrop" role="dialog" aria-modal="true" :aria-label="t(lang, firstRun ? 'Set up Troopa' : 'Settings')" @click.self="!firstRun && emit('close')">
+  <div
+    v-if="open"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="t(lang, firstRun ? 'Set up Troopa' : 'Settings')"
+    @click.self="cancel"
+    @keydown.esc="cancel"
+  >
     <section class="modal settings-modal">
       <div class="modal-head">
-        <div><h2>{{ t(lang, firstRun ? "Set up Troopa" : "Settings") }}</h2><p>{{ t(lang, firstRun ? "A few choices, then you can create your first task." : "These choices apply to new tasks.") }}</p></div>
-        <button v-if="!firstRun" class="btn sm ghost" type="button" @click="emit('close')">{{ t(lang, "Close") }}</button>
+        <div>
+          <h2>{{ t(lang, firstRun ? "Set up Troopa" : "Settings") }}</h2>
+          <p>{{ t(lang, firstRun ? "A few choices, then you can create your first task." : "These choices apply to new tasks.") }}</p>
+        </div>
+        <button v-if="!firstRun" class="btn sm ghost" type="button" @click="cancel">{{ t(lang, "Close") }}</button>
       </div>
-      <div v-if="firstRun" class="setup-steps" aria-label="Setup progress"><span :class="{ active: step === 0 }">1</span><span :class="{ active: step === 1 }">2</span><span :class="{ active: step === 2 }">3</span></div>
-      <div v-if="error" class="alert error" role="alert">{{ error }}</div><div v-if="notice" class="alert ok" role="status">{{ notice }}</div>
+      <div v-if="firstRun" class="setup-steps" :aria-label="t(lang, 'Setup progress')">
+        <span :class="{ active: step === 0 }">1</span>
+        <span :class="{ active: step === 1 }">2</span>
+        <span :class="{ active: step === 2 }">3</span>
+      </div>
+      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+      <div v-if="notice" class="alert ok" role="status">{{ notice }}</div>
 
       <div v-show="!firstRun || step === 0" class="settings-section">
-        <h3>{{ t(lang, "Language") }}</h3><p>{{ t(lang, "Choose the language you want to use every day.") }}</p>
-        <select v-model="language"><option value="en">English</option><option value="es">Español</option></select>
+        <h3>{{ t(lang, "Language") }}</h3>
+        <p>{{ t(lang, "Choose the language you want to use every day.") }}</p>
+        <select v-model="language">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
       </div>
+
+      <div v-show="!firstRun || step === 0" class="settings-section">
+        <h3>{{ t(lang, "Theme") }}</h3>
+        <p>{{ t(lang, "Choose a palette shared with the TUI. Your own TOML themes appear here too.") }}</p>
+        <div class="theme-grid" role="radiogroup" :aria-label="t(lang, 'Theme')">
+          <label
+            v-for="item in themes"
+            :key="item.name"
+            class="theme-card"
+            :class="{ active: selectedTheme === item.name }"
+          >
+            <span class="theme-card-top">
+              <input
+                type="radio"
+                name="troopa-theme"
+                :value="item.name"
+                :checked="selectedTheme === item.name"
+                @change="selectTheme(item.name)"
+              />
+              <span class="theme-card-name" :title="item.name">{{ item.name }}</span>
+              <span class="theme-card-mode">{{ t(lang, item.light ? "light" : "dark") }}</span>
+            </span>
+            <span class="theme-swatches" aria-hidden="true">
+              <span class="theme-swatch" :style="{ background: item.colors.bg }"></span>
+              <span class="theme-swatch" :style="{ background: item.colors.fg }"></span>
+              <span class="theme-swatch" :style="{ background: item.colors.accent }"></span>
+              <span class="theme-swatch" :style="{ background: item.colors.diff_add }"></span>
+              <span class="theme-swatch" :style="{ background: item.colors.error }"></span>
+            </span>
+          </label>
+        </div>
+
+        <div v-if="previewPalette" class="theme-preview" :style="previewStyle" :aria-label="t(lang, 'Preview')">
+          <div class="theme-preview-head">
+            <span class="theme-preview-title">{{ previewPalette.name }}</span>
+            <span class="theme-preview-btn">{{ t(lang, "Primary action") }}</span>
+          </div>
+          <div class="theme-preview-row">
+            <span>{{ t(lang, "Selected row") }}</span>
+            <span class="theme-preview-muted">{{ t(lang, previewPalette.light ? "light" : "dark") }}</span>
+          </div>
+          <div class="theme-preview-tags">
+            <span class="theme-preview-tag add">+ diff_add</span>
+            <span class="theme-preview-tag del">- diff_del</span>
+            <span class="theme-preview-tag hunk">@@ hunk</span>
+          </div>
+        </div>
+      </div>
+
       <div v-show="!firstRun || step === 1" class="settings-section">
-        <h3>{{ t(lang, "Choose an assistant") }}</h3><p>{{ t(lang, "Troopa checked what is already installed on this computer.") }}</p>
-        <div class="agent-list"><label v-for="item in usableAgents" :key="item.id" class="agent-choice" :class="{ unavailable: !item.installed }"><input v-model="agent" type="radio" :value="item.id" /><span><strong>{{ item.name }}</strong><small v-if="item.installed">{{ t(lang, "Ready to use") }}{{ item.version ? ` · ${item.version}` : "" }}</small><small v-else>{{ t(lang, "Not installed. Install it from its website, then scan again.") }}</small></span></label><label class="agent-choice"><input v-model="agent" type="radio" value="me" /><span><strong>{{ t(lang, "I will do the work myself") }}</strong><small>{{ t(lang, "You can add an assistant later in Settings.") }}</small></span></label></div>
+        <h3>{{ t(lang, "Choose an assistant") }}</h3>
+        <p>{{ t(lang, "Troopa checked what is already installed on this computer.") }}</p>
+        <div class="agent-list">
+          <label
+            v-for="item in usableAgents"
+            :key="item.id"
+            class="agent-choice"
+            :class="{ unavailable: !item.installed }"
+          >
+            <input v-model="agent" type="radio" :value="item.id" />
+            <span>
+              <strong>{{ item.name }}</strong>
+              <small v-if="item.installed">{{ t(lang, "Ready to use") }}{{ item.version ? ` · ${item.version}` : "" }}</small>
+              <small v-else>{{ t(lang, "Not installed. Install it from its website, then scan again.") }}</small>
+            </span>
+          </label>
+          <label class="agent-choice">
+            <input v-model="agent" type="radio" value="me" />
+            <span>
+              <strong>{{ t(lang, "I will do the work myself") }}</strong>
+              <small>{{ t(lang, "You can add an assistant later in Settings.") }}</small>
+            </span>
+          </label>
+        </div>
         <button class="btn sm" type="button" @click="rescan">{{ t(lang, "Scan again") }}</button>
       </div>
+
       <div v-show="!firstRun || step === 2" class="settings-section">
-        <h3>{{ t(lang, "Where work is kept") }}</h3><p>{{ t(lang, "Troopa makes a separate safe copy of each project here while an assistant works.") }}</p>
-        <label class="field"><span>{{ t(lang, "Work folder") }}</span><input v-model="worktrees" :placeholder="t(lang, 'Leave empty to use Troopa’s folder')" /></label>
-        <label class="field"><span>{{ t(lang, "Terminal for working together") }}</span><input v-model="terminal" :placeholder="t(lang, 'For example: kitty -e')" /></label>
+        <h3>{{ t(lang, "Where work is kept") }}</h3>
+        <p>{{ t(lang, "Troopa makes a separate safe copy of each project here while an assistant works.") }}</p>
+        <label class="field">
+          <span>{{ t(lang, "Work folder") }}</span>
+          <input v-model="worktrees" :placeholder="t(lang, 'Leave empty to use Troopa’s folder')" />
+        </label>
+        <label class="field">
+          <span>{{ t(lang, "Terminal for working together") }}</span>
+          <input v-model="terminal" :placeholder="t(lang, 'For example: kitty -e')" />
+        </label>
       </div>
+
       <div v-show="!firstRun || step === 2" class="settings-section">
-        <h3>{{ t(lang, "Account") }}</h3><p>{{ t(lang, "Use a sign-in or an API key. Your key is stored in your computer’s secure keyring, not in this app.") }}</p>
-        <template v-if="agent !== 'me'"><label class="field"><span>{{ t(lang, "Account name") }}</span><input v-model="account" /></label><div class="method-row"><label><input v-model="method" type="radio" value="key" /> {{ t(lang, "Paste an API key") }}</label><label><input v-model="method" type="radio" value="login" /> {{ t(lang, "Sign in in a terminal") }}</label></div><template v-if="method === 'key'"><label class="field"><span>{{ t(lang, "Key name") }}</span><input v-model="variable" /></label><label class="field"><span>{{ t(lang, "API key") }}</span><input v-model="secret" type="password" autocomplete="off" /></label></template></template><p v-else>{{ t(lang, "Choose an assistant whenever you are ready.") }}</p>
+        <h3>{{ t(lang, "Account") }}</h3>
+        <p>{{ t(lang, "Use a sign-in or an API key. Your key is stored in your computer’s secure keyring, not in this app.") }}</p>
+        <template v-if="agent !== 'me'">
+          <label class="field">
+            <span>{{ t(lang, "Account name") }}</span>
+            <input v-model="account" />
+          </label>
+          <div class="method-row">
+            <label><input v-model="method" type="radio" value="key" /> {{ t(lang, "Paste an API key") }}</label>
+            <label><input v-model="method" type="radio" value="login" /> {{ t(lang, "Sign in in a terminal") }}</label>
+          </div>
+          <template v-if="method === 'key'">
+            <label class="field">
+              <span>{{ t(lang, "Key name") }}</span>
+              <input v-model="variable" />
+            </label>
+            <label class="field">
+              <span>{{ t(lang, "API key") }}</span>
+              <input v-model="secret" type="password" autocomplete="off" />
+            </label>
+          </template>
+        </template>
+        <p v-else>{{ t(lang, "Choose an assistant whenever you are ready.") }}</p>
       </div>
-      <div v-show="!firstRun" class="settings-section"><h3>{{ t(lang, "Profile") }}</h3><p>{{ t(lang, "Tell assistants who they work for. This is optional.") }}</p><label class="field"><span>{{ t(lang, "New profile name") }}</span><input v-model="profileName" :placeholder="t(lang, 'For example: Ana, a bakery owner')" /></label><p v-if="profiles.length">{{ profiles.map((profile) => profile.name).join(", ") }}</p></div>
-      <div class="modal-actions"><button v-if="firstRun && step > 0" class="btn" type="button" :disabled="saving" @click="step--">{{ t(lang, "Back") }}</button><button v-if="!firstRun" class="btn" type="button" :disabled="saving" @click="emit('close')">{{ t(lang, "Cancel") }}</button><button class="btn primary" type="button" :disabled="saving" @click="firstRun ? continueSetup() : finish()">{{ saving ? t(lang, "Saving…") : firstRun && step < 2 ? t(lang, "Continue") : t(lang, "Save and continue") }}</button></div>
+
+      <div v-show="!firstRun" class="settings-section">
+        <h3>{{ t(lang, "Profile") }}</h3>
+        <p>{{ t(lang, "Tell assistants who they work for. This is optional.") }}</p>
+        <label class="field">
+          <span>{{ t(lang, "New profile name") }}</span>
+          <input v-model="profileName" :placeholder="t(lang, 'For example: Ana, a bakery owner')" />
+        </label>
+        <p v-if="profiles.length">{{ profiles.map((profile) => profile.name).join(", ") }}</p>
+      </div>
+
+      <div class="modal-actions">
+        <button v-if="firstRun && step > 0" class="btn" type="button" :disabled="saving" @click="step--">{{ t(lang, "Back") }}</button>
+        <button v-if="!firstRun" class="btn" type="button" :disabled="saving" @click="cancel">{{ t(lang, "Cancel") }}</button>
+        <button class="btn primary" type="button" :disabled="saving" @click="firstRun ? continueSetup() : finish()">
+          {{ saving ? t(lang, "Saving…") : firstRun && step < 2 ? t(lang, "Continue") : t(lang, "Save and continue") }}
+        </button>
+      </div>
     </section>
   </div>
 </template>

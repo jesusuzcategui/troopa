@@ -3,7 +3,10 @@
 package app
 
 import (
+	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
@@ -11,6 +14,7 @@ import (
 	"github.com/jesusuzcategui/troopa/internal/gitinit"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
+	"github.com/jesusuzcategui/troopa/internal/theme"
 )
 
 // DiffLine and FileDiff are the serializable diff shape consumed by desktop UI.
@@ -24,6 +28,14 @@ type DiffLine struct {
 type FileDiff struct {
 	Path  string     `json:"path"`
 	Lines []DiffLine `json:"lines"`
+}
+
+// ProjectSummary is the compact project status used by project lists.
+type ProjectSummary struct {
+	Project      store.Project  `json:"project"`
+	Tasks        map[string]int `json:"tasks"`
+	ActivePlans  int            `json:"active_plans"`
+	LastActivity time.Time      `json:"last_activity"`
 }
 
 // Service coordinates store changes and their shared side effects.
@@ -52,6 +64,60 @@ func (a *Service) rememberTask(t store.Task) {
 
 func (a *Service) ListProjects(includeArchived bool) ([]store.Project, error) {
 	return a.Store.List(includeArchived)
+}
+
+// ListProjectSummaries returns each project with the task, plan, and activity
+// information needed to show a useful project list without UI-side aggregation.
+func (a *Service) ListProjectSummaries(includeArchived bool) ([]ProjectSummary, error) {
+	projects, err := a.Store.List(includeArchived)
+	if err != nil {
+		return nil, err
+	}
+	runs, err := a.Store.ListRuns("")
+	if err != nil {
+		return nil, err
+	}
+	lastRunActivity := make(map[int64]time.Time)
+	for _, run := range runs {
+		if run.UpdatedAt.After(lastRunActivity[run.ProjectID]) {
+			lastRunActivity[run.ProjectID] = run.UpdatedAt
+		}
+	}
+	out := make([]ProjectSummary, 0, len(projects))
+	for _, project := range projects {
+		summary := ProjectSummary{
+			Project:      project,
+			Tasks:        make(map[string]int),
+			LastActivity: project.UpdatedAt,
+		}
+		tasks, err := a.Store.ListTasks(project.ID, store.TaskFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, task := range tasks {
+			summary.Tasks[task.Status]++
+			if task.UpdatedAt.After(summary.LastActivity) {
+				summary.LastActivity = task.UpdatedAt
+			}
+		}
+		plans, err := a.Store.ListPlans(project.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, plan := range plans {
+			if plan.State != store.PlanMerged && plan.State != store.PlanCancelled {
+				summary.ActivePlans++
+			}
+			if plan.UpdatedAt.After(summary.LastActivity) {
+				summary.LastActivity = plan.UpdatedAt
+			}
+		}
+		if lastRunActivity[project.ID].After(summary.LastActivity) {
+			summary.LastActivity = lastRunActivity[project.ID]
+		}
+		out = append(out, summary)
+	}
+	return out, nil
 }
 
 func (a *Service) GetProject(id int64) (store.Project, error) {
@@ -99,6 +165,42 @@ func (a *Service) InitRepo(path, name string) error {
 
 func (a *Service) ListAccounts() []string {
 	return a.Engine.Cfg.Launch.AccountNames()
+}
+
+func (a *Service) themesDir() string {
+	if a.Engine.ConfigPath == "" {
+		return ""
+	}
+	return config.ThemesDir(a.Engine.ConfigPath)
+}
+
+func (a *Service) ListThemes() []theme.Palette {
+	return theme.Load(a.themesDir())
+}
+
+func (a *Service) SetTheme(name string) error {
+	if a.Engine.ConfigPath == "" {
+		return fmt.Errorf("config path is empty")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "dark"
+	}
+	chosen := theme.ByName(a.ListThemes(), name)
+	cfg := a.Engine.Cfg
+	if _, err := os.Stat(a.Engine.ConfigPath); err == nil {
+		loaded, err := config.Load(a.Engine.ConfigPath)
+		if err != nil {
+			return err
+		}
+		cfg = loaded
+	}
+	cfg.Theme = chosen.Name
+	if err := config.Save(a.Engine.ConfigPath, cfg); err != nil {
+		return err
+	}
+	a.Engine.Cfg = cfg
+	return nil
 }
 
 func (a *Service) ListClients(includeArchived bool) ([]store.Client, error) {

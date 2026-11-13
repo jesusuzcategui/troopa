@@ -186,14 +186,14 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
     <div v-else class="plans-layout">
       <aside class="plans-list">
         <button v-for="plan in plans" :key="plan.id" class="plan-list-item" :class="{ selected: plan.id === selectedId }" type="button" @click="load(plan.id)">
-          <span class="plan-list-title">{{ plan.title }}</span><span class="badge">{{ plan.state }}</span>
+          <span class="plan-list-title">{{ plan.title }}</span><span class="badge">{{ t(lang, plan.state) }}</span>
         </button>
         <p v-if="plans.length === 0" class="panel-muted">{{ t(lang, "No plans yet.") }}</p>
       </aside>
 
       <article v-if="selected" class="plan-detail">
         <header class="plan-detail-head">
-          <div><h2>{{ selected.title }}</h2><p><span class="badge accent">{{ selected.state }}</span> {{ done }}/{{ steps.length }} · {{ selected.agent }}<span v-if="selected.model"> · {{ selected.model }}</span></p></div>
+          <div><h2>{{ selected.title }}</h2><p><span class="badge accent">{{ t(lang, selected.state) }}</span> {{ done }}/{{ steps.length }} · {{ selected.agent }}<span v-if="selected.model"> · {{ selected.model }}</span></p></div>
           <div class="panel-actions"><button class="btn sm" type="button" @click="openEdit">{{ t(lang, "Edit") }}</button><button class="btn sm ghost danger" type="button" @click="deletePlan">{{ t(lang, "Delete") }}</button></div>
         </header>
         <p v-if="selected.goal" class="plan-goal">{{ selected.goal }}</p>
@@ -214,7 +214,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
         <h3>{{ t(lang, "Steps") }}</h3>
         <div class="plan-steps">
           <div v-for="(step, index) in steps" :key="step.id" class="plan-step">
-            <span class="step-number">{{ step.plan_step }}</span><button class="step-main" type="button" @click="openStep(step)"><strong>{{ step.title }}</strong><span>{{ step.status }} · {{ step.agent }}</span></button>
+            <span class="step-number">{{ step.plan_step }}</span><button class="step-main" type="button" @click="openStep(step)"><strong>{{ step.title }}</strong><span>{{ t(lang, step.status) }} · {{ step.agent }}</span></button>
             <button class="btn sm ghost" type="button" :disabled="index === 0" :aria-label="t(lang, 'Move step up')" @click="moveStep(step, -1)">↑</button>
             <button class="btn sm ghost" type="button" :disabled="index === steps.length - 1" :aria-label="t(lang, 'Move step down')" @click="moveStep(step, 1)">↓</button>
             <button class="btn sm" type="button" @click="editingStep = step">{{ t(lang, "Edit") }}</button>

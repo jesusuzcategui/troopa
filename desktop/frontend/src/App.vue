@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import type { Client, Profile, Project } from "../bindings/github.com/jesusuzcategui/troopa/internal/store/models";
+import type { ProjectSummary } from "../bindings/github.com/jesusuzcategui/troopa/internal/app/models";
+import type { Palette } from "../bindings/github.com/jesusuzcategui/troopa/internal/theme/models";
 import * as AppService from "../bindings/github.com/jesusuzcategui/troopa/internal/app/service";
 import * as DesktopService from "../bindings/github.com/jesusuzcategui/troopa/cmd/troopa-desktop/desktopservice";
 import TroopaLogo from "./components/TroopaLogo.vue";
@@ -9,9 +11,11 @@ import TaskBoard from "./components/TaskBoard.vue";
 import PlansView from "./components/PlansView.vue";
 import RunView from "./components/RunView.vue";
 import SettingsModal from "./components/SettingsModal.vue";
+import ClientsModal from "./components/ClientsModal.vue";
 import { t, type Lang } from "./i18n";
+import { applyPalette, findTheme } from "./theme";
 
-const projects = ref<Project[]>([]);
+const summaries = ref<ProjectSummary[]>([]);
 const clients = ref<Client[]>([]);
 const profiles = ref<Profile[]>([]);
 const accounts = ref<string[]>([]);
@@ -28,54 +32,67 @@ const openProject = ref<Project | null>(null);
 const openRun = ref<{ id: number; title: string } | null>(null);
 const plansOpen = ref(false);
 const settingsOpen = ref(false);
+const clientsOpen = ref(false);
+const projectForm = ref<InstanceType<typeof ProjectFormModal> | null>(null);
+const collapsedClients = ref<Record<string, boolean>>({});
 const desktopSettings = ref<Awaited<ReturnType<typeof DesktopService.GetSettings>> | null>(null);
 
 const lang = ref<Lang>("en");
-const theme = ref<"light" | "dark">("dark");
+const themes = ref<Palette[]>([]);
+const activeTheme = ref("dark");
+const headerMenuOpen = ref(false);
 
-function applyTheme(mode: "light" | "dark") {
-  theme.value = mode;
-  document.documentElement.dataset.theme = mode;
-  try {
-    localStorage.setItem("troopa-desktop-theme", mode);
-  } catch {
-    /* ignore storage errors */
+function applyThemeByName(name: string) {
+  const match = findTheme(themes.value, name);
+  if (match) {
+    activeTheme.value = match.name;
+    applyPalette(match);
   }
-}
-
-function toggleTheme() {
-  applyTheme(theme.value === "dark" ? "light" : "dark");
 }
 
 function applyLang(next: Lang) {
   lang.value = next;
   document.documentElement.lang = next;
+}
+
+async function toggleLang() {
+  const next: Lang = lang.value === "en" ? "es" : "en";
+  applyLang(next);
   try {
-    localStorage.setItem("troopa-desktop-lang", next);
-  } catch {
-    /* ignore storage errors */
+    const current = desktopSettings.value ?? (await DesktopService.GetSettings());
+    await DesktopService.SaveSettings({
+      language: next,
+      default_agent: current.default_agent,
+      worktrees: current.worktrees,
+      terminal: current.terminal,
+      setup_done: current.setup_done,
+    });
+    desktopSettings.value = await DesktopService.GetSettings();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
   }
 }
 
-function toggleLang() {
-  applyLang(lang.value === "en" ? "es" : "en");
+async function openSettings() {
+  try {
+    const [themeList, settings] = await Promise.all([
+      AppService.ListThemes(),
+      DesktopService.GetSettings(),
+    ]);
+    themes.value = themeList ?? [];
+    desktopSettings.value = settings;
+  } catch {
+    /* open with cached settings */
+  }
+  settingsOpen.value = true;
 }
-
-function openSettings() { settingsOpen.value = true; }
 
 async function settingsSaved(settings: Awaited<ReturnType<typeof DesktopService.GetSettings>>) {
   desktopSettings.value = settings;
   applyLang(settings.language === "es" ? "es" : "en");
+  applyThemeByName(settings.theme || settings.theme_mode || "dark");
   await loadData();
 }
-
-const clientNames = computed(() => {
-  const map = new Map<number, string>();
-  for (const c of clients.value) {
-    map.set(c.id, c.name);
-  }
-  return map;
-});
 
 const profileNames = computed(() => {
   const map = new Map<number, string>();
@@ -85,9 +102,9 @@ const profileNames = computed(() => {
   return map;
 });
 
-const filteredProjects = computed(() => {
+const filteredSummaries = computed(() => {
   const q = query.value.trim().toLowerCase();
-  return projects.value.filter((p) => {
+  return summaries.value.filter(({ project: p }) => {
     if (!showArchived.value && p.archived) return false;
     if (!q) return true;
     return (
@@ -100,17 +117,29 @@ const filteredProjects = computed(() => {
   });
 });
 
+const groupedSummaries = computed(() => {
+  const groups = new Map<number, { client: Client | null; summaries: ProjectSummary[] }>();
+  for (const summary of filteredSummaries.value) {
+    const client = clients.value.find((item) => item.id === summary.project.client_id) ?? null;
+    const key = client?.id ?? 0;
+    const group = groups.get(key) ?? { client, summaries: [] };
+    group.summaries.push(summary);
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => (a.client?.name ?? t(lang.value, "No client")).localeCompare(b.client?.name ?? t(lang.value, "No client")));
+});
+
 async function loadData() {
   loading.value = true;
   error.value = "";
   try {
-    const [projList, clientList, profileList, accountList] = await Promise.all([
-      AppService.ListProjects(true),
+    const [summaryList, clientList, profileList, accountList] = await Promise.all([
+      AppService.ListProjectSummaries(true),
       AppService.ListClients(true),
       AppService.ListProfiles(),
       AppService.ListAccounts(),
     ]);
-    projects.value = projList ?? [];
+    summaries.value = summaryList ?? [];
     clients.value = clientList ?? [];
     profiles.value = profileList ?? [];
     accounts.value = accountList ?? [];
@@ -175,37 +204,36 @@ async function archiveProject(proj: Project) {
   }
 }
 
+function openClients() {
+  clientsOpen.value = true;
+}
+
+async function clientChanged(client: Client, isNew: boolean) {
+  notice.value = `${t(lang.value, isNew ? "Created:" : "Saved:")} ${client.name}`;
+  await loadData();
+  if (isNew) projectForm.value?.selectClient(client.id);
+}
+
+function lastActivity(value: string) {
+  return value ? new Date(value).toLocaleDateString(lang.value === "es" ? "es" : "en", { month: "short", day: "numeric" }) : "—";
+}
+
 onMounted(async () => {
-  let savedTheme: string | null = null;
-  let savedLang: string | null = null;
   try {
-    savedTheme = localStorage.getItem("troopa-desktop-theme");
-    savedLang = localStorage.getItem("troopa-desktop-lang");
-  } catch {
-    /* ignore */
-  }
+    const [themeList, settings] = await Promise.all([
+      AppService.ListThemes(),
+      DesktopService.GetSettings(),
+    ]);
 
-  try {
-    const settings = await DesktopService.GetSettings();
-
+    themes.value = themeList ?? [];
     desktopSettings.value = settings;
-    if (savedTheme === "light" || savedTheme === "dark") {
-      applyTheme(savedTheme);
-    } else if (settings.theme_mode === "light" || settings.theme_mode === "dark") {
-      applyTheme(settings.theme_mode);
-    } else {
-      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-      applyTheme(prefersLight ? "light" : "dark");
-    }
+    applyThemeByName(settings.theme || settings.theme_mode || "dark");
 
-    if (savedLang === "en" || savedLang === "es") {
-      applyLang(savedLang);
-    } else {
-      applyLang(settings.language === "es" ? "es" : "en");
-    }
+    // Language always comes from config.toml (same store as the TUI).
+    applyLang(settings.language === "es" ? "es" : "en");
   } catch {
     const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-    applyTheme(savedTheme === "light" ? "light" : savedTheme === "dark" ? "dark" : prefersLight ? "light" : "dark");
+    document.documentElement.dataset.theme = prefersLight ? "light" : "dark";
   }
 
   if (desktopSettings.value && !desktopSettings.value.setup_done) settingsOpen.value = true;
@@ -221,25 +249,25 @@ onMounted(async () => {
         <div class="brand">
           <TroopaLogo />
         </div>
-        <div class="topbar-tools">
+        <button
+          class="tool-btn menu-toggle"
+          type="button"
+          :aria-expanded="headerMenuOpen"
+          aria-controls="topbar-tools"
+          @click="headerMenuOpen = !headerMenuOpen"
+        >
+          {{ t(lang, headerMenuOpen ? "Close" : "Menu") }}
+        </button>
+        <div id="topbar-tools" class="topbar-tools" :class="{ open: headerMenuOpen }">
           <button
             class="tool-btn"
             type="button"
             :title="t(lang, 'Switch language')"
-            @click="toggleLang"
+            @click="toggleLang(); headerMenuOpen = false"
           >
             {{ lang === "en" ? "ES" : "EN" }}
           </button>
-          <button
-            class="tool-btn"
-            type="button"
-            :title="t(lang, 'Toggle light/dark theme')"
-            :aria-label="t(lang, 'Toggle light/dark theme')"
-            @click="toggleTheme"
-          >
-            ◐ {{ theme === "dark" ? "Dark" : "Light" }}
-          </button>
-          <button class="tool-btn" type="button" :title="t(lang, 'Settings')" @click="openSettings">{{ t(lang, "Settings") }}</button>
+          <button class="tool-btn" type="button" :title="t(lang, 'Settings')" @click="openSettings(); headerMenuOpen = false">{{ t(lang, "Settings") }}</button>
         </div>
       </div>
     </header>
@@ -277,6 +305,7 @@ onMounted(async () => {
         @error="error = $event"
         @open-run="showRun"
         @open-plans="openPlans"
+        @open-clients="openClients"
       />
 
       <template v-else>
@@ -285,9 +314,10 @@ onMounted(async () => {
             <h1 class="page-title">{{ t(lang, "Projects") }}</h1>
             <p class="page-subtitle">{{ t(lang, "Manage repositories shared with your Troopa TUI and CLI.") }}</p>
           </div>
-          <button class="btn primary" type="button" @click="openCreate">
-            + {{ t(lang, "New project") }}
-          </button>
+          <div class="page-actions">
+            <button class="btn" type="button" @click="openClients">{{ t(lang, "Clients") }}</button>
+            <button class="btn primary" type="button" @click="openCreate">+ {{ t(lang, "New project") }}</button>
+          </div>
         </div>
 
         <div class="toolbar">
@@ -308,7 +338,7 @@ onMounted(async () => {
           <p>{{ t(lang, "Loading projects…") }}</p>
         </div>
 
-        <div v-else-if="projects.length === 0" class="empty-state">
+        <div v-else-if="summaries.length === 0" class="empty-state">
           <h2>{{ t(lang, "No projects yet") }}</h2>
           <p>{{ t(lang, "Create your first project to point Troopa at a git repository.") }}</p>
           <button class="btn primary" type="button" @click="openCreate">
@@ -316,18 +346,21 @@ onMounted(async () => {
           </button>
         </div>
 
-        <div v-else-if="filteredProjects.length === 0" class="empty-state">
+        <div v-else-if="filteredSummaries.length === 0" class="empty-state">
           <h2>{{ t(lang, "No matching projects") }}</h2>
           <p>{{ t(lang, "Try another search or show archived projects.") }}</p>
         </div>
 
-        <section v-else class="project-list" aria-label="Projects">
-          <article
-            v-for="proj in filteredProjects"
-            :key="proj.id"
-            class="project-card"
-            :class="{ archived: proj.archived }"
-          >
+        <section v-else class="client-groups" :aria-label="t(lang, 'Projects')">
+          <section v-for="group in groupedSummaries" :key="group.client?.id ?? 0" class="client-group">
+            <button class="client-group-head" type="button" :aria-expanded="!collapsedClients[String(group.client?.id ?? 0)]" @click="collapsedClients[String(group.client?.id ?? 0)] = !collapsedClients[String(group.client?.id ?? 0)]">
+              <span>{{ group.client?.name ?? t(lang, "No client") }}</span>
+              <span class="client-group-toggle">{{ t(lang, collapsedClients[String(group.client?.id ?? 0)] ? "Expand" : "Collapse") }}</span>
+              <span class="badge">{{ group.summaries.length }}</span>
+            </button>
+            <div v-if="!collapsedClients[String(group.client?.id ?? 0)]" class="project-list">
+          <article v-for="summary in group.summaries" :key="summary.project.id" class="project-card" :class="{ archived: summary.project.archived }">
+            <template v-for="proj in [summary.project]" :key="proj.id">
             <div class="project-top">
               <div>
                 <h2 class="project-name">
@@ -344,15 +377,18 @@ onMounted(async () => {
 
             <p v-if="proj.description" class="project-desc">{{ proj.description }}</p>
 
-            <div class="badges" v-if="proj.stack || proj.client_id || proj.account || proj.profile_id">
+            <div class="badges" v-if="proj.stack || proj.account || proj.profile_id">
               <span v-if="proj.stack" class="badge accent">{{ proj.stack }}</span>
-              <span v-if="proj.client_id && clientNames.get(proj.client_id)" class="badge">
-                {{ clientNames.get(proj.client_id) }}
-              </span>
               <span v-if="proj.account" class="badge peach">@{{ proj.account }}</span>
               <span v-if="proj.profile_id && profileNames.get(proj.profile_id)" class="badge">
                 {{ profileNames.get(proj.profile_id) }}
               </span>
+            </div>
+
+            <div class="project-summary">
+              <span v-for="(count, status) in summary.tasks" :key="status">{{ t(lang, status) }} {{ count }}</span>
+              <span>{{ t(lang, "Active plans") }}: {{ summary.active_plans }}</span>
+              <span>{{ t(lang, "Last activity") }}: {{ lastActivity(summary.last_activity) }}</span>
             </div>
 
             <div class="project-actions">
@@ -371,12 +407,16 @@ onMounted(async () => {
                 {{ t(lang, "Open board") }}
               </button>
             </div>
+            </template>
           </article>
+            </div>
+          </section>
         </section>
       </template>
     </main>
 
     <ProjectFormModal
+      ref="projectForm"
       :open="modalOpen"
       :project="editingProject"
       :clients="clients.filter((c) => !c.archived)"
@@ -385,15 +425,20 @@ onMounted(async () => {
       :lang="lang"
       @close="modalOpen = false"
       @saved="onSaved"
+      @new-client="openClients"
     />
+    <ClientsModal :open="clientsOpen" :clients="clients" :lang="lang" @close="clientsOpen = false" @changed="clientChanged" />
     <SettingsModal
       :open="settingsOpen"
       :first-run="!!desktopSettings && !desktopSettings.setup_done"
       :settings="desktopSettings"
+      :themes="themes"
+      :current-theme="activeTheme"
       :profiles="profiles"
       :lang="lang"
       @close="settingsOpen = false"
       @saved="settingsSaved"
+      @preview-theme="applyThemeByName"
     />
   </div>
 </template>

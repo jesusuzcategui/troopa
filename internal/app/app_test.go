@@ -87,6 +87,43 @@ func TestServiceProjectOperations(t *testing.T) {
 	}
 }
 
+func TestServiceProjectSummaries(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "troopa.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	a := New(s, config.Config{}, "")
+	p, err := a.CreateProject(store.Project{Name: "Demo", RepoPath: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.CreateTask(store.Task{ProjectID: p.ID, Title: "Inbox", Status: store.StatusInbox}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.CreateTask(store.Task{ProjectID: p.ID, Title: "Ready", Status: store.StatusReady}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.CreatePlan(store.Plan{ProjectID: p.ID, Title: "Active", State: store.PlanRunning}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.CreatePlan(store.Plan{ProjectID: p.ID, Title: "Finished", State: store.PlanMerged}); err != nil {
+		t.Fatal(err)
+	}
+
+	summaries, err := a.ListProjectSummaries(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 {
+		t.Fatalf("summaries = %+v, want one", summaries)
+	}
+	got := summaries[0]
+	if got.Project.ID != p.ID || got.Tasks[store.StatusInbox] != 1 || got.Tasks[store.StatusReady] != 1 || got.ActivePlans != 1 || got.LastActivity.IsZero() {
+		t.Fatalf("summary = %+v", got)
+	}
+}
+
 func TestServiceTaskOperations(t *testing.T) {
 	s, err := store.Open(filepath.Join(t.TempDir(), "troopa.db"))
 	if err != nil {
@@ -172,5 +209,72 @@ func TestServicePlanOperations(t *testing.T) {
 	steps, err := a.PlanSteps(plan.ID)
 	if err != nil || len(steps) != 1 || steps[0].ID != step.ID {
 		t.Fatalf("PlanSteps = %+v, err = %v", steps, err)
+	}
+}
+
+func TestServiceThemes(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "troopa.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	cfgDir := t.TempDir()
+	cfgPath := filepath.Join(cfgDir, "config.toml")
+	themesDir := config.ThemesDir(cfgPath)
+	if err := os.MkdirAll(themesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	custom := `
+name = "sunset"
+[colors]
+fg = "#FFE8D6"
+bg = "#2B1B17"
+accent = "#FF7A59"
+muted = "#A8897A"
+selected = "#3D2A24"
+status = "#35241F"
+error = "#FF5D5D"
+diff_add = "#8FBF6A"
+diff_del = "#FF5D5D"
+diff_hunk = "#7EB8FF"
+`
+	if err := os.WriteFile(filepath.Join(themesDir, "sunset.toml"), []byte(custom), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := config.Config{Theme: "dark", Language: "es"}
+	if err := config.Save(cfgPath, cfg); err != nil {
+		t.Fatal(err)
+	}
+	a := New(s, cfg, cfgPath)
+
+	themes := a.ListThemes()
+	foundBundled := false
+	foundUser := false
+	for _, th := range themes {
+		if th.Name == "catppuccin-mocha" && !th.Light {
+			foundBundled = true
+		}
+		if th.Name == "sunset" {
+			foundUser = true
+		}
+	}
+	if !foundBundled || !foundUser {
+		t.Fatalf("ListThemes missing bundled=%v user=%v", foundBundled, foundUser)
+	}
+
+	if err := a.SetTheme("sunset"); err != nil {
+		t.Fatal(err)
+	}
+	if a.Engine.Cfg.Theme != "sunset" {
+		t.Fatalf("Engine.Cfg.Theme = %q, want sunset", a.Engine.Cfg.Theme)
+	}
+	reloaded, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Theme != "sunset" || reloaded.Language != "es" {
+		t.Fatalf("reloaded config = %+v, want theme=sunset language=es", reloaded)
 	}
 }

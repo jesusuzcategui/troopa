@@ -10,6 +10,7 @@ import * as DesktopService from "../../bindings/github.com/jesusuzcategui/troopa
 import { AGENTS, PRIORITIES, STATUSES, SYNC_MS } from "../constants";
 import { t, type Lang } from "../i18n";
 import ConfirmDialog from "./ConfirmDialog.vue";
+import RunView from "./RunView.vue";
 import TaskFormModal from "./TaskFormModal.vue";
 
 const props = defineProps<{
@@ -23,6 +24,7 @@ const emit = defineEmits<{
   error: [message: string];
   openRun: [runId: number, task: Task];
   openPlans: [];
+  openClients: [];
 }>();
 
 const tasks = ref<Task[]>([]);
@@ -30,6 +32,10 @@ const attachments = ref<Attachment[]>([]);
 const loading = ref(true);
 const query = ref("");
 const selectedId = ref<number | null>(null);
+const selectedRunId = ref<number | null>(null);
+const panelTab = ref<"detail" | "run">("detail");
+const viewMode = ref<"kanban" | "list">("kanban");
+const collapsedStatuses = ref<Record<string, boolean>>({});
 const stamp = ref("");
 const dragOverStatus = ref("");
 
@@ -47,6 +53,34 @@ let syncTimer: ReturnType<typeof setInterval> | null = null;
 let dragTaskId = 0;
 
 const selected = computed(() => tasks.value.find((t) => t.id === selectedId.value) ?? null);
+
+function viewStorageKey(projectId: number): string {
+  return `troopa:task-board-view:${projectId}`;
+}
+
+function loadViewMode(projectId: number) {
+  try {
+    viewMode.value = localStorage.getItem(viewStorageKey(projectId)) === "list" ? "list" : "kanban";
+  } catch {
+    viewMode.value = "kanban";
+  }
+}
+
+function setViewMode(mode: "kanban" | "list") {
+  viewMode.value = mode;
+  try {
+    localStorage.setItem(viewStorageKey(props.project.id), mode);
+  } catch {
+    /* persistence is optional when storage is unavailable */
+  }
+}
+
+function toggleStatus(status: string) {
+  collapsedStatuses.value = {
+    ...collapsedStatuses.value,
+    [status]: !collapsedStatuses.value[status],
+  };
+}
 
 const columns = computed(() => {
   const q = query.value.trim().toLowerCase();
@@ -73,6 +107,7 @@ async function loadTasks(selectId?: number | null) {
       selectedId.value = keep;
     } else if (selectedId.value != null && !tasks.value.some((t) => t.id === selectedId.value)) {
       selectedId.value = null;
+      selectedRunId.value = null;
       attachments.value = [];
     }
   } catch (err) {
@@ -93,12 +128,14 @@ async function loadAttachments(taskId: number) {
 
 async function selectTask(task: Task) {
   selectedId.value = task.id;
+  panelTab.value = "detail";
+  selectedRunId.value = null;
   await loadAttachments(task.id);
   try {
     const run = await AppService.LatestRun(task.id);
-    emit("openRun", run.id, task);
+    if (selectedId.value === task.id) selectedRunId.value = run.id;
   } catch {
-    // A task without a run keeps opening in the detail panel.
+    // A task without a run still opens in the detail panel.
   }
 }
 
@@ -157,6 +194,7 @@ async function confirmDelete() {
     await AppService.DeleteTask(id);
     emit("notice", t(props.lang, "Task deleted"));
     selectedId.value = null;
+    selectedRunId.value = null;
     attachments.value = [];
     stamp.value = await AppService.ChangeStamp();
     await loadTasks(null);
@@ -199,7 +237,7 @@ async function setStatus(task: Task, status: string) {
 async function applyMove(id: number, status: string) {
   try {
     await AppService.MoveTask(id, status);
-    emit("notice", `${t(props.lang, "Moved to ")}${status}`);
+    emit("notice", `${t(props.lang, "Moved to ")}${t(props.lang, status)}`);
     stamp.value = await AppService.ChangeStamp();
     await loadTasks(id);
   } catch (err) {
@@ -330,7 +368,11 @@ watch(
   async () => {
     loading.value = true;
     selectedId.value = null;
+    selectedRunId.value = null;
     attachments.value = [];
+    panelTab.value = "detail";
+    collapsedStatuses.value = {};
+    loadViewMode(props.project.id);
     stamp.value = "";
     await loadTasks(null);
     stamp.value = await AppService.ChangeStamp();
@@ -338,6 +380,7 @@ watch(
 );
 
 onMounted(async () => {
+  loadViewMode(props.project.id);
   await loadTasks(null);
   stamp.value = await AppService.ChangeStamp();
   syncTimer = setInterval(() => {
@@ -368,6 +411,17 @@ onUnmounted(() => {
       <button class="btn" type="button" @click="emit('openPlans')">
         {{ t(lang, "Plans") }}
       </button>
+      <button class="btn" type="button" @click="emit('openClients')">
+        {{ t(lang, "Clients") }}
+      </button>
+      <div class="view-switch" role="group" :aria-label="t(lang, 'Board view')">
+        <button class="btn sm" :class="{ active: viewMode === 'kanban' }" type="button" @click="setViewMode('kanban')">
+          {{ t(lang, "Kanban") }}
+        </button>
+        <button class="btn sm" :class="{ active: viewMode === 'list' }" type="button" @click="setViewMode('list')">
+          {{ t(lang, "List") }}
+        </button>
+      </div>
     </div>
 
     <div class="toolbar">
@@ -384,8 +438,8 @@ onUnmounted(() => {
       <p>{{ t(lang, "Loading tasks…") }}</p>
     </div>
 
-    <div v-else class="board-layout">
-      <div class="kanban" role="list" :aria-label="t(lang, 'Task board')">
+    <div v-else class="board-layout" :class="{ 'with-panel': selected }">
+      <div v-if="viewMode === 'kanban'" class="kanban" role="list" :aria-label="t(lang, 'Task board')">
         <section
           v-for="col in columns"
           :key="col.status"
@@ -396,7 +450,7 @@ onUnmounted(() => {
           @drop="onDrop(col.status, $event)"
         >
           <header class="kanban-col-head">
-            <h2>{{ col.status }}</h2>
+            <h2>{{ t(lang, col.status) }}</h2>
             <span class="kanban-count">{{ col.tasks.length }}</span>
           </header>
           <div class="kanban-cards">
@@ -416,7 +470,7 @@ onUnmounted(() => {
               <h3 class="task-card-title">{{ task.title }}</h3>
               <div class="task-card-meta">
                 <span class="badge" :class="{ accent: task.priority === 'high', peach: task.priority === 'medium' }">
-                  {{ task.priority }}
+                  {{ t(lang, task.priority) }}
                 </span>
                 <span class="badge">{{ task.agent }}</span>
               </div>
@@ -426,8 +480,44 @@ onUnmounted(() => {
         </section>
       </div>
 
-      <aside class="task-panel" :aria-label="t(lang, 'Task panel')">
-        <template v-if="selected">
+      <div v-else class="task-list" :aria-label="t(lang, 'Task board')">
+        <section v-for="col in columns" :key="col.status" class="task-list-group">
+          <button class="task-list-head" type="button" :aria-expanded="!collapsedStatuses[col.status]" @click="toggleStatus(col.status)">
+            <span>{{ t(lang, col.status) }}</span>
+            <span class="kanban-count">{{ col.tasks.length }}</span>
+          </button>
+          <div v-if="!collapsedStatuses[col.status]" class="task-list-items" role="list">
+            <article
+              v-for="task in col.tasks"
+              :key="task.id"
+              class="task-card task-list-item"
+              :class="{ selected: selectedId === task.id }"
+              role="listitem"
+              tabindex="0"
+              @click="selectTask(task)"
+              @dblclick="openEdit(task)"
+              @keydown.enter="selectTask(task)"
+            >
+              <h3 class="task-card-title">{{ task.title }}</h3>
+              <div class="task-card-meta">
+                <span class="badge" :class="{ accent: task.priority === 'high', peach: task.priority === 'medium' }">{{ t(lang, task.priority) }}</span>
+                <span class="badge">{{ task.agent }}</span>
+              </div>
+            </article>
+            <p v-if="col.tasks.length === 0" class="kanban-empty">{{ t(lang, "empty") }}</p>
+          </div>
+        </section>
+      </div>
+
+      <aside v-if="selected" class="task-panel" :aria-label="t(lang, 'Task panel')">
+        <button class="btn sm ghost panel-close" type="button" @click="selectedId = null">
+          {{ t(lang, "Close") }}
+        </button>
+        <div class="panel-tabs" role="tablist" :aria-label="t(lang, 'Task panel')">
+          <button :class="{ active: panelTab === 'detail' }" type="button" role="tab" :aria-selected="panelTab === 'detail'" @click="panelTab = 'detail'">{{ t(lang, "Detail") }}</button>
+          <button :class="{ active: panelTab === 'run' }" type="button" role="tab" :aria-selected="panelTab === 'run'" @click="panelTab = 'run'">{{ t(lang, "Execution") }}</button>
+        </div>
+        <template v-if="panelTab === 'detail'">
           <div class="panel-head">
             <h2>{{ selected.title }}</h2>
             <div class="panel-actions">
@@ -447,7 +537,7 @@ onUnmounted(() => {
                 :value="selected.status"
                 @change="setStatus(selected, ($event.target as HTMLSelectElement).value)"
               >
-                <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
+                <option v-for="s in STATUSES" :key="s" :value="s">{{ t(lang, s) }}</option>
               </select>
             </div>
             <div class="field">
@@ -456,7 +546,7 @@ onUnmounted(() => {
                 :value="selected.priority"
                 @change="setPriority(selected, ($event.target as HTMLSelectElement).value)"
               >
-                <option v-for="p in PRIORITIES" :key="p" :value="p">{{ p }}</option>
+                <option v-for="p in PRIORITIES" :key="p" :value="p">{{ t(lang, p) }}</option>
               </select>
             </div>
             <div class="field">
@@ -470,11 +560,11 @@ onUnmounted(() => {
             </div>
             <div class="field">
               <label>{{ t(lang, "Type") }}</label>
-              <input :value="selected.type" type="text" readonly />
+              <input :value="t(lang, selected.type)" type="text" readonly />
             </div>
             <div class="field">
               <label>{{ t(lang, "Mode") }}</label>
-              <input :value="selected.mode" type="text" readonly />
+              <input :value="t(lang, selected.mode)" type="text" readonly />
             </div>
             <div v-if="selected.model" class="field">
               <label>{{ t(lang, "Model") }}</label>
@@ -503,7 +593,7 @@ onUnmounted(() => {
               <li v-for="att in attachments" :key="att.id">
                 <div>
                   <strong>{{ att.name }}</strong>
-                  <span class="attach-meta">{{ formatSize(att.size) }} · {{ att.mime || "file" }}</span>
+                  <span class="attach-meta">{{ formatSize(att.size) }} · {{ att.mime || t(lang, "file") }}</span>
                 </div>
                 <button class="btn sm ghost danger" type="button" @click="askDetach(att)">
                   {{ t(lang, "Remove") }}
@@ -513,9 +603,13 @@ onUnmounted(() => {
             <p v-else class="panel-muted">{{ t(lang, "(none yet)") }}</p>
           </div>
         </template>
-        <div v-else class="panel-empty">
-          <p>{{ t(lang, "Select a task to see its details.") }}</p>
+        <div v-else-if="selectedRunId" class="panel-run">
+          <div class="panel-run-actions">
+            <button class="btn sm" type="button" @click="emit('openRun', selectedRunId!, selected)">{{ t(lang, "Expand") }}</button>
+          </div>
+          <RunView :run-id="selectedRunId" :task-title="selected.title" :lang="lang" embedded @notice="emit('notice', $event)" @error="emit('error', $event)" />
         </div>
+        <div v-else class="panel-empty"><p>{{ t(lang, "No execution yet.") }}</p></div>
       </aside>
     </div>
 

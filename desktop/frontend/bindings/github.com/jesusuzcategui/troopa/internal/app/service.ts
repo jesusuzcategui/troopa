@@ -13,6 +13,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as store$0 from "../store/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as theme$0 from "../theme/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -157,6 +160,14 @@ export function ListProfiles(): $CancellablePromise<store$0.Profile[] | null> {
     return $Call.ByID(920660456);
 }
 
+/**
+ * ListProjectSummaries returns each project with the task, plan, and activity
+ * information needed to show a useful project list without UI-side aggregation.
+ */
+export function ListProjectSummaries(includeArchived: boolean): $CancellablePromise<$models.ProjectSummary[] | null> {
+    return $Call.ByID(493551149, includeArchived);
+}
+
 export function ListProjects(includeArchived: boolean): $CancellablePromise<store$0.Project[] | null> {
     return $Call.ByID(3337038348, includeArchived);
 }
@@ -171,6 +182,10 @@ export function ListRunRounds(runID: number): $CancellablePromise<store$0.Round[
 
 export function ListTasks(projectID: number, query: string): $CancellablePromise<store$0.Task[] | null> {
     return $Call.ByID(3306590968, projectID, query);
+}
+
+export function ListThemes(): $CancellablePromise<theme$0.Palette[] | null> {
+    return $Call.ByID(416587844);
 }
 
 export function MergePlan(id: number): $CancellablePromise<void> {
@@ -226,6 +241,10 @@ export function RunDiff(runID: number): $CancellablePromise<$models.FileDiff[] |
  */
 export function RunLog(runID: number): $CancellablePromise<string> {
     return $Call.ByID(58323835, runID);
+}
+
+export function SetTheme(name: string): $CancellablePromise<void> {
+    return $Call.ByID(359160459, name);
 }
 
 export function StartPlan(id: number): $CancellablePromise<void> {

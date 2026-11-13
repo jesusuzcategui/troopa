@@ -1,42 +1,17 @@
 package tui
 
 import (
-	"bytes"
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/pelletier/go-toml/v2"
 
 	"github.com/jesusuzcategui/troopa/internal/config"
 	"github.com/jesusuzcategui/troopa/internal/i18n"
+	"github.com/jesusuzcategui/troopa/internal/theme"
 )
-
-//go:embed themes/*.toml
-var bundledThemes embed.FS
-
-type paletteFile struct {
-	Name   string        `toml:"name"`
-	Colors paletteColors `toml:"colors"`
-}
-
-type paletteColors struct {
-	FG       string `toml:"fg"`
-	BG       string `toml:"bg"`
-	Accent   string `toml:"accent"`
-	Muted    string `toml:"muted"`
-	Selected string `toml:"selected"`
-	Status   string `toml:"status"`
-	Error    string `toml:"error"`
-	DiffAdd  string `toml:"diff_add"`
-	DiffDel  string `toml:"diff_del"`
-	DiffHunk string `toml:"diff_hunk"`
-}
 
 type Theme struct {
 	Name string
@@ -56,101 +31,27 @@ type Theme struct {
 	DiffDel   lipgloss.Style
 	DiffHunk  lipgloss.Style
 
-	palette paletteFile
+	palette theme.Palette
 }
 
 func loadThemes(userDir string) []Theme {
-	byName := map[string]Theme{}
-	order := []string{}
-	add := func(t Theme) {
-		if t.Name == "" {
-			return
-		}
-		if _, ok := byName[t.Name]; !ok {
-			order = append(order, t.Name)
-		}
-		byName[t.Name] = t
-	}
-	entries, err := fs.ReadDir(bundledThemes, "themes")
-	if err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
-				continue
-			}
-			b, err := bundledThemes.ReadFile("themes/" + e.Name())
-			if err != nil {
-				continue
-			}
-			if t, err := parseTheme(b); err == nil {
-				add(t)
-			}
-		}
-	}
-	if userDir != "" {
-		ents, err := os.ReadDir(userDir)
-		if err == nil {
-			var extra []string
-			for _, e := range ents {
-				if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".toml") {
-					continue
-				}
-				b, err := os.ReadFile(filepath.Join(userDir, e.Name()))
-				if err != nil {
-					continue
-				}
-				t, err := parseTheme(b)
-				if err != nil {
-					continue
-				}
-				if t.Name == "" {
-					t.Name = strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
-				}
-				if _, exists := byName[t.Name]; !exists {
-					extra = append(extra, t.Name)
-				}
-				byName[t.Name] = t
-			}
-			sort.Strings(extra)
-			order = append(order, extra...)
-		}
-	}
-	out := make([]Theme, 0, len(order))
-	for _, name := range order {
-		if t, ok := byName[name]; ok {
-			out = append(out, t)
-		}
-	}
-	if len(out) == 0 {
-		out = append(out, themeFromPalette(defaultDarkPalette()))
+	palettes := theme.Load(userDir)
+	out := make([]Theme, len(palettes))
+	for i, p := range palettes {
+		out[i] = themeFromPalette(p)
 	}
 	return out
 }
 
 func parseTheme(b []byte) (Theme, error) {
-	var pf paletteFile
-	if err := toml.Unmarshal(b, &pf); err != nil {
+	p, err := theme.Parse(b)
+	if err != nil {
 		return Theme{}, err
 	}
-	if pf.Name == "" {
-		return Theme{}, fmt.Errorf("theme missing name")
-	}
-	if err := pf.Colors.validate(); err != nil {
-		return Theme{}, err
-	}
-	return themeFromPalette(pf), nil
+	return themeFromPalette(p), nil
 }
 
-func (c paletteColors) validate() error {
-	fields := []string{c.FG, c.BG, c.Accent, c.Muted, c.Selected, c.Status, c.Error, c.DiffAdd, c.DiffDel, c.DiffHunk}
-	for _, f := range fields {
-		if strings.TrimSpace(f) == "" {
-			return fmt.Errorf("theme colors incomplete")
-		}
-	}
-	return nil
-}
-
-func themeFromPalette(p paletteFile) Theme {
+func themeFromPalette(p theme.Palette) Theme {
 	fg := lipgloss.Color(p.Colors.FG)
 	bg := lipgloss.Color(p.Colors.BG)
 	accent := lipgloss.Color(p.Colors.Accent)
@@ -178,15 +79,8 @@ func themeFromPalette(p paletteFile) Theme {
 	}
 }
 
-func defaultDarkPalette() paletteFile {
-	return paletteFile{
-		Name: "dark",
-		Colors: paletteColors{
-			FG: "#E8E4D9", BG: "#1A1916", Accent: "#E8A838", Muted: "#8A8374",
-			Selected: "#2A2823", Status: "#25231F", Error: "#E06C75",
-			DiffAdd: "#7A9E5A", DiffDel: "#E06C75", DiffHunk: "#6A9BCF",
-		},
-	}
+func defaultDarkPalette() theme.Palette {
+	return theme.DefaultDark()
 }
 
 func themeByName(themes []Theme, name string) Theme {
@@ -203,12 +97,7 @@ func themeByName(themes []Theme, name string) Theme {
 }
 
 func encodeTheme(t Theme) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := toml.NewEncoder(&buf)
-	if err := enc.Encode(t.palette); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return theme.Encode(t.palette)
 }
 
 func (m *Model) applyTheme(name string) {
@@ -276,13 +165,5 @@ func fileExists(path string) bool {
 // IsLight reports whether the theme has a light background, so Markdown is
 // rendered with dark text.
 func (t Theme) IsLight() bool {
-	h := strings.TrimPrefix(t.palette.Colors.BG, "#")
-	if len(h) != 6 {
-		return t.Name == "light"
-	}
-	var r, g, b int
-	if _, err := fmt.Sscanf(h, "%02x%02x%02x", &r, &g, &b); err != nil {
-		return t.Name == "light"
-	}
-	return 0.299*float64(r)+0.587*float64(g)+0.114*float64(b) > 140
+	return t.palette.IsLight()
 }

@@ -139,13 +139,13 @@ async function submit() {
           <div class="field">
             <label for="task-status">{{ t(lang, "Status") }}</label>
             <select id="task-status" v-model="status">
-              <option v-for="s in STATUSES" :key="s" :value="s">{{ s }}</option>
+              <option v-for="s in STATUSES" :key="s" :value="s">{{ t(lang, s) }}</option>
             </select>
           </div>
           <div class="field">
             <label for="task-priority">{{ t(lang, "Priority") }}</label>
             <select id="task-priority" v-model="priority">
-              <option v-for="p in PRIORITIES" :key="p" :value="p">{{ p }}</option>
+              <option v-for="p in PRIORITIES" :key="p" :value="p">{{ t(lang, p) }}</option>
             </select>
           </div>
         </div>
@@ -160,7 +160,7 @@ async function submit() {
           <div class="field">
             <label for="task-type">{{ t(lang, "Type") }}</label>
             <select id="task-type" v-model="type">
-              <option v-for="ty in TYPES" :key="ty" :value="ty">{{ ty }}</option>
+              <option v-for="ty in TYPES" :key="ty" :value="ty">{{ t(lang, ty) }}</option>
             </select>
           </div>
         </div>
@@ -169,7 +169,7 @@ async function submit() {
           <div class="field">
             <label for="task-mode">{{ t(lang, "Mode") }}</label>
             <select id="task-mode" v-model="mode">
-              <option v-for="m in MODES" :key="m" :value="m">{{ m }}</option>
+              <option v-for="m in MODES" :key="m" :value="m">{{ t(lang, m) }}</option>
             </select>
           </div>
           <div class="field">
