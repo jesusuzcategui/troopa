@@ -12,6 +12,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as engine$0 from "../engine/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as store$0 from "../store/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -230,6 +233,10 @@ export function PlanSteps(planID: number): $CancellablePromise<store$0.Task[] | 
 
 export function RequestRunChanges(runID: number, feedback: string): $CancellablePromise<void> {
     return $Call.ByID(1879339697, runID, feedback);
+}
+
+export function RequestRunChangesWithImages(runID: number, feedback: string, images: string[] | null): $CancellablePromise<engine$0.Result> {
+    return $Call.ByID(534437931, runID, feedback, images);
 }
 
 export function RunDiff(runID: number): $CancellablePromise<$models.FileDiff[] | null> {
