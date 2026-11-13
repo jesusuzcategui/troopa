@@ -127,9 +127,9 @@ async function submit() {
         </button>
       </div>
 
-      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+      <form id="task-form" class="modal-body form-grid" @submit.prevent="submit">
+        <div v-if="error" class="alert error" role="alert">{{ error }}</div>
 
-      <form class="form-grid" @submit.prevent="submit">
         <div class="field">
           <label for="task-title">{{ t(lang, "Title") }}</label>
           <input id="task-title" v-model="title" type="text" required autofocus />
@@ -187,16 +187,15 @@ async function submit() {
           <label for="task-criteria">{{ t(lang, "Acceptance criteria") }}</label>
           <textarea id="task-criteria" v-model="criteria" rows="3"></textarea>
         </div>
-
-        <div class="modal-actions">
-          <button class="btn" type="button" :disabled="saving" @click="emit('close')">
-            {{ t(lang, "Cancel") }}
-          </button>
-          <button class="btn primary" type="submit" :disabled="saving">
-            {{ saving ? t(lang, "Saving…") : task ? t(lang, "Save") : t(lang, "Create") }}
-          </button>
-        </div>
       </form>
+      <div class="modal-actions">
+        <button class="btn" type="button" :disabled="saving" @click="emit('close')">
+          {{ t(lang, "Cancel") }}
+        </button>
+        <button class="btn primary" type="submit" form="task-form" :disabled="saving">
+          {{ saving ? t(lang, "Saving…") : task ? t(lang, "Save") : t(lang, "Create") }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

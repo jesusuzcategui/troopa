@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import type { Client, Profile, Project } from "../bindings/github.com/jesusuzcategui/troopa/internal/store/models";
 import type { ProjectSummary } from "../bindings/github.com/jesusuzcategui/troopa/internal/app/models";
 import type { Palette } from "../bindings/github.com/jesusuzcategui/troopa/internal/theme/models";
@@ -42,11 +42,36 @@ const themes = ref<Palette[]>([]);
 const activeTheme = ref("dark");
 const headerMenuOpen = ref(false);
 const header = ref<HTMLElement | null>(null);
+const headerTools = ref<HTMLElement | null>(null);
+const headerMenuTop = ref(0);
+
+function updateHeaderMenuTop() {
+  if (!header.value) return;
+  headerMenuTop.value = Math.round(header.value.getBoundingClientRect().bottom);
+}
+
+function onHeaderMenuResize() {
+  if (window.innerWidth >= 768) {
+    headerMenuOpen.value = false;
+    return;
+  }
+  if (headerMenuOpen.value) updateHeaderMenuTop();
+}
+
+async function toggleHeaderMenu() {
+  headerMenuOpen.value = !headerMenuOpen.value;
+  if (headerMenuOpen.value) {
+    updateHeaderMenuTop();
+    await nextTick();
+    updateHeaderMenuTop();
+  }
+}
 
 function closeHeaderMenuOnOutsideClick(event: PointerEvent) {
-  if (header.value && event.target instanceof Node && !header.value.contains(event.target)) {
-    headerMenuOpen.value = false;
-  }
+  if (!headerMenuOpen.value || !(event.target instanceof Node)) return;
+  if (header.value?.contains(event.target)) return;
+  if (headerTools.value?.contains(event.target)) return;
+  headerMenuOpen.value = false;
 }
 
 function applyThemeByName(name: string) {
@@ -227,6 +252,7 @@ function lastActivity(value: string) {
 
 onMounted(async () => {
   document.addEventListener("pointerdown", closeHeaderMenuOnOutsideClick);
+  window.addEventListener("resize", onHeaderMenuResize);
   try {
     const [themeList, settings] = await Promise.all([
       AppService.ListThemes(),
@@ -251,6 +277,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", closeHeaderMenuOnOutsideClick);
+  window.removeEventListener("resize", onHeaderMenuResize);
 });
 </script>
 
@@ -266,21 +293,29 @@ onBeforeUnmount(() => {
           type="button"
           :aria-expanded="headerMenuOpen"
           aria-controls="topbar-tools"
-          @click="headerMenuOpen = !headerMenuOpen"
+          @click="toggleHeaderMenu"
         >
           {{ t(lang, headerMenuOpen ? "Close" : "Menu") }}
         </button>
-        <div id="topbar-tools" class="topbar-tools" :class="{ open: headerMenuOpen }">
-          <button
-            class="tool-btn"
-            type="button"
-            :title="t(lang, 'Switch language')"
-            @click="toggleLang(); headerMenuOpen = false"
+        <Teleport to="body" :disabled="!headerMenuOpen">
+          <div
+            id="topbar-tools"
+            ref="headerTools"
+            class="topbar-tools"
+            :class="{ open: headerMenuOpen }"
+            :style="headerMenuOpen ? { top: `${headerMenuTop}px` } : undefined"
           >
-            {{ lang === "en" ? "ES" : "EN" }}
-          </button>
-          <button class="tool-btn" type="button" :title="t(lang, 'Settings')" @click="openSettings(); headerMenuOpen = false">{{ t(lang, "Settings") }}</button>
-        </div>
+            <button
+              class="tool-btn"
+              type="button"
+              :title="t(lang, 'Switch language')"
+              @click="toggleLang(); headerMenuOpen = false"
+            >
+              {{ lang === "en" ? "ES" : "EN" }}
+            </button>
+            <button class="tool-btn" type="button" :title="t(lang, 'Settings')" @click="openSettings(); headerMenuOpen = false">{{ t(lang, "Settings") }}</button>
+          </div>
+        </Teleport>
       </div>
     </header>
 

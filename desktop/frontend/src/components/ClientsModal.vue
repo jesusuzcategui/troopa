@@ -80,22 +80,26 @@ async function archive(client: Client) {
         <h2>{{ t(lang, "Clients") }}</h2>
         <button class="btn sm ghost" type="button" @click="emit('close')">{{ t(lang, "Close") }}</button>
       </div>
-      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
-      <div class="clients-layout">
-        <div class="clients-list">
-          <button class="client-list-item" :class="{ selected: !editing }" type="button" @click="reset()">+ {{ t(lang, "New client") }}</button>
-          <div v-for="client in clients" :key="client.id" class="client-list-item" :class="{ selected: editing?.id === client.id, archived: client.archived }">
-            <button type="button" @click="reset(client)">{{ client.name }}</button>
-            <button v-if="!client.archived" class="btn sm ghost danger" type="button" @click="archive(client)">{{ t(lang, "Archive") }}</button>
+      <div class="modal-body">
+        <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+        <div class="clients-layout">
+          <div class="clients-list">
+            <button class="client-list-item" :class="{ selected: !editing }" type="button" @click="reset()">+ {{ t(lang, "New client") }}</button>
+            <div v-for="client in clients" :key="client.id" class="client-list-item" :class="{ selected: editing?.id === client.id, archived: client.archived }">
+              <button type="button" @click="reset(client)">{{ client.name }}</button>
+              <button v-if="!client.archived" class="btn sm ghost danger" type="button" @click="archive(client)">{{ t(lang, "Archive") }}</button>
+            </div>
           </div>
+          <form id="client-form" class="form-grid" @submit.prevent="save">
+            <h3>{{ editing ? t(lang, "Edit client") : t(lang, "New client") }}</h3>
+            <div class="field"><label for="client-name">{{ t(lang, "Name") }}</label><input id="client-name" v-model="name" required autofocus /></div>
+            <div class="field"><label for="client-contact">{{ t(lang, "Contact") }}</label><input id="client-contact" v-model="contact" /></div>
+            <div class="field"><label for="client-notes">{{ t(lang, "Notes") }}</label><textarea id="client-notes" v-model="notes"></textarea></div>
+          </form>
         </div>
-        <form class="form-grid" @submit.prevent="save">
-          <h3>{{ editing ? t(lang, "Edit client") : t(lang, "New client") }}</h3>
-          <div class="field"><label for="client-name">{{ t(lang, "Name") }}</label><input id="client-name" v-model="name" required autofocus /></div>
-          <div class="field"><label for="client-contact">{{ t(lang, "Contact") }}</label><input id="client-contact" v-model="contact" /></div>
-          <div class="field"><label for="client-notes">{{ t(lang, "Notes") }}</label><textarea id="client-notes" v-model="notes"></textarea></div>
-          <div class="modal-actions"><button class="btn primary" :disabled="saving" type="submit">{{ saving ? t(lang, "Saving…") : editing ? t(lang, "Save") : t(lang, "Create") }}</button></div>
-        </form>
+      </div>
+      <div class="modal-actions">
+        <button class="btn primary" form="client-form" :disabled="saving" type="submit">{{ saving ? t(lang, "Saving…") : editing ? t(lang, "Save") : t(lang, "Create") }}</button>
       </div>
     </div>
   </div>

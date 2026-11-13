@@ -166,9 +166,9 @@ async function submit(initMissing = false) {
         </button>
       </div>
 
-      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+      <form id="project-form" class="modal-body form-grid" @submit.prevent="submit(false)">
+        <div v-if="error" class="alert error" role="alert">{{ error }}</div>
 
-      <form class="form-grid" @submit.prevent="submit(false)">
         <div class="form-row-2">
           <div class="field">
             <label for="proj-name">{{ t(lang, "Name") }}</label>
@@ -259,16 +259,15 @@ async function submit(initMissing = false) {
             </button>
           </div>
         </div>
-
-        <div v-else class="modal-actions">
-          <button class="btn" type="button" :disabled="saving" @click="emit('close')">
-            {{ t(lang, "Cancel") }}
-          </button>
-          <button class="btn primary" type="submit" :disabled="saving">
-            {{ saving ? t(lang, "Saving…") : project ? t(lang, "Save") : t(lang, "Create") }}
-          </button>
-        </div>
       </form>
+      <div v-if="!confirmInit" class="modal-actions">
+        <button class="btn" type="button" :disabled="saving" @click="emit('close')">
+          {{ t(lang, "Cancel") }}
+        </button>
+        <button class="btn primary" type="submit" form="project-form" :disabled="saving">
+          {{ saving ? t(lang, "Saving…") : project ? t(lang, "Save") : t(lang, "Create") }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

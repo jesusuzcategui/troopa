@@ -181,148 +181,149 @@ async function rescan() {
         </div>
         <button v-if="!firstRun" class="btn sm ghost" type="button" @click="cancel">{{ t(lang, "Close") }}</button>
       </div>
-      <div v-if="firstRun" class="setup-steps" :aria-label="t(lang, 'Setup progress')">
-        <span :class="{ active: step === 0 }">1</span>
-        <span :class="{ active: step === 1 }">2</span>
-        <span :class="{ active: step === 2 }">3</span>
-      </div>
-      <div v-if="error" class="alert error" role="alert">{{ error }}</div>
-      <div v-if="notice" class="alert ok" role="status">{{ notice }}</div>
+      <div class="modal-body">
+        <div v-if="firstRun" class="setup-steps" :aria-label="t(lang, 'Setup progress')">
+          <span :class="{ active: step === 0 }">1</span>
+          <span :class="{ active: step === 1 }">2</span>
+          <span :class="{ active: step === 2 }">3</span>
+        </div>
+        <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+        <div v-if="notice" class="alert ok" role="status">{{ notice }}</div>
 
-      <div v-show="!firstRun || step === 0" class="settings-section">
-        <h3>{{ t(lang, "Language") }}</h3>
-        <p>{{ t(lang, "Choose the language you want to use every day.") }}</p>
-        <select v-model="language">
-          <option value="en">English</option>
-          <option value="es">Español</option>
-        </select>
-      </div>
-
-      <div v-show="!firstRun || step === 0" class="settings-section">
-        <h3>{{ t(lang, "Theme") }}</h3>
-        <p>{{ t(lang, "Choose a palette shared with the TUI. Your own TOML themes appear here too.") }}</p>
-        <div class="theme-grid" role="radiogroup" :aria-label="t(lang, 'Theme')">
-          <label
-            v-for="item in themes"
-            :key="item.name"
-            class="theme-card"
-            :class="{ active: selectedTheme === item.name }"
-          >
-            <span class="theme-card-top">
-              <input
-                type="radio"
-                name="troopa-theme"
-                :value="item.name"
-                :checked="selectedTheme === item.name"
-                @change="selectTheme(item.name)"
-              />
-              <span class="theme-card-name" :title="item.name">{{ item.name }}</span>
-              <span class="theme-card-mode">{{ t(lang, item.light ? "light" : "dark") }}</span>
-            </span>
-            <span class="theme-swatches" aria-hidden="true">
-              <span class="theme-swatch" :style="{ background: item.colors.bg }"></span>
-              <span class="theme-swatch" :style="{ background: item.colors.fg }"></span>
-              <span class="theme-swatch" :style="{ background: item.colors.accent }"></span>
-              <span class="theme-swatch" :style="{ background: item.colors.diff_add }"></span>
-              <span class="theme-swatch" :style="{ background: item.colors.error }"></span>
-            </span>
-          </label>
+        <div v-show="!firstRun || step === 0" class="settings-section">
+          <h3>{{ t(lang, "Language") }}</h3>
+          <p>{{ t(lang, "Choose the language you want to use every day.") }}</p>
+          <select v-model="language">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
         </div>
 
-        <div v-if="previewPalette" class="theme-preview" :style="previewStyle" :aria-label="t(lang, 'Preview')">
-          <div class="theme-preview-head">
-            <span class="theme-preview-title">{{ previewPalette.name }}</span>
-            <span class="theme-preview-btn">{{ t(lang, "Primary action") }}</span>
+        <div v-show="!firstRun || step === 0" class="settings-section">
+          <h3>{{ t(lang, "Theme") }}</h3>
+          <p>{{ t(lang, "Choose a palette shared with the TUI. Your own TOML themes appear here too.") }}</p>
+          <div class="theme-grid" role="radiogroup" :aria-label="t(lang, 'Theme')">
+            <label
+              v-for="item in themes"
+              :key="item.name"
+              class="theme-card"
+              :class="{ active: selectedTheme === item.name }"
+            >
+              <span class="theme-card-top">
+                <input
+                  type="radio"
+                  name="troopa-theme"
+                  :value="item.name"
+                  :checked="selectedTheme === item.name"
+                  @change="selectTheme(item.name)"
+                />
+                <span class="theme-card-name" :title="item.name">{{ item.name }}</span>
+                <span class="theme-card-mode">{{ t(lang, item.light ? "light" : "dark") }}</span>
+              </span>
+              <span class="theme-swatches" aria-hidden="true">
+                <span class="theme-swatch" :style="{ background: item.colors.bg }"></span>
+                <span class="theme-swatch" :style="{ background: item.colors.fg }"></span>
+                <span class="theme-swatch" :style="{ background: item.colors.accent }"></span>
+                <span class="theme-swatch" :style="{ background: item.colors.diff_add }"></span>
+                <span class="theme-swatch" :style="{ background: item.colors.error }"></span>
+              </span>
+            </label>
           </div>
-          <div class="theme-preview-row">
-            <span>{{ t(lang, "Selected row") }}</span>
-            <span class="theme-preview-muted">{{ t(lang, previewPalette.light ? "light" : "dark") }}</span>
-          </div>
-          <div class="theme-preview-tags">
-            <span class="theme-preview-tag add">+ diff_add</span>
-            <span class="theme-preview-tag del">- diff_del</span>
-            <span class="theme-preview-tag hunk">@@ hunk</span>
+
+          <div v-if="previewPalette" class="theme-preview" :style="previewStyle" :aria-label="t(lang, 'Preview')">
+            <div class="theme-preview-head">
+              <span class="theme-preview-title">{{ previewPalette.name }}</span>
+              <span class="theme-preview-btn">{{ t(lang, "Primary action") }}</span>
+            </div>
+            <div class="theme-preview-row">
+              <span>{{ t(lang, "Selected row") }}</span>
+              <span class="theme-preview-muted">{{ t(lang, previewPalette.light ? "light" : "dark") }}</span>
+            </div>
+            <div class="theme-preview-tags">
+              <span class="theme-preview-tag add">+ diff_add</span>
+              <span class="theme-preview-tag del">- diff_del</span>
+              <span class="theme-preview-tag hunk">@@ hunk</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div v-show="!firstRun || step === 1" class="settings-section">
-        <h3>{{ t(lang, "Choose an assistant") }}</h3>
-        <p>{{ t(lang, "Troopa checked what is already installed on this computer.") }}</p>
-        <div class="agent-list">
-          <label
-            v-for="item in usableAgents"
-            :key="item.id"
-            class="agent-choice"
-            :class="{ unavailable: !item.installed }"
-          >
-            <input v-model="agent" type="radio" :value="item.id" />
-            <span>
-              <strong>{{ item.name }}</strong>
-              <small v-if="item.installed">{{ t(lang, "Ready to use") }}{{ item.version ? ` · ${item.version}` : "" }}</small>
-              <small v-else>{{ t(lang, "Not installed. Install it from its website, then scan again.") }}</small>
-            </span>
-          </label>
-          <label class="agent-choice">
-            <input v-model="agent" type="radio" value="me" />
-            <span>
-              <strong>{{ t(lang, "I will do the work myself") }}</strong>
-              <small>{{ t(lang, "You can add an assistant later in Settings.") }}</small>
-            </span>
-          </label>
+        <div v-show="!firstRun || step === 1" class="settings-section">
+          <h3>{{ t(lang, "Choose an assistant") }}</h3>
+          <p>{{ t(lang, "Troopa checked what is already installed on this computer.") }}</p>
+          <div class="agent-list">
+            <label
+              v-for="item in usableAgents"
+              :key="item.id"
+              class="agent-choice"
+              :class="{ unavailable: !item.installed }"
+            >
+              <input v-model="agent" type="radio" :value="item.id" />
+              <span>
+                <strong>{{ item.name }}</strong>
+                <small v-if="item.installed">{{ t(lang, "Ready to use") }}{{ item.version ? ` · ${item.version}` : "" }}</small>
+                <small v-else>{{ t(lang, "Not installed. Install it from its website, then scan again.") }}</small>
+              </span>
+            </label>
+            <label class="agent-choice">
+              <input v-model="agent" type="radio" value="me" />
+              <span>
+                <strong>{{ t(lang, "I will do the work myself") }}</strong>
+                <small>{{ t(lang, "You can add an assistant later in Settings.") }}</small>
+              </span>
+            </label>
+          </div>
+          <button class="btn sm" type="button" @click="rescan">{{ t(lang, "Scan again") }}</button>
         </div>
-        <button class="btn sm" type="button" @click="rescan">{{ t(lang, "Scan again") }}</button>
-      </div>
 
-      <div v-show="!firstRun || step === 2" class="settings-section">
-        <h3>{{ t(lang, "Where work is kept") }}</h3>
-        <p>{{ t(lang, "Troopa makes a separate safe copy of each project here while an assistant works.") }}</p>
-        <label class="field">
-          <span>{{ t(lang, "Work folder") }}</span>
-          <input v-model="worktrees" :placeholder="t(lang, 'Leave empty to use Troopa’s folder')" />
-        </label>
-        <label class="field">
-          <span>{{ t(lang, "Terminal for working together") }}</span>
-          <input v-model="terminal" :placeholder="t(lang, 'For example: kitty -e')" />
-        </label>
-      </div>
-
-      <div v-show="!firstRun || step === 2" class="settings-section">
-        <h3>{{ t(lang, "Account") }}</h3>
-        <p>{{ t(lang, "Use a sign-in or an API key. Your key is stored in your computer’s secure keyring, not in this app.") }}</p>
-        <template v-if="agent !== 'me'">
+        <div v-show="!firstRun || step === 2" class="settings-section">
+          <h3>{{ t(lang, "Where work is kept") }}</h3>
+          <p>{{ t(lang, "Troopa makes a separate safe copy of each project here while an assistant works.") }}</p>
           <label class="field">
-            <span>{{ t(lang, "Account name") }}</span>
-            <input v-model="account" />
+            <span>{{ t(lang, "Work folder") }}</span>
+            <input v-model="worktrees" :placeholder="t(lang, 'Leave empty to use Troopa’s folder')" />
           </label>
-          <div class="method-row">
-            <label><input v-model="method" type="radio" value="key" /> {{ t(lang, "Paste an API key") }}</label>
-            <label><input v-model="method" type="radio" value="login" /> {{ t(lang, "Sign in in a terminal") }}</label>
-          </div>
-          <template v-if="method === 'key'">
+          <label class="field">
+            <span>{{ t(lang, "Terminal for working together") }}</span>
+            <input v-model="terminal" :placeholder="t(lang, 'For example: kitty -e')" />
+          </label>
+        </div>
+
+        <div v-show="!firstRun || step === 2" class="settings-section">
+          <h3>{{ t(lang, "Account") }}</h3>
+          <p>{{ t(lang, "Use a sign-in or an API key. Your key is stored in your computer’s secure keyring, not in this app.") }}</p>
+          <template v-if="agent !== 'me'">
             <label class="field">
-              <span>{{ t(lang, "Key name") }}</span>
-              <input v-model="variable" />
+              <span>{{ t(lang, "Account name") }}</span>
+              <input v-model="account" />
             </label>
-            <label class="field">
-              <span>{{ t(lang, "API key") }}</span>
-              <input v-model="secret" type="password" autocomplete="off" />
-            </label>
+            <div class="method-row">
+              <label><input v-model="method" type="radio" value="key" /> {{ t(lang, "Paste an API key") }}</label>
+              <label><input v-model="method" type="radio" value="login" /> {{ t(lang, "Sign in in a terminal") }}</label>
+            </div>
+            <template v-if="method === 'key'">
+              <label class="field">
+                <span>{{ t(lang, "Key name") }}</span>
+                <input v-model="variable" />
+              </label>
+              <label class="field">
+                <span>{{ t(lang, "API key") }}</span>
+                <input v-model="secret" type="password" autocomplete="off" />
+              </label>
+            </template>
           </template>
-        </template>
-        <p v-else>{{ t(lang, "Choose an assistant whenever you are ready.") }}</p>
-      </div>
+          <p v-else>{{ t(lang, "Choose an assistant whenever you are ready.") }}</p>
+        </div>
 
-      <div v-show="!firstRun" class="settings-section">
-        <h3>{{ t(lang, "Profile") }}</h3>
-        <p>{{ t(lang, "Tell assistants who they work for. This is optional.") }}</p>
-        <label class="field">
-          <span>{{ t(lang, "New profile name") }}</span>
-          <input v-model="profileName" :placeholder="t(lang, 'For example: Ana, a bakery owner')" />
-        </label>
-        <p v-if="profiles.length">{{ profiles.map((profile) => profile.name).join(", ") }}</p>
+        <div v-show="!firstRun" class="settings-section">
+          <h3>{{ t(lang, "Profile") }}</h3>
+          <p>{{ t(lang, "Tell assistants who they work for. This is optional.") }}</p>
+          <label class="field">
+            <span>{{ t(lang, "New profile name") }}</span>
+            <input v-model="profileName" :placeholder="t(lang, 'For example: Ana, a bakery owner')" />
+          </label>
+          <p v-if="profiles.length">{{ profiles.map((profile) => profile.name).join(", ") }}</p>
+        </div>
       </div>
-
       <div class="modal-actions">
         <button v-if="firstRun && step > 0" class="btn" type="button" :disabled="saving" @click="step--">{{ t(lang, "Back") }}</button>
         <button v-if="!firstRun" class="btn" type="button" :disabled="saving" @click="cancel">{{ t(lang, "Cancel") }}</button>

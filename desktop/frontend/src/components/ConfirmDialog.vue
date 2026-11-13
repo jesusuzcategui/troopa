@@ -33,7 +33,9 @@ const emit = defineEmits<{
           {{ t(lang, "Close") }}
         </button>
       </div>
-      <p class="confirm-message">{{ message }}</p>
+      <div class="modal-body">
+        <p class="confirm-message">{{ message }}</p>
+      </div>
       <div class="modal-actions">
         <button class="btn" type="button" @click="emit('close')">
           {{ t(lang, "Cancel") }}
