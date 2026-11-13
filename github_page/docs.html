@@ -40,6 +40,7 @@
       <a href="#brain" data-i18n="docs.brain">Second brain</a>
       <a href="#hooks" data-i18n="docs.hooks">Hooks</a>
       <a href="#telegram" data-i18n="docs.telegram">Telegram</a>
+      <a href="#android" data-i18n="docs.android">Android (Termux)</a>
       <a href="#extensions" data-i18n="docs.extensions">Extensions</a>
       <a href="#mcp" data-i18n="docs.mcp">MCP and daemon</a>
       <a href="#cli" data-i18n="docs.cli">JSON CLI</a>
@@ -240,6 +241,48 @@ agent = "codex"          # for the tasks they send; optional</code></pre>
           <p>They see, launch, approve and merge in their projects only, get the alerts of those projects (you still get every alert), and never see the rest.</p>
           <p><strong>Photos.</strong> A photo with a caption becomes a task in their project, with the photo attached and the caption as the request, and it launches right away. If another agent is working, it waits in a queue and starts when that one finishes; they get a message when it does. Codex receives the photo with <code>--image</code>; other agents read it from the worktree. The images the agent creates or changes come back with the review alert, next to Approve and Changes, and a task's <strong>🖼 Images</strong> button sends them again. Inside a conversation a photo goes to the agent with the message, and the pictures it makes come back in the chat.</p>
           <p>Merge and PR always ask first. The TUI stays in sync: whatever you do from Telegram shows up on the board within a couple of seconds. Use a bot of its own for Troopa: two programs cannot read the same bot's messages at once.</p>
+        </section>
+
+        <section id="android">
+          <h2>Recipe: Android with Termux</h2>
+          <p>Run Troopa and an agent on your phone. Android cannot run the Linux binaries of Troopa or OpenCode directly, so they run inside a Debian installed in Termux with <code>proot-distro</code> (no root needed). Your projects live in one folder shared by Termux, Debian and your Android editor.</p>
+          <ol>
+            <li>Install <strong>Termux</strong> from F-Droid or GitHub (the Play Store build is outdated). Open it and install the tools:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>pkg update &amp;&amp; pkg upgrade
+pkg install proot-distro
+termux-setup-storage</pre></li>
+            <li>Install Debian, create the projects folder and an alias that enters Debian with that folder mounted:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>proot-distro install debian
+mkdir -p ~/proyectos
+echo "alias deb='proot-distro login debian --bind \$HOME/proyectos:/root/proyectos'" &gt;&gt; ~/.bashrc
+source ~/.bashrc
+deb</pre>
+              From now on, <code>deb</code> takes you into Debian. Everything below runs there.</li>
+            <li>Inside Debian, install git, tmux and <code>micro</code>, a terminal editor with the usual shortcuts (<kbd>Ctrl+S</kbd> save, <kbd>Ctrl+Q</kbd> quit), and set your git identity:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>apt update &amp;&amp; apt install -y curl git ca-certificates tmux micro
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+echo 'export EDITOR=micro' &gt;&gt; ~/.bashrc</pre></li>
+            <li>Install <strong>OpenCode</strong> and connect a provider (inside OpenCode, <code>/connect</code> and follow the prompts):
+              <pre class="cmd"><button class="copy" type="button">Copy</button>curl -fsSL https://opencode.ai/install | bash
+echo 'export PATH="$HOME/.opencode/bin:$PATH"' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+opencode</pre>
+              Other agents install the same way inside Debian, for example Claude Code or Codex with Node: <code>apt install -y nodejs npm</code>, then <code>npm install -g @anthropic-ai/claude-code</code> or <code>npm install -g @openai/codex</code>. Sign in to each one once before using it from Troopa.</li>
+            <li>Install <strong>Troopa</strong>:
+              <pre class="cmd"><button class="copy" type="button">Copy</button>curl -fsSL https://jesusuzcategui.github.io/troopa/install.sh | sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+troopa</pre>
+              In the first-run setup pick <strong>OpenCode</strong> (or your agent) as the default agent and <code>micro</code> as the editor. Create your projects under <code>/root/proyectos</code>.</li>
+            <li>Use <strong>yolo</strong> mode for tasks on the phone: the agent works alone and you review the result in Troopa. Set it as the default mode in Settings (<kbd>S</kbd>).</li>
+          </ol>
+          <p><strong>Pair mode and a second terminal.</strong> Pair mode opens the agent in another terminal, and there is no desktop terminal on Android. Run Troopa inside tmux and pair tasks open the agent in a split next to it (<kbd>Ctrl+B</kbd> then an arrow key moves between panes):</p>
+          <pre class="cmd"><button class="copy" type="button">Copy</button>tmux
+troopa</pre>
+          <p>If you prefer not to use tmux, Termux itself has sessions: swipe from the left edge, tap <em>New session</em>, run <code>deb</code> again and start the agent there by hand. Tools like Termux:X11 can run a desktop terminal, but they cost far more battery and memory for little gain on a phone.</p>
+          <p><strong>Edit from Android.</strong> Install <strong>Acode</strong> (Play Store or F-Droid), choose <em>Open folder</em>, pick <em>Termux</em> in the Android file picker and open <code>proyectos</code>. What you save there is what Debian, Troopa and the agent see.</p>
+          <p><strong>Keep agents running.</strong> Android stops background apps. Pull down the Termux notification and tap <em>Acquire wakelock</em> (or run <code>termux-wake-lock</code> in Termux), and turn off battery optimization for Termux. With the <a href="#telegram">Telegram bot</a> you can follow the agents without keeping Termux open on screen.</p>
         </section>
 
         <section id="extensions">
@@ -518,6 +561,48 @@ agent = "codex"          # para las tareas que envía; opcional</code></pre>
           <p>Ve, lanza, aprueba y hace merge solo en sus proyectos, recibe los avisos de esos proyectos (tú sigues recibiendo todos) y nunca ve lo demás.</p>
           <p><strong>Fotos.</strong> Una foto con texto se vuelve una tarea en su proyecto, con la foto adjunta y el texto como pedido, y arranca de una vez. Si otro agente está trabajando, espera en una cola y arranca cuando ese termine; le llega un mensaje cuando pasa. Codex recibe la foto con <code>--image</code>; los demás agentes la leen del worktree. Las imágenes que el agente crea o cambia llegan con el aviso de revisión, junto a Aprobar y Cambios, y el botón <strong>🖼 Imágenes</strong> de la tarea las vuelve a enviar. Dentro de una conversación, la foto le llega al agente con el mensaje y las imágenes que hace vuelven al chat.</p>
           <p>El merge y el PR siempre piden confirmación. La TUI se mantiene al día: lo que hagas desde Telegram aparece en el tablero en un par de segundos. Usa un bot solo para Troopa: dos programas no pueden leer los mensajes del mismo bot a la vez.</p>
+        </section>
+
+        <section id="android-es">
+          <h2>Receta: Android con Termux</h2>
+          <p>Corre Troopa y un agente en el celular. Android no puede ejecutar directo los binarios de Linux de Troopa ni de OpenCode, así que corren dentro de un Debian instalado en Termux con <code>proot-distro</code> (no hace falta root). Tus proyectos viven en una carpeta compartida entre Termux, Debian y tu editor de Android.</p>
+          <ol>
+            <li>Instala <strong>Termux</strong> desde F-Droid o GitHub (la versión de Play Store está desactualizada). Ábrelo e instala las herramientas:
+              <pre class="cmd"><button class="copy" type="button">Copiar</button>pkg update &amp;&amp; pkg upgrade
+pkg install proot-distro
+termux-setup-storage</pre></li>
+            <li>Instala Debian, crea la carpeta de proyectos y un alias que entra a Debian con esa carpeta montada:
+              <pre class="cmd"><button class="copy" type="button">Copiar</button>proot-distro install debian
+mkdir -p ~/proyectos
+echo "alias deb='proot-distro login debian --bind \$HOME/proyectos:/root/proyectos'" &gt;&gt; ~/.bashrc
+source ~/.bashrc
+deb</pre>
+              Desde ahora, <code>deb</code> te lleva a Debian. Todo lo que sigue se corre ahí.</li>
+            <li>Dentro de Debian, instala git, tmux y <code>micro</code>, un editor de terminal con los atajos de siempre (<kbd>Ctrl+S</kbd> guardar, <kbd>Ctrl+Q</kbd> salir), y configura tu identidad de git:
+              <pre class="cmd"><button class="copy" type="button">Copiar</button>apt update &amp;&amp; apt install -y curl git ca-certificates tmux micro
+git config --global user.name "Tu Nombre"
+git config --global user.email "tu@correo.com"
+echo 'export EDITOR=micro' &gt;&gt; ~/.bashrc</pre></li>
+            <li>Instala <strong>OpenCode</strong> y conecta un proveedor (dentro de OpenCode, <code>/connect</code> y sigue los pasos):
+              <pre class="cmd"><button class="copy" type="button">Copiar</button>curl -fsSL https://opencode.ai/install | bash
+echo 'export PATH="$HOME/.opencode/bin:$PATH"' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+opencode</pre>
+              Los otros agentes se instalan igual dentro de Debian, por ejemplo Claude Code o Codex con Node: <code>apt install -y nodejs npm</code> y luego <code>npm install -g @anthropic-ai/claude-code</code> o <code>npm install -g @openai/codex</code>. Inicia sesión en cada uno una vez antes de usarlo desde Troopa.</li>
+            <li>Instala <strong>Troopa</strong>:
+              <pre class="cmd"><button class="copy" type="button">Copiar</button>curl -fsSL https://jesusuzcategui.github.io/troopa/install.sh | sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+troopa</pre>
+              En la configuración inicial elige <strong>OpenCode</strong> (o tu agente) como agente por defecto y <code>micro</code> como editor. Crea tus proyectos dentro de <code>/root/proyectos</code>.</li>
+            <li>Usa el modo <strong>yolo</strong> para las tareas en el celular: el agente trabaja solo y tú revisas el resultado en Troopa. Déjalo como modo por defecto en Ajustes (<kbd>S</kbd>).</li>
+          </ol>
+          <p><strong>Modo pair y una segunda terminal.</strong> El modo pair abre al agente en otra terminal, y en Android no hay terminales de escritorio. Corre Troopa dentro de tmux y las tareas pair abren al agente en una división al lado (<kbd>Ctrl+B</kbd> y una flecha te mueven entre paneles):</p>
+          <pre class="cmd"><button class="copy" type="button">Copiar</button>tmux
+troopa</pre>
+          <p>Si prefieres no usar tmux, Termux tiene sesiones propias: desliza desde el borde izquierdo, toca <em>New session</em>, corre <code>deb</code> otra vez y arranca ahí el agente a mano. Herramientas como Termux:X11 pueden correr una terminal de escritorio, pero gastan mucha más batería y memoria para poca ganancia en un celular.</p>
+          <p><strong>Editar desde Android.</strong> Instala <strong>Acode</strong> (Play Store o F-Droid), elige <em>Abrir carpeta</em>, escoge <em>Termux</em> en el selector de archivos de Android y abre <code>proyectos</code>. Lo que guardes ahí es lo mismo que ven Debian, Troopa y el agente.</p>
+          <p><strong>Que los agentes sigan corriendo.</strong> Android detiene las apps en segundo plano. Despliega la notificación de Termux y toca <em>Acquire wakelock</em> (o corre <code>termux-wake-lock</code> en Termux), y desactiva la optimización de batería para Termux. Con el <a href="#telegram-es">bot de Telegram</a> sigues a los agentes sin tener Termux abierto en pantalla.</p>
         </section>
 
         <section id="extensions-es">
