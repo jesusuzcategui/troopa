@@ -49,6 +49,7 @@ func (m Model) allCommands() []paletteItem {
 		{ID: "status-menu", Title: i18n.T("Change status"), Keys: "m"},
 		{ID: "set-priority", Title: i18n.T("Change priority"), Keys: "P"},
 		{ID: "set-agent", Title: i18n.T("Change agent"), Keys: "A"},
+		{ID: "delete-task", Title: i18n.T("Delete task"), Keys: "D"},
 		{ID: "toggle-view", Title: i18n.T("Switch board / list view"), Keys: "v"},
 		{ID: "fold-status", Title: i18n.T("Collapse or expand status"), Keys: "z"},
 		{ID: "fold-empty", Title: i18n.T("Collapse empty statuses"), Keys: "Z"},
@@ -345,6 +346,9 @@ func (m Model) runCommand(id string) (tea.Model, tea.Cmd) {
 	case "set-agent":
 		m.screen = screenBoard
 		return m.openFieldPopup(propAgent)
+	case "delete-task":
+		m.screen = screenBoard
+		return m.openDeleteTaskPopup()
 	case "toggle-view":
 		m.screen = screenBoard
 		m.toggleView()
@@ -566,7 +570,7 @@ func (m Model) viewThemePicker() string {
 
 func boardOnlyCommand(id string) bool {
 	switch id {
-	case "status-menu", "set-priority", "set-agent", "toggle-view", "fold-status", "fold-empty", "task-panel":
+	case "status-menu", "set-priority", "set-agent", "delete-task", "toggle-view", "fold-status", "fold-empty", "task-panel":
 		return true
 	}
 	return false

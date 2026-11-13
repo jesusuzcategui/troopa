@@ -157,7 +157,7 @@ Projects: `enter` board · `n` new · `e` edit · `a` archive · `c` clients · 
 
 Clients: `n` new · `e` edit · `a` archive · `enter` client board · `F` filter projects · `esc` back
 
-Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `ctrl+d`/`ctrl+u` scroll the panel · `n` quick task · `e` edit · `enter` open the run (answer, diff, log) or edit a task that never ran · `w` plans · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `o` editor · panel `a` attach · `esc` back
+Board and list: `v` switch board/list · `z` fold the status · `Z` fold empty statuses · `m`/`P`/`A` popup to change status, priority or agent · `tab` task panel · `ctrl+d`/`ctrl+u` scroll the panel · `n` quick task · `e` edit · `enter` open the run (answer, diff, log) or edit a task that never ran · `w` plans · `[` `]` move · `/` search · `f`/`p`/`C` filters · `M` metrics · `g` merge · `x` request changes · `c` clean worktree · `D` delete the task (asks first) · `o` editor · panel `a` attach · `esc` back
 
 On a narrow terminal the board scrolls sideways and follows the selected column (`◀ 2` / `▶ 3` show hidden statuses). From 120 columns the task panel sits beside the board; on smaller terminals `tab` opens it full screen. The view and the folded statuses are saved as `board_view` and `collapsed` in `config.toml`.
 

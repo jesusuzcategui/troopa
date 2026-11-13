@@ -47,6 +47,7 @@ const HelpText = `Shortcuts — projects
   o                  open the worktree (or the project) in your editor
   g                  merge an approved local branch into the base
   c                  clean worktree, keep the branch
+  D                  delete the task (asks first; removes its worktree, branch and runs)
   x                  request changes: send the task back to its agent
   B                  open this project's project.md
   w                  plans of this project
@@ -177,6 +178,7 @@ const helpTextES = `Atajos — proyectos
   o                  abrir el worktree (o el proyecto) en tu editor
   g                  mergear una rama local aprobada en la base
   c                  limpiar worktree, conservar la rama
+  D                  borrar la tarea (pregunta antes; borra su worktree, rama y ejecuciones)
   x                  pedir cambios: devolver la tarea a su agente
   B                  abrir el project.md de este proyecto
   w                  planes de este proyecto

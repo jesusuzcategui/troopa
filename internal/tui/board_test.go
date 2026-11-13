@@ -202,3 +202,33 @@ func (m Model) mustTaskID(t *testing.T, projectID int64, title string) int64 {
 	t.Fatalf("task %s not found", title)
 	return 0
 }
+
+func TestDeleteTaskKeyAsksAndDeletes(t *testing.T) {
+	m := seedBoard(t)
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got := next.(Model)
+	sel, ok := got.selectedTask()
+	if !ok {
+		t.Fatal("expected a selected task")
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	got = next.(Model)
+	if got.popup == nil || got.popup.kind != propConfirmDeleteTask || got.popup.options[got.popup.cursor] != "no" {
+		t.Fatalf("want a confirm popup on No, got %+v", got.popup)
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got = next.(Model)
+	if _, err := got.store.GetTask(sel.ID); err != nil {
+		t.Fatal("No must keep the task")
+	}
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	got = next.(Model)
+	next, _ = got.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}})
+	got = next.(Model)
+	if _, err := got.store.GetTask(sel.ID); err == nil {
+		t.Fatal("Yes must delete the task")
+	}
+	if len(got.tasks) != 1 {
+		t.Fatalf("tasks = %d, want 1", len(got.tasks))
+	}
+}

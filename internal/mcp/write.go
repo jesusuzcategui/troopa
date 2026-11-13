@@ -42,6 +42,10 @@ type planStepIn struct {
 	Criteria    string `json:"criteria,omitempty" jsonschema:"acceptance criteria"`
 }
 
+type taskDeleteIn struct {
+	ID int64 `json:"id" jsonschema:"task id"`
+}
+
 type planCreateIn struct {
 	Project int64        `json:"project" jsonschema:"project id"`
 	Title   string       `json:"title" jsonschema:"plan title"`
@@ -194,6 +198,16 @@ func (h *handler) taskMove(_ context.Context, _ *mcpsdk.CallToolRequest, in task
 	}
 	h.rememberTask(t)
 	return jsonOut(t)
+}
+
+func (h *handler) taskDelete(_ context.Context, _ *mcpsdk.CallToolRequest, in taskDeleteIn) (*mcpsdk.CallToolResult, any, error) {
+	if _, err := h.getTask(in.ID); err != nil {
+		return fail(err)
+	}
+	if err := h.eng.DeleteTask(in.ID); err != nil {
+		return fail(err)
+	}
+	return jsonOut(map[string]any{"id": in.ID, "deleted": true})
 }
 
 func (h *handler) planCreate(_ context.Context, _ *mcpsdk.CallToolRequest, in planCreateIn) (*mcpsdk.CallToolResult, any, error) {

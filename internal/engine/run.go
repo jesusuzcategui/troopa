@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -351,4 +353,41 @@ func (e *Engine) RequestChanges(runID int64, feedback string, comments []store.R
 		return e.Finish(run.ID, err)
 	}
 	return e.result(run, task, sess, note+" · "+launch.AgentName(task.Agent), true), nil
+}
+
+// DeleteTask removes a task for good: its worktree and branch when the latest
+// run still has them, then the task and everything that belongs to it. A task
+// with an agent running is refused.
+func (e *Engine) DeleteTask(taskID int64) error {
+	task, err := e.Store.GetTask(taskID)
+	if err != nil {
+		return err
+	}
+	run, err := e.Store.LatestRun(taskID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if err == nil {
+		if run.State == store.RunRunning {
+			return fmt.Errorf("%s", i18n.T("This task has an agent running: wait for it to finish first"))
+		}
+		if run.Worktree != "" {
+			if _, statErr := os.Stat(run.Worktree); statErr == nil {
+				project, err := e.project(task.ProjectID)
+				if err != nil {
+					return err
+				}
+				if err := launch.Discard(e.sessionFor(run, project)); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if err := e.Store.DeleteTask(taskID); err != nil {
+		if errors.Is(err, store.ErrTaskRunning) {
+			return fmt.Errorf("%s", i18n.T("This task has an agent running: wait for it to finish first"))
+		}
+		return err
+	}
+	return nil
 }

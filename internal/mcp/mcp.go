@@ -115,6 +115,7 @@ func NewWithContext(ctx context.Context, e *engine.Engine) *mcpsdk.Server {
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_create", Description: "Creates a task. Returns the task JSON object."}, h.taskCreate)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_update", Description: "Updates a task. Returns the task JSON object."}, h.taskUpdate)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_move", Description: "Moves a task to a status. Returns the task JSON object."}, h.taskMove)
+	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "task_delete", Description: "Deletes a task with its runs, comments and attachments; removes its worktree and branch. Refuses a task with an agent running. Returns id and deleted."}, h.taskDelete)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_create", Description: "Creates a plan and its steps in one call. Returns the plan with steps."}, h.planCreate)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_add_step", Description: "Adds a step to a plan. Returns the task JSON object."}, h.planAddStep)
 	mcpsdk.AddTool(srv, &mcpsdk.Tool{Name: "plan_update", Description: "Updates a plan. Returns the plan with steps."}, h.planUpdate)

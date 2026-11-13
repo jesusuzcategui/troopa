@@ -11,6 +11,7 @@ import (
 
 	"github.com/jesusuzcategui/troopa/internal/brain"
 	"github.com/jesusuzcategui/troopa/internal/config"
+	"github.com/jesusuzcategui/troopa/internal/engine"
 	"github.com/jesusuzcategui/troopa/internal/launch"
 	"github.com/jesusuzcategui/troopa/internal/store"
 )
@@ -428,6 +429,24 @@ func task(s *store.Store, cmd string, args []string) (any, error) {
 			return nil, e
 		}
 		return transitionTaskRun(s, n, cmd)
+	case "delete":
+		n, e := id(f, "id")
+		if e != nil {
+			return nil, e
+		}
+		if _, e := getTask(s, n); e != nil {
+			return nil, e
+		}
+		if e = engine.New(s, config.Config{}, "").DeleteTask(n); e != nil {
+			if strings.Contains(e.Error(), "agent running") {
+				return nil, invalidState(e.Error())
+			}
+			return nil, e
+		}
+		return struct {
+			ID      int64 `json:"id"`
+			Deleted bool  `json:"deleted"`
+		}{ID: n, Deleted: true}, nil
 	case "attach":
 		n, e := id(f, "id")
 		if e != nil {

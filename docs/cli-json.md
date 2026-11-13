@@ -45,6 +45,7 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
  troopa task launch --json --id ID [--status STATUS]
  troopa task approve --json --id ID
  troopa task discard --json --id ID
+ troopa task delete --json --id ID
  troopa task attach --json --id ID --file PATH
  troopa task attachments --json --id ID
  troopa task detach --json --id ID --attachment ID
@@ -81,6 +82,8 @@ All IDs are positive integers. Text flags accept UTF-8 strings.
 
 `task launch` queues a task in `ready` by default (or moves it to an explicit status). The TUI and CLI observe the same SQLite-backed store. `approve` and `discard` update the latest run and task state through the shared store layer.
 
+`task delete` removes the task for good: its runs, rounds, review comments, attachments (rows and files) and, when the latest run still has them, its worktree and branch. A plan step is removed from its plan and the remaining steps are renumbered. A task with an agent running is refused (`invalid_state`). It returns `{"id": N, "deleted": true}`.
+
 `task attach` copies the file into `$XDG_DATA_HOME/troopa/attachments/<task-id>/` (default limit 50 MB, `max_attachment_mb` in config.toml) and returns the attachment. `task attachments` lists them. `task detach` removes the stored copy.
 
 `run merge` and `run clean` use the same launch logic as the TUI (`g` / `c`) and return the updated run. Metrics fields are numbers or `null`, never `database/sql` types. The run must be `approved`; otherwise the error code is `invalid_state`. `merge` also requires a project without a remote. `clean` removes the worktree and keeps the branch; uncommitted user files abort the removal.
@@ -113,7 +116,7 @@ troopa mcp install claude    # or codex, opencode, cursor
 
 Read tools: `projects_list`, `project_show`, `tasks_list` (filters: `project`, `status`, `plan`), `task_show`, `plans_list`, `plan_show` (steps with status and latest run), `run_show` (summary, checks, state, branch, rounds), `run_diff` (files and patch text, size-limited), `run_log` (tail of `agent.log`), `brain_search`, `brain_read` (paths inside the brain only), `profiles_list`.
 
-Write tools fire the same hooks as the TUI: `task_create`, `task_update`, `task_move`, `plan_create` (title, goal, agent, model, auto, and steps with title, description, criteria in one call), `plan_add_step`, `plan_update`. `plan_start` and `plan_pause` go through the engine. If no daemon is running, `plan_start` watches from the MCP process and the result says that `troopa daemon` keeps plans moving. `run_wait` (`run_id` or `plan_id`, `timeout_seconds` at most 600) blocks until the run leaves running or the plan's current step changes, and returns the new state with summary and checks. On timeout it returns with the state still `running`.
+Write tools fire the same hooks as the TUI: `task_create`, `task_update`, `task_move`, `plan_create` (title, goal, agent, model, auto, and steps with title, description, criteria in one call), `plan_add_step`, `plan_update`. `task_delete` (`id`) deletes a task like `troopa task delete` and does not fire a hook. `plan_start` and `plan_pause` go through the engine. If no daemon is running, `plan_start` watches from the MCP process and the result says that `troopa daemon` keeps plans moving. `run_wait` (`run_id` or `plan_id`, `timeout_seconds` at most 600) blocks until the run leaves running or the plan's current step changes, and returns the new state with summary and checks. On timeout it returns with the state still `running`.
 
 `review_request_changes` (`run_id`, `feedback`, `comments` with `path`, `line`, `side`, `body`) is the same as `x` in the TUI: a new round, notes in `CHANGES.md`, and the same agent continues. `review_approve` (`run_id`) only works when `[mcp] allow_approve = true` in `config.toml` (off by default; Settings has the toggle). The error says how to turn it on. There is no merge tool: merging a plan or a task stays in the TUI (`g`).
 

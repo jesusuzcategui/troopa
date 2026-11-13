@@ -238,9 +238,9 @@ func (m *Model) moveList(delta int) {
 
 func (m Model) boardHints() string {
 	if m.listMode() {
-		return i18n.T("enter open · n new · e edit · m status · P priority · A agent · [ ] move · tab panel · space/z fold · v board view · w plans · / search · B brain · o editor · ? help")
+		return i18n.T("enter open · n new · e edit · m status · P priority · A agent · [ ] move · D delete · tab panel · space/z fold · v board view · w plans · / search · B brain · o editor · ? help")
 	}
-	return i18n.T("enter open · n new · e edit · m status · P priority · A agent · [ ] move · tab panel · z fold · Z fold empty · v list view · w plans · / search · B brain · o editor · ? help")
+	return i18n.T("enter open · n new · e edit · m status · P priority · A agent · [ ] move · D delete · tab panel · z fold · Z fold empty · v list view · w plans · / search · B brain · o editor · ? help")
 }
 
 // hintLines is how many lines the wrapped board hints take below the tasks.
@@ -346,6 +346,8 @@ func (m Model) updateBoardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.pullBase()
 	case "c":
 		return m.requestCleanFromTask()
+	case "D":
+		return m.openDeleteTaskPopup()
 	case "m":
 		return m.openFieldPopup(propStatus)
 	case "P":

@@ -1,7 +1,10 @@
 package store
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -307,4 +310,82 @@ func scanTask(row scanner) (Task, error) {
 	t.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	t.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 	return t, nil
+}
+
+// ErrTaskRunning is returned when the task has an agent running.
+var ErrTaskRunning = errors.New("the task has an agent running: wait for it to finish or stop it first")
+
+// DeleteTask removes the task with its runs, rounds, review comments and
+// attachments (rows and files), in one transaction. A plan loses the step and
+// the remaining steps are renumbered. The caller must have dealt with any
+// worktree first.
+func (s *Store) DeleteTask(id int64) error {
+	t, err := s.GetTask(id)
+	if err != nil {
+		return err
+	}
+	var running int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM runs WHERE task_id = ? AND state = ?`, id, RunRunning).Scan(&running); err != nil {
+		return err
+	}
+	if running > 0 {
+		return ErrTaskRunning
+	}
+	atts, err := s.ListAttachments(id)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Children go explicitly so it does not depend on foreign_keys being on.
+	for _, q := range []string{
+		`DELETE FROM review_comments WHERE run_id IN (SELECT id FROM runs WHERE task_id = ?)`,
+		`DELETE FROM run_rounds WHERE run_id IN (SELECT id FROM runs WHERE task_id = ?)`,
+		`DELETE FROM runs WHERE task_id = ?`,
+		`DELETE FROM attachments WHERE task_id = ?`,
+		`DELETE FROM launch_queue WHERE task_id = ?`,
+		`DELETE FROM tasks WHERE id = ?`,
+	} {
+		if _, err := tx.Exec(q, id); err != nil {
+			return err
+		}
+	}
+	if t.PlanID != 0 {
+		rows, err := tx.Query(`SELECT id FROM tasks WHERE plan_id = ? ORDER BY plan_step, id`, t.PlanID)
+		if err != nil {
+			return err
+		}
+		var ids []int64
+		for rows.Next() {
+			var tid int64
+			if err := rows.Scan(&tid); err != nil {
+				rows.Close()
+				return err
+			}
+			ids = append(ids, tid)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+		for i, tid := range ids {
+			if _, err := tx.Exec(`UPDATE tasks SET plan_step = ? WHERE id = ?`, i+1, tid); err != nil {
+				return err
+			}
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	for _, a := range atts {
+		if a.Path != "" {
+			_ = os.Remove(a.Path)
+			_ = os.Remove(filepath.Dir(a.Path)) // the task folder, once empty
+		}
+	}
+	return nil
 }

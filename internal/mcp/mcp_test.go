@@ -129,7 +129,7 @@ func TestInitializeAndToolsList(t *testing.T) {
 	}
 	want := []string{
 		"projects_list", "project_show",
-		"tasks_list", "task_show", "task_create", "task_update", "task_move",
+		"tasks_list", "task_show", "task_create", "task_update", "task_move", "task_delete",
 		"plans_list", "plan_show", "plan_create", "plan_add_step", "plan_update", "plan_start", "plan_pause",
 		"run_show", "run_diff", "run_log", "run_wait",
 		"review_request_changes", "review_approve",
@@ -628,4 +628,21 @@ func TestReviewRequestChangesAndApprove(t *testing.T) {
 	if approvedRun == nil || approvedRun["state"] != store.RunApproved {
 		t.Fatalf("approve %+v", approved)
 	}
+}
+
+func TestTaskDelete(t *testing.T) {
+	session, s, _ := start(t)
+	p, err := s.Create(store.Project{Name: "App", RepoPath: "/tmp/app"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := s.CreateTask(store.Task{ProjectID: p.ID, Title: "Go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	call(t, session, "task_delete", map[string]any{"id": task.ID})
+	if _, err := s.GetTask(task.ID); err == nil {
+		t.Fatal("task should be gone")
+	}
+	callErr(t, session, "task_delete", map[string]any{"id": task.ID})
 }

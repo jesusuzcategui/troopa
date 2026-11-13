@@ -21,9 +21,16 @@ func init() {
 		"↓ %d more lines (PgDn)":                                              "↓ %d líneas más (AvPág)",
 		"No log: the worktree of this run was removed.":                       "Sin log: el worktree de esta ejecución ya se borró.",
 		"m status · P priority · A agent · tab edit fields · ctrl+d/u scroll": "m estado · P prioridad · A agente · tab editar campos · ctrl+d/u desplazar",
-		"j/k field · ←/→ change · J/K attachment · a attach · d remove · o open · e edit all · PgUp/PgDn scroll · esc back":                                                             "j/k campo · ←/→ cambiar · J/K adjunto · a adjuntar · d quitar · o abrir · e editar todo · RePág/AvPág desplazar · esc volver",
-		"enter open · n new · e edit · m status · P priority · A agent · [ ] move · tab panel · space/z fold · v board view · w plans · / search · B brain · o editor · ? help":         "enter abrir · n nueva · e editar · m estado · P prioridad · A agente · [ ] mover · tab panel · espacio/z plegar · v vista tablero · w planes · / buscar · B cerebro · o editor · ? ayuda",
-		"enter open · n new · e edit · m status · P priority · A agent · [ ] move · tab panel · z fold · Z fold empty · v list view · w plans · / search · B brain · o editor · ? help": "enter abrir · n nueva · e editar · m estado · P prioridad · A agente · [ ] mover · tab panel · z plegar · Z plegar vacíos · v vista lista · w planes · / buscar · B cerebro · o editor · ? ayuda",
+		"j/k field · ←/→ change · J/K attachment · a attach · d remove · o open · e edit all · PgUp/PgDn scroll · esc back":                                                                        "j/k campo · ←/→ cambiar · J/K adjunto · a adjuntar · d quitar · o abrir · e editar todo · RePág/AvPág desplazar · esc volver",
+		"enter open · n new · e edit · m status · P priority · A agent · [ ] move · D delete · tab panel · space/z fold · v board view · w plans · / search · B brain · o editor · ? help":         "enter abrir · n nueva · e editar · m estado · P prioridad · A agente · [ ] mover · D borrar · tab panel · espacio/z plegar · v vista tablero · w planes · / buscar · B cerebro · o editor · ? ayuda",
+		"enter open · n new · e edit · m status · P priority · A agent · [ ] move · D delete · tab panel · z fold · Z fold empty · v list view · w plans · / search · B brain · o editor · ? help": "enter abrir · n nueva · e editar · m estado · P prioridad · A agente · [ ] mover · D borrar · tab panel · z plegar · Z plegar vacíos · v vista lista · w planes · / buscar · B cerebro · o editor · ? ayuda",
+		"Delete task": "Borrar tarea",
+		"Delete task «%s»? Its runs, comments and attachments go with it.": "¿Borrar la tarea «%s»? Sus ejecuciones, comentarios y adjuntos se borran con ella.",
+		"Its worktree and branch %s will be removed.":                      "Se borrarán su worktree y la rama %s.",
+		"It is step %d of a plan: the plan loses it.":                      "Es el paso %d de un plan: el plan lo pierde.",
+		"Yes, delete":  "Sí, borrar",
+		"Task deleted": "Tarea borrada",
+		"This task has an agent running: wait for it to finish first": "Esta tarea tiene un agente en marcha: espera a que termine",
 	} {
 		es[k] = v
 	}

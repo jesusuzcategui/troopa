@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -30,6 +31,7 @@ const (
 	propConfirmClean         // not a task field: yes/no before cleaning a worktree
 	propConfirmDeleteComment // not a task field: yes/no before deleting a review comment
 	propConfirmDetach        // not a task field: yes/no before removing an attachment
+	propConfirmDeleteTask    // not a task field: yes/no before deleting a task for good
 )
 
 func (p prop) label() string {
@@ -72,7 +74,7 @@ func (p prop) options() []string {
 		return []string{"yes", "no"}
 	case propConfirmDeleteComment:
 		return []string{"yes", "no"}
-	case propConfirmDetach:
+	case propConfirmDetach, propConfirmDeleteTask:
 		return []string{"yes", "no"}
 	}
 	return nil
@@ -164,6 +166,52 @@ func (m Model) openDiscardPopup() (tea.Model, tea.Cmd) {
 		labels:  labels,
 		cursor:  cur,
 	}
+	return m, nil
+}
+
+// openDeleteTaskPopup asks before a task is removed for good, saying what goes
+// with it. It opens on No.
+func (m Model) openDeleteTaskPopup() (tea.Model, tea.Cmd) {
+	t, ok := m.selectedTask()
+	if !ok {
+		m.status = i18n.T("No task selected")
+		return m, nil
+	}
+	title := i18n.T("Delete task «%s»? Its runs, comments and attachments go with it.", truncate(t.Title, 32))
+	if run, err := m.store.LatestRun(t.ID); err == nil {
+		if run.State == store.RunRunning {
+			m.status = i18n.T("This task has an agent running: wait for it to finish first")
+			return m, nil
+		}
+		if run.Worktree != "" {
+			if _, err := os.Stat(run.Worktree); err == nil {
+				title += " " + i18n.T("Its worktree and branch %s will be removed.", run.Branch)
+			}
+		}
+	}
+	if t.PlanID != 0 {
+		title += " " + i18n.T("It is step %d of a plan: the plan loses it.", t.PlanStep)
+	}
+	m.popup = &popup{
+		kind:    propConfirmDeleteTask,
+		title:   title,
+		options: propConfirmDeleteTask.options(),
+		labels:  []string{i18n.T("Yes, delete"), i18n.T("No")},
+		cursor:  1,
+		taskID:  t.ID,
+	}
+	return m, nil
+}
+
+func (m Model) deleteTaskConfirmed(id int64) (tea.Model, tea.Cmd) {
+	if err := m.eng().DeleteTask(id); err != nil {
+		m.err = err.Error()
+		return m, nil
+	}
+	m.reloadTasks()
+	m.clampBoardCursor()
+	m.err = ""
+	m.status = i18n.T("Task deleted")
 	return m, nil
 }
 
@@ -261,6 +309,12 @@ func (m Model) applyPopup(value string) (tea.Model, tea.Cmd) {
 			return m.deleteComment(m.commentDeleteID)
 		}
 		m.commentDeleteID = 0
+		return m, nil
+	}
+	if p.kind == propConfirmDeleteTask {
+		if value == "yes" {
+			return m.deleteTaskConfirmed(p.taskID)
+		}
 		return m, nil
 	}
 	if p.kind == propConfirmDetach {

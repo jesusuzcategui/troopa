@@ -98,6 +98,7 @@
             <li><kbd>y</kbd> approve: with <code>commits = auto</code> it commits, pushes and opens a PR when there is a remote.</li>
             <li><kbd>g</kbd> merge an approved branch into the base on this computer (squash or merge commit). A task approved without committing is committed first.</li>
             <li><kbd>O</kbd> push the branch and open a PR instead (needs a remote and <code>gh</code>).</li>
+            <li><kbd>D</kbd> on a task deletes it after a confirmation (default No): its runs, comments and attachments go too, plus its worktree and branch if it still has them; a plan step is removed from its plan. A task with an agent running cannot be deleted.</li>
             <li><kbd>U</kbd> on the board pulls the base branch from its remote (fast-forward only), so the next task starts from fresh code.</li>
             <li><kbd>c</kbd> clean the worktree and keep the branch · <kbd>d</kbd> discard both.</li>
           </ul>
@@ -418,6 +419,7 @@ merge = "./scripts/deploy-staging.sh"</pre>
             <li><kbd>y</kbd> aprobar: con <code>commits = auto</code> hace commit, push y abre un PR si hay remoto.</li>
             <li><kbd>g</kbd> merge de una rama aprobada en la base, en esta computadora (squash o merge commit). Si la tarea se aprobó sin commit, primero se hace el commit.</li>
             <li><kbd>O</kbd> en vez del merge, sube la rama y abre un PR (necesita remoto y <code>gh</code>).</li>
+            <li><kbd>D</kbd> en una tarea la borra tras una confirmación (por defecto No): se van sus ejecuciones, comentarios y adjuntos, y su worktree y rama si aún existen; un paso de plan se quita del plan. No se puede borrar una tarea con un agente en marcha.</li>
             <li><kbd>U</kbd> en el tablero hace pull de la rama base desde el remoto (solo fast-forward), para que la siguiente tarea arranque con el código al día.</li>
             <li><kbd>c</kbd> limpiar el worktree y conservar la rama · <kbd>d</kbd> descartar ambos.</li>
           </ul>
