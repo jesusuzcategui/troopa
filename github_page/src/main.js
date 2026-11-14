@@ -1,10 +1,13 @@
 import "./style.css";
 import { strings } from "./i18n.js";
 import { logoSVG } from "./logo.js";
+import { initialLanguage, preserveLanguageLinks, replaceLanguageInURL, saveLanguage } from "./lang.js";
 import { createPlayer } from "./terminal.js";
+import { createDesktopDemo } from "./desktop-demo.js";
 import { renderFlowmap } from "./flowmap.js";
 
 const root = document.documentElement;
+let desktopDemo;
 
 // Language: English by default, Spanish when chosen; remembered per browser.
 const store = {
@@ -20,16 +23,23 @@ function applyLang(lang) {
     const v = dict[el.dataset.i18n];
     if (v) el.innerHTML = v;
   });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    const v = dict[el.dataset.i18nAria];
+    if (v) el.setAttribute("aria-label", v);
+  });
   document.getElementById("lang").textContent = lang === "en" ? "ES" : "EN";
   document.querySelectorAll(".copy").forEach((b) => (b.textContent = dict.copy));
+  preserveLanguageLinks(lang);
   renderFlowmap(document.getElementById("flowmap"), dict);
+  desktopDemo?.refresh();
 }
 
-let lang = store.get("troopa-lang") === "es" ? "es" : "en";
+let lang = initialLanguage();
 applyLang(lang);
 document.getElementById("lang").addEventListener("click", () => {
   lang = lang === "en" ? "es" : "en";
-  store.set("troopa-lang", lang);
+  saveLanguage(lang);
+  replaceLanguageInURL(lang);
   applyLang(lang);
 });
 
@@ -57,6 +67,19 @@ const player = createPlayer({
 });
 sceneTabs.forEach((t) => t.addEventListener("click", () => player.play(t.dataset.scene)));
 player.play("client");
+
+// Desktop app: the illustration uses the same language as the downloadable app.
+const desktopTabs = document.querySelectorAll(".desktop-demo-tabs [data-desktop-scene]");
+desktopDemo = createDesktopDemo({
+  screenEl: document.getElementById("desktop-demo-screen"),
+  figureEl: document.querySelector(".desktop-demo"),
+  getStrings: () => strings[lang] ?? strings.en,
+  onSceneChange: (name) => desktopTabs.forEach((tab) => tab.setAttribute("aria-selected", String(tab.dataset.desktopScene === name))),
+});
+desktopTabs.forEach((tab) => tab.addEventListener("click", () => desktopDemo.play(tab.dataset.desktopScene)));
+// A scene can be linked directly for documentation captures; normal visitors
+// start at Projects and continue through the loop.
+desktopDemo.play(new URLSearchParams(location.search).get("desktop-scene") ?? "projects");
 
 // Install tabs.
 const tabs = document.querySelectorAll('.tabs [role="tab"]');
@@ -98,19 +121,17 @@ const DOWNLOADS = {
 
 async function latestRelease() {
   const api = "https://api.github.com/repos/jesusuzcategui/troopa/releases";
-  // /latest ignores pre-releases, so fall back to the newest release of any kind.
-  for (const url of [`${api}/latest`, `${api}?per_page=1`]) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const body = await res.json();
-      const release = Array.isArray(body) ? body[0] : body;
-      if (release?.assets?.length) return release;
-    } catch {
-      return null;
-    }
+  try {
+    const res = await fetch(`${api}?per_page=20`);
+    if (!res.ok) return null;
+    const releases = await res.json();
+    // Prefer a stable release, but keep the newest pre-release usable too.
+    return releases.find((release) => !release.prerelease && !release.draft && release.assets?.length)
+      ?? releases.find((release) => !release.draft && release.assets?.length)
+      ?? null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 latestRelease().then((release) => {

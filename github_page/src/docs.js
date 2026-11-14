@@ -1,6 +1,7 @@
 import "./style.css";
 import { strings } from "./i18n.js";
 import { logoSVG } from "./logo.js";
+import { initialLanguage, preserveLanguageLinks, replaceLanguageInURL, saveLanguage } from "./lang.js";
 
 const root = document.documentElement;
 const store = {
@@ -19,6 +20,7 @@ function applyLang(lang) {
   });
   document.getElementById("lang").textContent = lang === "en" ? "ES" : "EN";
   document.querySelectorAll(".copy").forEach((b) => (b.textContent = dict.copy));
+  preserveLanguageLinks(lang);
   document.querySelectorAll(".toc a").forEach((a) => {
     const id = a.getAttribute("href").replace(/^#/, "").replace(/-es$/, "");
     a.setAttribute("href", "#" + (lang === "es" ? id + "-es" : id));
@@ -26,11 +28,12 @@ function applyLang(lang) {
   document.title = lang === "es" ? "Documentación de Troopa" : "Troopa docs";
 }
 
-let lang = store.get("troopa-lang") === "es" ? "es" : "en";
+let lang = initialLanguage();
 applyLang(lang);
 document.getElementById("lang").addEventListener("click", () => {
   lang = lang === "en" ? "es" : "en";
-  store.set("troopa-lang", lang);
+  saveLanguage(lang);
+  replaceLanguageInURL(lang);
   applyLang(lang);
 });
 

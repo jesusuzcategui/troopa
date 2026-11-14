@@ -7,6 +7,9 @@
   <meta name="description" content="Troopa is an open-source terminal app to plan tasks, hand them to AI coding agents in isolated git worktrees, review their work and merge it.">
   <meta property="og:title" content="Troopa">
   <meta property="og:description" content="Your AI agent troop in the terminal: projects, a task board, coding agents in git worktrees, review, and merge.">
+  <link rel="alternate" hreflang="en" href="https://jesusuzcategui.github.io/troopa/?lang=en">
+  <link rel="alternate" hreflang="es" href="https://jesusuzcategui.github.io/troopa/?lang=es">
+  <link rel="alternate" hreflang="x-default" href="https://jesusuzcategui.github.io/troopa/">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e1e2e'/%3E%3Cpath d='M16 5l3 5h-6z' fill='%23cba6f7'/%3E%3Crect x='8' y='11' width='16' height='9' rx='2' fill='%23cba6f7'/%3E%3Ccircle cx='12.5' cy='15.5' r='2' fill='%231e1e2e'/%3E%3Ccircle cx='19.5' cy='15.5' r='2' fill='%231e1e2e'/%3E%3Crect x='11' y='21' width='10' height='6' rx='1.5' fill='%23cdd6f4'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +24,7 @@
         <a href="#flow" data-i18n="nav.flow">How it works</a>
         <a href="#install" data-i18n="nav.install">Install</a>
         <a href="#download" data-i18n="nav.download">Download</a>
+        <a href="#contribute" data-i18n="nav.contribute">Contribute</a>
         <a href="#keys" data-i18n="nav.keys">Keys</a>
         <a href="docs.html" data-i18n="nav.docs">Docs</a>
         <a href="changelog.html" data-i18n="nav.changelog">Changelog</a>
@@ -250,14 +254,39 @@ sudo pacman -U ./troopa_*_linux_amd64.pkg.tar.zst</pre>
       <div class="wrap">
         <h2 data-i18n="dl.title">Download the desktop app</h2>
         <p class="sub" data-i18n="dl.sub">A window over the same projects, tasks and agents as the terminal, for when you would rather click than type. It is optional: the CLI above installs Troopa itself, and both read the same database.</p>
+        <figure class="desktop-demo" aria-label="Animated desktop app demo" data-i18n-aria="desktop.aria">
+          <div class="desktop-demo-bar">
+            <span></span><span></span><span></span>
+            <div class="desktop-demo-tabs" role="tablist" aria-label="Desktop app demo" data-i18n-aria="desktop.tabs">
+              <button type="button" role="tab" data-desktop-scene="projects" data-i18n="desktop.projects">Projects</button>
+              <button type="button" role="tab" data-desktop-scene="board" data-i18n="desktop.board">Board</button>
+              <button type="button" role="tab" data-desktop-scene="run" data-i18n="desktop.run">Run</button>
+              <button type="button" role="tab" data-desktop-scene="plans" data-i18n="desktop.plans">Plans</button>
+            </div>
+          </div>
+          <div id="desktop-demo-screen" class="desktop-demo-screen" aria-live="off"></div>
+        </figure>
         <div class="cta" id="downloads">
-          <a class="btn primary" id="dl-linux-appimage" href="https://github.com/jesusuzcategui/troopa/releases" data-i18n="dl.appimage">Linux · AppImage</a>
-          <a class="btn" id="dl-linux-deb" href="https://github.com/jesusuzcategui/troopa/releases" data-i18n="dl.deb">Linux · .deb</a>
-          <a class="btn" id="dl-macos" href="https://github.com/jesusuzcategui/troopa/releases" data-i18n="dl.macos">macOS · Intel and Apple Silicon</a>
-          <a class="btn" id="dl-windows" href="https://github.com/jesusuzcategui/troopa/releases" data-i18n="dl.windows">Windows · installer</a>
+          <a class="btn primary" id="dl-linux-appimage" href="https://github.com/jesusuzcategui/troopa/releases"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 19h14"/></svg><span data-i18n="dl.appimage">Linux · AppImage</span></a>
+          <a class="btn" id="dl-linux-deb" href="https://github.com/jesusuzcategui/troopa/releases"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5"/></svg><span data-i18n="dl.deb">Linux · .deb</span></a>
+          <a class="btn" id="dl-macos" href="https://github.com/jesusuzcategui/troopa/releases"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5.5c.6-.8.9-1.8.8-2.5-1 .1-2 .7-2.6 1.5-.6.7-.9 1.7-.8 2.5 1 .1 2-.5 2.6-1.5zM18.5 16.5c-.5 1.2-1.1 2.3-2 3.2-.8.9-1.7 1.8-3 1.8-1.1 0-1.5-.7-2.8-.7s-1.7.7-2.8.7c-1.2 0-2.1-1-2.9-1.8-1.8-2-3.2-5.5-1.3-8.6.9-1.5 2.5-2.4 4.1-2.4 1.2 0 2.3.8 3 .8.7 0 2-.9 3.4-.8.6 0 2.4.2 3.5 1.9-2.8 1.6-2.4 5.5.8 6z"/></svg><span data-i18n="dl.macos">macOS · Intel and Apple Silicon</span></a>
+          <a class="btn" id="dl-windows" href="https://github.com/jesusuzcategui/troopa/releases"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4v7H3zm9 5.5V3.8L21 3v8zm-9 1.5h7.5v7L3 18zm9 0h9v8.5l-9-1.3z"/></svg><span data-i18n="dl.windows">Windows · installer</span></a>
         </div>
         <p class="sub"><span id="dl-version"></span> <a class="link" href="https://github.com/jesusuzcategui/troopa/releases" data-i18n="install.releases">Latest release →</a></p>
         <p class="sub" data-i18n="dl.notes">The AppImage runs on any Linux with no installation: make it executable and open it. The app is not signed with a paid certificate, so macOS asks you to allow it in System Settings → Privacy &amp; Security the first time, and Windows shows a SmartScreen warning: choose <em>More info → Run anyway</em>. <a class="link" href="docs.html#desktop">How the desktop app works →</a></p>
+      </div>
+    </section>
+
+    <section id="contribute" class="band">
+      <div class="wrap">
+        <h2 data-i18n="contribute.title">Contribute to Troopa</h2>
+        <p class="sub" data-i18n="contribute.lede">Troopa welcomes contributions: fixes, ideas and documentation all help.</p>
+        <ol class="points">
+          <li data-i18n="contribute.fork">Fork the repository and create a branch for your change.</li>
+          <li data-i18n="contribute.checks">Run <code>go vet ./...</code> and <code>go test ./...</code>; run <code>npm run build</code> too when you touch the site.</li>
+          <li data-i18n="contribute.pr">Open a pull request against <code>main</code>; I will review it.</li>
+        </ol>
+        <p class="more"><a class="link" href="https://github.com/jesusuzcategui/troopa/blob/main/CONTRIBUTING.md" data-i18n="contribute.guide">Read the contribution guide →</a> · <a class="link" href="https://github.com/jesusuzcategui/troopa/issues" data-i18n="contribute.issues">Report a bug or propose an idea →</a> · <a class="link" href="https://github.com/jesusuzcategui/troopa/pulls" data-i18n="contribute.prs">Pull request guide →</a></p>
       </div>
     </section>
 
@@ -289,7 +318,7 @@ sudo pacman -U ./troopa_*_linux_amd64.pkg.tar.zst</pre>
   <footer class="foot">
     <div class="wrap foot-row">
       <p><span data-i18n="foot.made">Made by</span> <a href="https://jesusuzcategui.com">Jesús Uzcátegui</a> · <span data-i18n="foot.license">MIT license</span></p>
-      <p><a href="https://github.com/jesusuzcategui/troopa">github.com/jesusuzcategui/troopa</a></p>
+      <p><a href="#contribute" data-i18n="nav.contribute">Contribute</a> · <a href="https://github.com/jesusuzcategui/troopa">github.com/jesusuzcategui/troopa</a></p>
     </div>
   </footer>
   <script type="module" src="/src/main.js"></script>

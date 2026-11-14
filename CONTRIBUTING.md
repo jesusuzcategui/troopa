@@ -13,10 +13,13 @@ The TUI is `go run ./cmd/troopa`. Data: `$XDG_DATA_HOME/troopa/` (default `~/.lo
 
 ## Pull requests
 
+- Fork the repository, create a branch from `main`, and keep the change focused.
+- Before opening the PR, run `go vet ./...` and `go test ./...`. For site changes, also run `cd github_page && npm run build`.
+- Open the pull request against `main`; the maintainer reviews it there.
 - Keep diffs scoped to the change. Match existing packages: `internal/tui`, `internal/store`, `internal/launch`, `internal/config`, `internal/cli`.
 - Add or extend tests next to the code (`go test ./...`).
 - Do not commit `bin/`, `dist/`, databases, or personal paths, emails, or tokens.
-- Do not push to `main`. Open a PR.
+- Do not push directly to `main`.
 
 ## Themes
 

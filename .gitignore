@@ -13,3 +13,4 @@
 /build/windows/nsis/*.exe
 *.syso
 .impeccable/
+docs/capturas-sitio/

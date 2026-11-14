@@ -1,6 +1,7 @@
 import "./style.css";
 import { strings } from "./i18n.js";
 import { logoSVG } from "./logo.js";
+import { initialLanguage, preserveLanguageLinks, replaceLanguageInURL, saveLanguage } from "./lang.js";
 import changelog from "../../CHANGELOG.md?raw";
 
 const root = document.documentElement;
@@ -67,15 +68,17 @@ function applyLang(lang) {
     if (v) el.innerHTML = v;
   });
   document.getElementById("lang").textContent = lang === "en" ? "ES" : "EN";
+  preserveLanguageLinks(lang);
   document.title = lang === "es" ? "Cambios de Troopa" : "Troopa changelog";
 }
 
 render();
-let lang = store.get("troopa-lang") === "es" ? "es" : "en";
+let lang = initialLanguage();
 applyLang(lang);
 document.getElementById("lang").addEventListener("click", () => {
   lang = lang === "en" ? "es" : "en";
-  store.set("troopa-lang", lang);
+  saveLanguage(lang);
+  replaceLanguageInURL(lang);
   applyLang(lang);
 });
 
